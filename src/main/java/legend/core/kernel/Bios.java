@@ -599,6 +599,9 @@ public final class Bios {
     }
 
     entry.cast(BiConsumerRef::new).run(param1, param2);
+
+    GATE.acquire();
+
     return 0x1L;
   }
 

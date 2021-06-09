@@ -129,7 +129,7 @@ public class CdlLOC {
    *
    * Replacement for DsIntToPos
    *
-   * The absolute sector number specified by <tt>packed</tt> is converted to minutes, seconds, and sectors and the result is returned
+   * The absolute sector number specified by <pre>packed</pre> is converted to minutes, seconds, and sectors and the result is returned
    *
    * @param packed Absolute sector number
    */
