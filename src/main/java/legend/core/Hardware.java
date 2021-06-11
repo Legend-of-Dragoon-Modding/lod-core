@@ -15,7 +15,6 @@ import legend.core.memory.segments.PeripheralIoSegment;
 import legend.core.memory.segments.PrivilegeGate;
 import legend.core.memory.segments.RamSegment;
 import legend.core.memory.segments.RomSegment;
-import legend.core.memory.segments.TimerSegment;
 import legend.core.memory.types.RunnableRef;
 import legend.core.spu.Spu;
 import org.apache.logging.log4j.LogManager;
@@ -38,6 +37,7 @@ public final class Hardware {
   public static final Cpu CPU = new Cpu();
   public static final InterruptController INTERRUPTS;
   public static final DmaManager DMA;
+  public static final Timers TIMERS;
   public static final CdDrive CDROM;
   public static final Spu SPU;
 
@@ -73,11 +73,11 @@ public final class Hardware {
     MEMORY.addSegment(GATE.wrap(new InvalidSegment(0x0090L, 0x10)));
 
     // 0xa0 (0x10) - A(nn) function vector
-    MEMORY.addSegment(GATE.wrap(new RamSegment(0xa0L, 0x10)));
+    MEMORY.addSegment(GATE.readonly(new RamSegment(0xa0L, 0x10)));
     // 0xb0 (0x10) - B(nn) function vector
-    MEMORY.addSegment(GATE.wrap(new RamSegment(0xb0L, 0x10)));
+    MEMORY.addSegment(GATE.readonly(new RamSegment(0xb0L, 0x10)));
     // 0xc0 (0x10) - C(nn) function vector
-    MEMORY.addSegment(GATE.wrap(new RamSegment(0xc0L, 0x10)));
+    MEMORY.addSegment(GATE.readonly(new RamSegment(0xc0L, 0x10)));
 
     // 0xd0 (0x30) - Unused/reserved
     MEMORY.addSegment(GATE.wrap(new InvalidSegment(0x00d0L, 0x30)));
@@ -112,6 +112,7 @@ public final class Hardware {
     // --- User memory ------------------------
 
     MEMORY.addSegment(new RamSegment(0x0001_0000L, 0x1f_0000));
+    MEMORY.addSegment(new RamSegment(0x1f80_0000L, 0x400));
 
     // --- Bios ROM ---------------------------
 
@@ -127,11 +128,11 @@ public final class Hardware {
     MEMORY.addSegment(new MemoryControl1Segment(0x1f80_1000L));
     MEMORY.addSegment(new PeripheralIoSegment(0x1f80_1040L));
     MEMORY.addSegment(new MemoryControl2Segment(0x1f80_1060L));
-    MEMORY.addSegment(new TimerSegment(0x1f80_1100L));
     MEMORY.addSegment(new ExpansionRegion2Segment(0x1f80_2000L));
 
     INTERRUPTS = new InterruptController(MEMORY);
     DMA = new DmaManager(MEMORY);
+    TIMERS = new Timers(MEMORY);
     CDROM = new CdDrive(MEMORY);
     SPU = new Spu(MEMORY);
 
@@ -167,6 +168,19 @@ public final class Hardware {
 
       if(DMA.tick()) {
         INTERRUPTS.set(InterruptType.DMA);
+      }
+
+      //TODO
+//      TIMERS.syncGPU(gpu.getBlanksAndDot());
+
+      if(TIMERS.tick(0, 100)) {
+        INTERRUPTS.set(InterruptType.TMR0);
+      }
+      if(TIMERS.tick(1, 100)) {
+        INTERRUPTS.set(InterruptType.TMR1);
+      }
+      if(TIMERS.tick(2, 100)) {
+        INTERRUPTS.set(InterruptType.TMR2);
       }
 
       if(SPU.tick(100)) {

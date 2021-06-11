@@ -5,6 +5,7 @@ import legend.core.memory.Ref;
 import legend.core.memory.Value;
 import legend.core.memory.types.ArrayRef;
 import legend.core.memory.types.BiFunctionRef;
+import legend.core.memory.types.BoolRef;
 import legend.core.memory.types.ConsumerRef;
 import legend.core.memory.types.Pointer;
 import legend.core.memory.types.RunnableRef;
@@ -20,20 +21,20 @@ import static legend.core.Hardware.CPU;
 import static legend.core.Hardware.MEMORY;
 import static legend.core.InterruptController.I_MASK;
 import static legend.core.InterruptController.I_STAT;
+import static legend.core.Timers.TMR_DOTCLOCK_MAX;
+import static legend.core.Timers.TMR_DOTCLOCK_MODE;
+import static legend.core.Timers.TMR_DOTCLOCK_VAL;
+import static legend.core.Timers.TMR_HRETRACE_MAX;
+import static legend.core.Timers.TMR_HRETRACE_MODE;
+import static legend.core.Timers.TMR_HRETRACE_VAL;
+import static legend.core.Timers.TMR_SYSCLOCK_MAX;
+import static legend.core.Timers.TMR_SYSCLOCK_MODE;
+import static legend.core.Timers.TMR_SYSCLOCK_VAL;
 import static legend.core.kernel.Bios.EventControlBlockAddr_a0000120;
 import static legend.core.kernel.Bios.EventControlBlockSize_a0000124;
 import static legend.core.kernel.Bios.ExceptionChainAddr_a0000100;
 import static legend.core.kernel.Bios.ProcessControlBlockAddr_a0000108;
 import static legend.core.kernel.Bios.setBootStatus;
-import static legend.core.memory.segments.TimerSegment.TMR_DOTCLOCK_MAX;
-import static legend.core.memory.segments.TimerSegment.TMR_DOTCLOCK_MODE;
-import static legend.core.memory.segments.TimerSegment.TMR_DOTCLOCK_VAL;
-import static legend.core.memory.segments.TimerSegment.TMR_HRETRACE_MAX;
-import static legend.core.memory.segments.TimerSegment.TMR_HRETRACE_MODE;
-import static legend.core.memory.segments.TimerSegment.TMR_HRETRACE_VAL;
-import static legend.core.memory.segments.TimerSegment.TMR_SYSCLOCK_MAX;
-import static legend.core.memory.segments.TimerSegment.TMR_SYSCLOCK_MODE;
-import static legend.core.memory.segments.TimerSegment.TMR_SYSCLOCK_VAL;
 
 public final class Kernel {
   private Kernel() { }
@@ -77,7 +78,7 @@ public final class Kernel {
 
   private static final Value _000085f8 = MEMORY.ref(4, 0x000085f8L);
   private static final Value _000085fc = MEMORY.ref(4, 0x000085fcL);
-  private static final Value _00008600 = MEMORY.ref(4, 0x00008600L);
+  private static final ArrayRef<BoolRef> _00008600 = MEMORY.ref(16, 0x00008600L, ArrayRef.of(BoolRef.class, 4, 4, BoolRef::new));
 
   private static final Value _00008610 = MEMORY.ref(4, 0x00008610L);
   private static final Value _00008614 = MEMORY.ref(4, 0x00008614L);
@@ -92,6 +93,7 @@ public final class Kernel {
   private static final Value ttyFlag_00008908 = MEMORY.ref(4, 0x00008908L);
   private static final Value _0000890c = MEMORY.ref(4, 0x0000890cL);
   private static final Value _00008910 = MEMORY.ref(4, 0x00008910L);
+  private static final Value _00008914 = MEMORY.ref(4, 0x00008914L);
 
   private static final Value FileControlBlockAddr_a0000140 = MEMORY.ref(4, 0xa0000140L);
   private static final Value FileControlBlockSize_a0000144 = MEMORY.ref(4, 0xa0000144L);
@@ -296,6 +298,11 @@ public final class Kernel {
     exceptionVector_00000080.set(Kernel::exceptionVector);
 
     FlushCache();
+  }
+
+  @Method(0xf20L)
+  public static void SetCustomExitFromException_Impl_B19(final jmp_buf buffer) {
+    ExceptionExitStruct_000075d0.set(buffer);
   }
 
   @Method(0xf2cL)
@@ -519,11 +526,58 @@ public final class Kernel {
   }
 
   @Method(0x1420L)
-  public static int SysEnqIntRP_Impl_C02(final int priority, final long struct) {
+  public static long SysEnqIntRP_Impl_C02(final int priority, final long struct) {
     final Value address = exceptionChainAddr_00000100.deref(4).offset(priority * 8L);
     MEMORY.ref(4, struct).setu(address);
     address.setu(struct);
     return 0;
+  }
+
+  @Method(0x1444L)
+  public static long SysDeqIntRP_Impl_C03(final int priority, final long struct) {
+    long v1 = exceptionChainAddr_00000100.deref(4).offset(priority * 8L).getAddress();
+    long a2 = MEMORY.ref(4, v1).get();
+
+    if(a2 == 0) {
+      return 0;
+    }
+
+    //LAB_0000146c
+    if(a2 == struct) {
+      MEMORY.ref(4, v1).setu(MEMORY.ref(4, a2));
+      return a2;
+    }
+
+    //LAB_00001484
+    long v0 = MEMORY.ref(4, a2).get();
+    if(v0 == 0) {
+      return 0;
+    }
+
+    //LAB_0000149c
+    //LAB_000014b0
+    //LAB_000014c4
+    do {
+      v1 = a2;
+      a2 = v0;
+
+      //LAB_000014c8
+      if(v0 == struct) {
+        break;
+      }
+
+      v0 = MEMORY.ref(4, v0).get();
+    } while(v0 != 0);
+
+    //LAB_000014e4
+    if(a2 != struct) {
+      return 0;
+    }
+
+    MEMORY.ref(4, v1).setu(MEMORY.ref(4, a2));
+
+    //LAB_00001500
+    return a2;
   }
 
   @Method(0x1508L)
@@ -534,14 +588,14 @@ public final class Kernel {
 
     final long end = DefaultInterruptPriorityChainStruct_00006d98.getAddress();
     long struct = _00006d58.getAddress();
-    long s1 = _00008600.getAddress();
+    int i = 0;
 
     //LAB_00001570
     do {
-      MEMORY.ref(4, s1).setu(0x1L);
+      _00008600.get(i).set(true);
       SysEnqIntRP_Impl_C02(priority, struct);
       struct += 0x10L;
-      s1 += 0x4L;
+      i++;
     } while(struct != end);
 
     //LAB_00001594
@@ -555,6 +609,13 @@ public final class Kernel {
     TMR_SYSCLOCK_MODE.setu(0);
     TMR_SYSCLOCK_MAX.setu(0);
     FUN_000027a0();
+  }
+
+  @Method(0x15d8L)
+  public static boolean ChangeClearRCnt_Impl_C0a(final int t, final boolean flag) {
+    final boolean oldValue = _00008600.get(t).get();
+    _00008600.get(t).set(flag);
+    return oldValue;
   }
 
   @Method(0x1794L)
@@ -662,13 +723,12 @@ public final class Kernel {
   }
 
   @Method(0x1b20L)
-  public static int EnqueueSyscallHandler_Impl_C01(final int priority) {
+  public static long EnqueueSyscallHandler_Impl_C01(final int priority) {
     return SysEnqIntRP_Impl_C02(priority, SyscallHandlerStruct_00006da8.getAddress());
   }
 
   @Method(0x1b44L)
   public static void DeliverEvent_Impl_B07(final long cls, final int spec) {
-
     final long v1 = EventControlBlockAddr_a0000120.get();
     final long s4 = v1 + EventControlBlockSize_a0000124.get() / 0x1cL * 0x1c;
     long s0 = v1;
@@ -759,6 +819,12 @@ public final class Kernel {
 
     //LAB_00001e0c
     return 0xf100_0000 | id;
+  }
+
+  @Method(0x1e1cL)
+  public static int CloseEvent_Impl_B09(final int event) {
+    EventControlBlockAddr_a0000120.deref(4).offset(event * 28L).setu(0);
+    return 1;
   }
 
   @Method(0x1ec8L)
@@ -854,7 +920,7 @@ public final class Kernel {
   }
 
   @Method(0x2724L)
-  public static int InitDefInt_Impl_C0c(final int priority) {
+  public static long InitDefInt_Impl_C0c(final int priority) {
     _00008610.setu(0);
     _00008614.setu(0);
     _00008618.setu(0);
@@ -1314,6 +1380,13 @@ public final class Kernel {
         FileIoctl_Impl_B37(fd, 0x6602, 0);
       }
     }
+  }
+
+  @Method(0x43d0L)
+  public static boolean ChangeClearPad_Impl_B5b(final boolean val) {
+    final boolean oldValue = _00008914.get() != 0;
+    _00008914.setu(val ? 1 : 0);
+    return oldValue;
   }
 
   @Method(0x6a70L)

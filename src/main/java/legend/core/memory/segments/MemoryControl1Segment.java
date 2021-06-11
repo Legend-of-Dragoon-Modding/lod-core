@@ -73,47 +73,47 @@ public class MemoryControl1Segment extends Segment {
 
     switch(offset & 0x3c) {
       case 0x00 -> {
-        LOGGER.info("Setting expansion 1 base address to %08x", value);
+        LOGGER.debug("Setting expansion 1 base address to %08x", value);
         this.expansion1BaseAddress = value;
       }
 
       case 0x04 -> {
-        LOGGER.info("Setting expansion 2 base address to %08x", value);
+        LOGGER.debug("Setting expansion 2 base address to %08x", value);
         this.expansion2BaseAddress = value;
       }
 
       case 0x08 -> {
-        LOGGER.info("Setting expansion 1 delay/size to %08x", value);
+        LOGGER.debug("Setting expansion 1 delay/size to %08x", value);
         this.expansion1Delay = value;
       }
 
       case 0x0c -> {
-        LOGGER.info("Setting expansion 3 delay/size to %08x", value);
+        LOGGER.debug("Setting expansion 3 delay/size to %08x", value);
         this.expansion3Delay = value;
       }
 
       case 0x10 -> {
-        LOGGER.info("Setting BIOS ROM delay/size to %08x", value);
+        LOGGER.debug("Setting BIOS ROM delay/size to %08x", value);
         this.biosRomDelay = value;
       }
 
       case 0x14 -> {
-        LOGGER.info("Setting SPU delay/size to %08x", value);
+        LOGGER.debug("Setting SPU delay/size to %08x", value);
         this.spuDelay = value;
       }
 
       case 0x18 -> {
-        LOGGER.info("Setting CDROM delay/size to %08x", value);
+        LOGGER.debug("Setting CDROM delay/size to %08x", value);
         this.cdromDelay = value;
       }
 
       case 0x1c -> {
-        LOGGER.info("Setting expansion 2 delay/size to %08x", value);
+        LOGGER.debug("Setting expansion 2 delay/size to %08x", value);
         this.expansion2Delay = value;
       }
 
       case 0x20 -> {
-        LOGGER.info("Setting com delay to %08x", value);
+        LOGGER.debug("Setting com delay to %08x", value);
         this.comDelay = value;
       }
     }

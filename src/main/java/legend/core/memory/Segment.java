@@ -35,7 +35,7 @@ public abstract class Segment {
   public abstract void set(final int offset, final int size, final long value);
 
   public byte[] getBytes(final int offset, final int size) {
-    throw new UnsupportedOperationException("This memory segment does not support direct reads");
+    throw new UnsupportedOperationException("This memory segment does not support direct reads (address: " + Long.toHexString(this.getAddress() + offset) + ')');
   }
 
   public void setBytes(final int offset, final byte[] data) {
@@ -52,7 +52,7 @@ public abstract class Segment {
     final MethodBinding method = this.functions.get(offset);
 
     if(method == null) {
-      throw new UnsupportedOperationException("There is no method at " + Long.toString(this.address + offset, 16) + ". The value is " + Long.toString(this.get(offset, 4), 16) + '.');
+      throw new UnsupportedOperationException("There is no method at " + Long.toString(this.getAddress() + offset, 16) + ". The value is " + Long.toString(this.get(offset, 4), 16) + '.');
     }
 
     return method;

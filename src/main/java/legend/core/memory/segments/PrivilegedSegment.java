@@ -38,7 +38,10 @@ public class PrivilegedSegment extends Segment {
 
   @Override
   public byte[] getBytes(final int offset, final int size) {
-    this.gate.test();
+    if(!this.readable) {
+      this.gate.test();
+    }
+
     return this.segment.getBytes(offset, size);
   }
 
@@ -68,13 +71,19 @@ public class PrivilegedSegment extends Segment {
 
   @Override
   protected MethodBinding getFunction(final int offset) {
-    this.gate.test();
+    if(!this.readable) {
+      this.gate.test();
+    }
+
     return super.getFunction(offset);
   }
 
   @Override
   protected boolean isFunction(final int offset) {
-    this.gate.test();
+    if(!this.readable) {
+      this.gate.test();
+    }
+
     return super.isFunction(offset);
   }
 }

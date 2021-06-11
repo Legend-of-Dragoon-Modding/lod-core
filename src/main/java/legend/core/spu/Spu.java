@@ -566,27 +566,27 @@ public class Spu {
       if(size == 2) {
         switch(offset & 0x3e) {
           case 0x00 -> {
-            LOGGER.info("Setting SPU main volume left to %04x", value);
+            LOGGER.debug("Setting SPU main volume left to %04x", value);
             Spu.this.mainVolumeL = value;
           }
 
           case 0x02 -> {
-            LOGGER.info("Setting SPU main volume right to %04x", value);
+            LOGGER.debug("Setting SPU main volume right to %04x", value);
             Spu.this.mainVolumeR = value;
           }
 
           case 0x04 -> {
-            LOGGER.info("Setting SPU reverb output volume left to %04x", value);
+            LOGGER.debug("Setting SPU reverb output volume left to %04x", value);
             Spu.this.reverbOutputVolumeL = value;
           }
 
           case 0x06 -> {
-            LOGGER.info("Setting SPU reverb output volume right to %04x", value);
+            LOGGER.debug("Setting SPU reverb output volume right to %04x", value);
             Spu.this.reverbOutputVolumeR = value;
           }
 
           case 0x22 -> {
-            LOGGER.info("Setting SPU reverb work area address to %04x", value);
+            LOGGER.debug("Setting SPU reverb work area address to %04x", value);
             Spu.this.reverbWorkAreaAddress = value;
           }
 
@@ -596,20 +596,20 @@ public class Spu {
           }
 
           case 0x26 -> {
-            LOGGER.info("Setting SPU data transfer address to %04x", value);
+            LOGGER.debug("Setting SPU data transfer address to %04x", value);
             Spu.this.dataTransferAddress = value;
             Spu.this.ramDataTransferAddressInternal = (int)(value * 8);
           }
 
           case 0x28 -> {
-            LOGGER.info("Setting SPU data transfer FIFO to %04x", value);
+            LOGGER.debug("Setting SPU data transfer FIFO to %04x", value);
             Spu.this.dataTransferFifo = value;
             Spu.this.ram[Spu.this.ramDataTransferAddressInternal++ & 0xffff] = (byte)(value & 0xff);
             Spu.this.ram[Spu.this.ramDataTransferAddressInternal++ & 0xffff] = (byte)(value >>> 8 & 0xff);
           }
 
           case 0x2a -> {
-            LOGGER.info("Setting SPU control to %04x", value);
+            LOGGER.debug("Setting SPU control to %04x", value);
             Spu.this.control.register = (short)value;
 
             // IRQ flag is reset on ack
@@ -623,39 +623,39 @@ public class Spu {
           }
 
           case 0x2c -> {
-            LOGGER.info("Setting SPU data transfer control to %04x", value);
+            LOGGER.debug("Setting SPU data transfer control to %04x", value);
             Spu.this.dataTransferControl = value;
           }
 
           case 0x2e -> throw new IllegalAddressException("SPU status register is read-only");
 
           case 0x30 -> {
-            LOGGER.info("Setting SPU CD volume left to %04x", value);
+            LOGGER.debug("Setting SPU CD volume left to %04x", value);
             Spu.this.cdVolumeL = value;
           }
 
           case 0x32 -> {
-            LOGGER.info("Setting SPU CD volume right to %04x", value);
+            LOGGER.debug("Setting SPU CD volume right to %04x", value);
             Spu.this.cdVolumeR = value;
           }
 
           case 0x34 -> {
-            LOGGER.info("Setting SPU external volume left to %04x", value);
+            LOGGER.debug("Setting SPU external volume left to %04x", value);
             Spu.this.externalVolumeL = value;
           }
 
           case 0x36 -> {
-            LOGGER.info("Setting SPU external volume right to %04x", value);
+            LOGGER.debug("Setting SPU external volume right to %04x", value);
             Spu.this.externalVolumeR = value;
           }
 
           case 0x38 -> {
-            LOGGER.info("Setting SPU current volume left to %04x", value);
+            LOGGER.debug("Setting SPU current volume left to %04x", value);
             Spu.this.currentMainVolumeL = value;
           }
 
           case 0x3a -> {
-            LOGGER.info("Setting SPU current volume right to %04x", value);
+            LOGGER.debug("Setting SPU current volume right to %04x", value);
             Spu.this.currentMainVolumeR = value;
           }
         }
@@ -666,58 +666,58 @@ public class Spu {
       if(size == 4) {
         switch(offset & 0x3c) {
           case 0x00 -> {
-            LOGGER.info("Setting SPU main volume to %08x", value);
+            LOGGER.debug("Setting SPU main volume to %08x", value);
             Spu.this.mainVolumeL = value & 0xffffL;
             Spu.this.mainVolumeR = value >>> 16;
           }
 
           case 0x04 -> {
-            LOGGER.info("Setting SPU reverb output volume to %08x", value);
+            LOGGER.debug("Setting SPU reverb output volume to %08x", value);
             Spu.this.reverbOutputVolumeL = value & 0xffffL;
             Spu.this.reverbOutputVolumeR = value >>> 16;
           }
 
           case 0x08 -> {
-            LOGGER.info("Setting SPU key on to 08x", value);
+            LOGGER.debug("Setting SPU key on to 08x", value);
             Spu.this.keyOn = value;
           }
 
           case 0x0c -> {
-            LOGGER.info("Setting SPU key off to 08x", value);
+            LOGGER.debug("Setting SPU key off to 08x", value);
             Spu.this.keyOff = value;
           }
 
           case 0x10 -> {
-            LOGGER.info("Setting SPU channel FM mode to 08x", value);
+            LOGGER.debug("Setting SPU channel FM mode to 08x", value);
             Spu.this.channelFmMode = value;
           }
 
           case 0x14 -> {
-            LOGGER.info("Setting SPU channel noise mode to 08x", value);
+            LOGGER.debug("Setting SPU channel noise mode to 08x", value);
             Spu.this.channelNoiseMode = value;
           }
 
           case 0x18 -> {
-            LOGGER.info("Setting SPU channel reverb mode to 08x", value);
+            LOGGER.debug("Setting SPU channel reverb mode to 08x", value);
             Spu.this.channelReverbMode = value;
           }
 
           case 0x1c -> throw new IllegalAddressException("SPU channel on/off status is read-only");
 
           case 0x30 -> {
-            LOGGER.info("Setting SPU CD volume to %08x", value);
+            LOGGER.debug("Setting SPU CD volume to %08x", value);
             Spu.this.cdVolumeL = value & 0xffffL;
             Spu.this.cdVolumeR = value >>> 16;
           }
 
           case 0x34 -> {
-            LOGGER.info("Setting SPU external volume to %08x", value);
+            LOGGER.debug("Setting SPU external volume to %08x", value);
             Spu.this.externalVolumeL = value & 0xffffL;
             Spu.this.externalVolumeR = value >>> 16;
           }
 
           case 0x38 -> {
-            LOGGER.info("Setting SPU current volume to %08x", value);
+            LOGGER.debug("Setting SPU current volume to %08x", value);
             Spu.this.currentMainVolumeL = value & 0xffffL;
             Spu.this.currentMainVolumeR = value >>> 16;
           }

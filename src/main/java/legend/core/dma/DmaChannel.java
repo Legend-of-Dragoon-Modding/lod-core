@@ -96,16 +96,16 @@ public class DmaChannel {
   }
 
   private void onMadrWrite(final long value) {
-    LOGGER.info("DMA channel %s memory address set from %08x to %08x", this.channel, this.madr, value);
+    LOGGER.debug("DMA channel %s memory address set from %08x to %08x", this.channel, this.madr, value);
     this.madr = value;
   }
 
   private void onBcrWrite(final long value) {
     // CDROM or OTC
     if(this.channel == DmaChannelType.CDROM || this.channel == DmaChannelType.OTC) {
-      LOGGER.info("DMA channel %s number of words=%04x", this.channel, value & 0xffffL);
+      LOGGER.debug("DMA channel %s number of words=%04x", this.channel, value & 0xffffL);
     } else {
-      LOGGER.info("DMA channel %s blocksize=%04x number of blocks=%04x", this.channel, value & 0xffffL, value >>> 16);
+      LOGGER.debug("DMA channel %s blocksize=%04x number of blocks=%04x", this.channel, value & 0xffffL, value >>> 16);
       assert value >>> 16 != 0 : "Number of blocks was 0";
     }
 
@@ -138,13 +138,13 @@ public class DmaChannel {
 
     if(this.channelControl.isActive()) {
       if(this.channelControl.getMode() == ChannelControl.MODE.IMMEDIATE) {
-        LOGGER.info("DMA channel %s beginning block copy @ %08x for %04x bytes", this.channel, this.MADR.get(), this.getBlockSize());
+        LOGGER.debug("DMA channel %s beginning block copy @ %08x for %04x bytes", this.channel, this.MADR.get(), this.getBlockSize());
         this.dmaInterface.blockCopy((int)this.getBlockSize());
       } else if(this.channelControl.getMode() == ChannelControl.MODE.SYNC_TO_DMA_REQUESTS) {
-        LOGGER.info("DMA channel %s beginning block transfer @ %08x for %04x * %04x bytes", this.channel, this.MADR.get(), this.getBlockSize(), this.getBlockCount());
+        LOGGER.debug("DMA channel %s beginning block transfer @ %08x for %04x * %04x bytes", this.channel, this.MADR.get(), this.getBlockSize(), this.getBlockCount());
         this.dmaInterface.blockCopy((int)this.getBlockSize() * (int)this.getBlockCount());
       } else if(this.channelControl.getMode() == ChannelControl.MODE.LINKED_LIST) {
-        LOGGER.info("DMA channel %s linked list transfer @ %08x for %04x bytes", this.channel, this.MADR.get());
+        LOGGER.debug("DMA channel %s linked list transfer @ %08x for %04x bytes", this.channel, this.MADR.get());
         this.dmaInterface.linkedList();
       }
 

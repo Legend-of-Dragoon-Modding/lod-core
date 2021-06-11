@@ -159,10 +159,7 @@ public final class Bios {
   public static final Value _a000b110 = MEMORY.ref(1, 0xa000b110L);
   public static final Value _a000b111 = MEMORY.ref(1, 0xa000b111L);
 
-  public static final Value _a000b870 = MEMORY.ref(4, 0xa000b870L);
-
-  public static final Value _a000b878 = MEMORY.ref(4, 0xa000b878L);
-  public static final Value _a000b87c = MEMORY.ref(4, 0xa000b87cL);
+  public static final EXEC _a000b870 = MEMORY.ref(4, 0xa000b870L, EXEC::new);
 
   public static final Value _a000b890 = MEMORY.ref(4, 0xa000b890L);
   public static final Value _a000b894 = MEMORY.ref(4, 0xa000b894L);
@@ -579,26 +576,29 @@ public final class Bios {
     return false;
   }
 
-  @Method(0xbfc03cf0L)
-  public static long DoExecute_Impl_A43(final long header, final long param1, final long param2) {
-    long t0 = MEMORY.ref(4, header).offset(0x1cL).get();
-    long t1 = MEMORY.ref(4, header).offset(0x18L).get();
+  private static boolean entrypointInitialized;
 
-    while((int)t0 > 0) {
-      MEMORY.ref(4, t1).setu(0);
-      t1 += 0x4L;
-      t0 -= 0x4L;
+  @Method(0xbfc03cf0L)
+  public static long Exec_Impl_A43(final EXEC header, final int argc, final long argv) {
+    long b_size = header.b_size.get();
+    long b_addr = header.b_addr.get();
+
+    while((int)b_size > 0) {
+      MEMORY.ref(4, b_addr).setu(0);
+      b_addr += 0x4L;
+      b_size -= 0x4L;
     }
 
-    final Value entry = MEMORY.ref(4, header).deref(4);
+    final Value entry = MEMORY.ref(4, header.pc0.get());
 
     GATE.release();
 
-    if(ENTRY_POINT != null) {
+    if(ENTRY_POINT != null && !entrypointInitialized) {
       MEMORY.addFunctions(ENTRY_POINT);
+      entrypointInitialized = true;
     }
 
-    entry.cast(BiConsumerRef::new).run(param1, param2);
+    entry.cast(BiConsumerRef::new).run(argc, argv);
 
     GATE.acquire();
 
@@ -714,6 +714,12 @@ public final class Bios {
     _a00091e4.setu(0xbfc050a4L); // CdromDmaIrqFunc2_Impl_A93
     _a00091e8.setu(0xbfc04fbcL); // CdromDmaIrqFunc1_Impl_A91
     SysEnqIntRP(0, _a00091e0.getAddress());
+  }
+
+  @Method(0xbfc048d0L)
+  public static void DequeueCdIntr_Impl_Aa3() {
+    SysDeqIntRP(0, _a00091d0.getAddress());
+    SysDeqIntRP(0, _a00091e0.getAddress());
   }
 
   @Method(0xbfc04910L)
@@ -1686,8 +1692,8 @@ public final class Bios {
     }
 
     //LAB_bfc06be0
-    LOGGER.info("EXEC:PC0(%08x)  T_ADDR(%08x)  T_SIZE(%08x)", _a000b870.get(), _a000b878.get(), _a000b87c.get());
-    LOGGER.info("boot address  : %08x %08x", _a000b870.get(), _a000b948.get());
+    LOGGER.info("EXEC:PC0(%08x)  T_ADDR(%08x)  T_SIZE(%08x)", _a000b870.pc0.get(), _a000b870.t_addr.get(), _a000b870.t_size.get());
+    LOGGER.info("boot address  : %08x %08x", _a000b870.pc0.get(), _a000b948.get());
     LOGGER.info("Execute !");
     _a000b890.setu(_a000b948);
     _a000b894.setu(0);
@@ -1697,7 +1703,7 @@ public final class Bios {
     setjmp_Impl_A13(jmp_buf_a000b980, value -> stop(0x38b));
 
     //LAB_bfc06c6c
-    FUN_bfc0d570(_a000b870.getAddress(), 0x1L, 0);
+    FUN_bfc0d570(_a000b870, 1, 0);
     LOGGER.info("End of Main");
     stop(0x38c);
   }
@@ -1766,6 +1772,17 @@ public final class Bios {
     ExitCriticalSection();
 
     _a0009d80.setu(0);
+  }
+
+  @Method(0xbfc072b8L)
+  public static void _96_remove_Impl_A54() {
+    EnterCriticalSection();
+    CloseEvent((int)EventId_HwCdRom_EvSpACK_a000b9b8.get());
+    CloseEvent((int)EventId_HwCdRom_EvSpCOMP_a000b9bc.get());
+    CloseEvent((int)EventId_HwCdRom_EvSpDR_a000b9c0.get());
+    CloseEvent((int)EventId_HwCdRom_EvSpDE_a000b9c4.get());
+    CloseEvent((int)EventId_HwCdRom_EvSpERROR_a000b9c8.get());
+    DequeueCdIntr();
   }
 
   @Method(0xbfc07330L)
@@ -2311,7 +2328,7 @@ public final class Bios {
   }
 
   @Method(0xbfc0d570L)
-  public static void FUN_bfc0d570(final long a0, final long a1, final long a2) {
+  public static void FUN_bfc0d570(final EXEC header, final int argc, final long argv) {
     ExitCriticalSection();
 
     if(responseFromBootMenu_a000dffc.get() != 0) {
@@ -2328,7 +2345,7 @@ public final class Bios {
     //LAB_bfc0d5d4
     EnterCriticalSection();
 
-    DoExecute_Impl_A43(a0, a1, a2);
+    Exec_Impl_A43(header, argc, argv);
   }
 
   @Method(0xbfc0d72cL)
@@ -2391,10 +2408,13 @@ public final class Bios {
     CPU.SYSCALL(1);
 
     // The exception handler stores v0 (return value) here
-    return ProcessControlBlockAddr_a0000108.deref(4).deref(4).offset(0x10).get() != 0;
+    GATE.acquire();
+    final boolean ret = ProcessControlBlockAddr_a0000108.deref(4).deref(4).offset(0x10).get() != 0;
+    GATE.release();
+    return ret;
   }
 
-  @Method(0xbfc0d97cL)
+  @Method(0xbfc0d970L)
   public static void DeliverEvent(final long cls, final int spec) {
     functionVectorB_000000b0.run(0x7L, new Object[] {cls, spec});
   }
@@ -2424,6 +2444,11 @@ public final class Bios {
     functionVectorB_000000b0.run(0xcL, new Object[] {event});
   }
 
+  @Method(0xbfc0d9d0L)
+  public static void CloseEvent(final int event) {
+    functionVectorB_000000b0.run(0x9L, new Object[] {event});
+  }
+
   @Method(0xbfc0d9e0L)
   public static int TestEvent(final int event) {
     return (int)functionVectorB_000000b0.run(0xbL, new Object[] {event & 0xffff});
@@ -2440,8 +2465,13 @@ public final class Bios {
   }
 
   @Method(0xbfc0daf0L)
-  public static int SysEnqIntRP(final int priority, final long struct) {
-    return (int)functionVectorC_000000c0.run(0x2L, new Object[] {priority, struct});
+  public static long SysEnqIntRP(final int priority, final long struct) {
+    return (long)functionVectorC_000000c0.run(0x2L, new Object[] {priority, struct});
+  }
+
+  @Method(0xbfc0db00L)
+  public static long SysDeqIntRP(final int priority, final long struct) {
+    return (long)functionVectorC_000000c0.run(0x3L, new Object[] {priority, struct});
   }
 
   @Method(0xbfc0db10L)
@@ -2465,13 +2495,13 @@ public final class Bios {
   }
 
   @Method(0xbfc0db50L)
-  public static void EnqueueSyscallHandler(final int priority) {
-    functionVectorC_000000c0.run(0x1L, new Object[] {priority});
+  public static long EnqueueSyscallHandler(final int priority) {
+    return (long)functionVectorC_000000c0.run(0x1L, new Object[] {priority});
   }
 
   @Method(0xbfc0db60L)
-  public static void InitDefInt(final int priority) {
-    functionVectorC_000000c0.run(0xcL, new Object[] {priority});
+  public static long InitDefInt(final int priority) {
+    return (long)functionVectorC_000000c0.run(0xcL, new Object[] {priority});
   }
 
   @Method(0xbfc0db70L)
@@ -2482,6 +2512,11 @@ public final class Bios {
   @Method(0xbfc0dbf0L)
   public static void EnqueueCdIntr() {
     functionVectorA_000000a0.run(0xa2L, EMPTY_OBJ_ARRAY);
+  }
+
+  @Method(0xbfc0dc00L)
+  public static void DequeueCdIntr() {
+    functionVectorA_000000a0.run(0xa3L, EMPTY_OBJ_ARRAY);
   }
 
   @Method(0xbfc0dc10L)
