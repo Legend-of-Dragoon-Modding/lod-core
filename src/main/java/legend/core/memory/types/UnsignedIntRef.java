@@ -39,6 +39,14 @@ public class UnsignedIntRef implements MemoryRef {
     this.val = val;
   }
 
+  public void set(final long val) {
+    if((val & 0xffff_ffff_0000_0000L) != 0) {
+      throw new IllegalArgumentException("Value must fit within 32 bits");
+    }
+
+    this.set((int)val);
+  }
+
   public void set(final UnsignedIntRef val) {
     this.set((int)val.get());
   }

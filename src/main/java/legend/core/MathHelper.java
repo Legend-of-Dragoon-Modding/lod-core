@@ -12,6 +12,10 @@ public final class MathHelper {
     return Math.max(min, Math.min(value, max));
   }
 
+  public static long clamp(final long value, final long min, final long max) {
+    return Math.max(min, Math.min(value, max));
+  }
+
   public static long colour15To24(final long colour) {
     final byte r = (byte)((colour        & 0b1_1111) * 8);
     final byte g = (byte)((colour >>>  5 & 0b1_1111) * 8);

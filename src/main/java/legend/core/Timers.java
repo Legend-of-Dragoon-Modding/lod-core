@@ -35,11 +35,22 @@ public class Timers {
     return this.timers[index].tick(cycles);
   }
 
-  //TODO
-//  public void syncGPU(final Timer.Sync sync) {
-//    this.timers[0].syncGPU(sync);
-//    this.timers[1].syncGPU(sync);
-//  }
+  public static class Sync {
+    public final int dotDiv;
+    public final boolean hblank;
+    public final boolean vblank;
+
+    public Sync(final int dotDiv, final boolean hblank, final boolean vblank) {
+      this.dotDiv = dotDiv;
+      this.hblank = hblank;
+      this.vblank = vblank;
+    }
+  }
+
+  public void syncGPU(final Timers.Sync sync) {
+    this.timers[0].syncGPU(sync);
+    this.timers[1].syncGPU(sync);
+  }
 
   public static class Timer extends Segment {
     private final int timerNumber;
@@ -61,7 +72,7 @@ public class Timers {
 
     private boolean vblank;
     private boolean hblank;
-    private final int dotDiv = 1;
+    private int dotDiv = 1;
 
     private boolean prevHblank;
     private boolean prevVblank;
@@ -84,8 +95,6 @@ public class Timers {
       if(size != 4) {
         throw new MisalignedAccessException("Timer ports may only be accessed with 32-bit reads and writes");
       }
-
-      assert false : "Timers not yet supported";
 
       return switch(offset & 0xc) {
         case 0x0 -> this.val;
@@ -111,17 +120,16 @@ public class Timers {
         case 0x4 -> this.setCounterMode(value);
         case 0x8 -> this.max = value;
         default -> throw new IllegalAddressException("There is no timer port at " + Long.toHexString(this.getAddress() + offset));
-      };
+      }
     }
 
-    //TODO
-//    public void syncGPU(final Sync sync) {
-//      this.prevHblank = this.hblank;
-//      this.prevVblank = this.vblank;
-//      this.dotDiv = sync.dotDiv;
-//      this.hblank = sync.hblank;
-//      this.vblank = sync.vblank;
-//    }
+    public void syncGPU(final Sync sync) {
+      this.prevHblank = this.hblank;
+      this.prevVblank = this.vblank;
+      this.dotDiv = sync.dotDiv;
+      this.hblank = sync.hblank;
+      this.vblank = sync.vblank;
+    }
 
     int cycles;
 

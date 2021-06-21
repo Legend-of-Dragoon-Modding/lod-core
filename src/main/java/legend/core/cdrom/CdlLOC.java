@@ -21,10 +21,6 @@ public class CdlLOC {
   }
 
   public CdlLOC(final Value ref) {
-    if(ref.getSize() != 4) {
-      throw new IllegalArgumentException("Address must be 4 bytes");
-    }
-
     this.ref = ref;
   }
 

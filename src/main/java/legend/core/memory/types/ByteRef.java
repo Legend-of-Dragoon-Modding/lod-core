@@ -21,6 +21,10 @@ public class ByteRef implements MemoryRef {
     this.ref.setu(val);
   }
 
+  public void set(final ByteRef val) {
+    this.set(val.get());
+  }
+
   public long getUnsigned() {
     return (byte)this.ref.get();
   }

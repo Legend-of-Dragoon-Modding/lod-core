@@ -84,11 +84,13 @@ public class DmaChannel {
   }
 
   public long getBlockSize() {
-    return this.BCR.get(0xffffL);
+    final long size = this.BCR.get(0xffffL);
+    return size == 0 ? 0x1_0000L : size;
   }
 
   public long getBlockCount() {
-    return this.BCR.get(0xffff0000L) >>> 0x10L;
+    final long count = this.BCR.get(0xffff0000L) >>> 0x10L;
+    return count == 0 ? 0x1_0000L : count;
   }
 
   public void decrementBlockCount() {
@@ -101,15 +103,14 @@ public class DmaChannel {
   }
 
   private void onBcrWrite(final long value) {
+    this.bcr = value;
+
     // CDROM or OTC
     if(this.channel == DmaChannelType.CDROM || this.channel == DmaChannelType.OTC) {
-      LOGGER.debug("DMA channel %s number of words=%04x", this.channel, value & 0xffffL);
+      LOGGER.debug("DMA channel %s number of words=%04x", this.channel, this.getBlockSize());
     } else {
-      LOGGER.debug("DMA channel %s blocksize=%04x number of blocks=%04x", this.channel, value & 0xffffL, value >>> 16);
-      assert value >>> 16 != 0 : "Number of blocks was 0";
+      LOGGER.debug("DMA channel %s blocksize=%04x number of blocks=%04x", this.channel, this.getBlockSize(), this.getBlockCount());
     }
-
-    this.bcr = value;
   }
 
   private void onChcrWrite(final long value) {

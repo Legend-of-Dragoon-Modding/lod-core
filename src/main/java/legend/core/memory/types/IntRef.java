@@ -30,17 +30,34 @@ public class IntRef implements MemoryRef {
     return this.val;
   }
 
-  public void set(final int val) {
+  public IntRef set(final int val) {
     if(this.ref != null) {
       this.ref.setu(val);
-      return;
+      return this;
     }
 
     this.val = val;
+    return this;
   }
 
-  public void set(final IntRef val) {
-    this.set(val.get());
+  public IntRef set(final IntRef val) {
+    return this.set(val.get());
+  }
+
+  public IntRef add(final int amount) {
+    return this.set(this.get() + amount);
+  }
+
+  public IntRef sub(final int amount) {
+    return this.set(this.get() - amount);
+  }
+
+  public IntRef incr() {
+    return this.add(1);
+  }
+
+  public IntRef decr() {
+    return this.sub(1);
   }
 
   @Override

@@ -2,6 +2,11 @@ package legend.core;
 
 import legend.core.cdrom.CdDrive;
 import legend.core.dma.DmaManager;
+import legend.core.gpu.Gpu;
+import legend.core.input.Controller;
+import legend.core.input.DigitalController;
+import legend.core.input.Joypad;
+import legend.core.input.MemoryCard;
 import legend.core.kernel.Bios;
 import legend.core.memory.EntryPoint;
 import legend.core.memory.Memory;
@@ -11,7 +16,6 @@ import legend.core.memory.segments.IntSegment;
 import legend.core.memory.segments.InvalidSegment;
 import legend.core.memory.segments.MemoryControl1Segment;
 import legend.core.memory.segments.MemoryControl2Segment;
-import legend.core.memory.segments.PeripheralIoSegment;
 import legend.core.memory.segments.PrivilegeGate;
 import legend.core.memory.segments.RamSegment;
 import legend.core.memory.segments.RomSegment;
@@ -37,12 +41,17 @@ public final class Hardware {
   public static final Cpu CPU = new Cpu();
   public static final InterruptController INTERRUPTS;
   public static final DmaManager DMA;
+  public static final Gpu GPU;
   public static final Timers TIMERS;
   public static final CdDrive CDROM;
   public static final Spu SPU;
+  public static final MemoryCard MEMCARD;
+  public static final Controller CONTROLLER;
+  public static final Joypad JOYPAD;
 
   public static final Thread codeThread;
   public static final Thread hardwareThread;
+  public static final Thread gpuThread;
 
   @Nullable
   public static final Class<?> ENTRY_POINT;
@@ -126,20 +135,25 @@ public final class Hardware {
 
     MEMORY.addSegment(new ExpansionRegion1Segment(0x1f00_0000L));
     MEMORY.addSegment(new MemoryControl1Segment(0x1f80_1000L));
-    MEMORY.addSegment(new PeripheralIoSegment(0x1f80_1040L));
     MEMORY.addSegment(new MemoryControl2Segment(0x1f80_1060L));
     MEMORY.addSegment(new ExpansionRegion2Segment(0x1f80_2000L));
 
     INTERRUPTS = new InterruptController(MEMORY);
     DMA = new DmaManager(MEMORY);
+    GPU = new Gpu(MEMORY);
     TIMERS = new Timers(MEMORY);
     CDROM = new CdDrive(MEMORY);
     SPU = new Spu(MEMORY);
+    MEMCARD = new MemoryCard();
+    CONTROLLER = new DigitalController();
+    JOYPAD = new Joypad(MEMORY, CONTROLLER, MEMCARD);
 
     codeThread = new Thread(Hardware::run);
     codeThread.setName("Code");
     hardwareThread = Thread.currentThread();
     hardwareThread.setName("Hardware");
+    gpuThread = new Thread(GPU);
+    gpuThread.setName("GPU");
 
     LOGGER.info("Scanning for entry point class...");
     final Reflections reflections = new Reflections(ClasspathHelper.forClassLoader());
@@ -158,7 +172,10 @@ public final class Hardware {
   }
 
   public static void start() {
+    LOGGER.warn("WARNING: Joypad interrupts are currently disabled");
+
     codeThread.start();
+    gpuThread.start();
 
     boolean running = true;
     while(running) {
@@ -170,8 +187,7 @@ public final class Hardware {
         INTERRUPTS.set(InterruptType.DMA);
       }
 
-      //TODO
-//      TIMERS.syncGPU(gpu.getBlanksAndDot());
+      TIMERS.syncGPU(GPU.getBlanksAndDot());
 
       if(TIMERS.tick(0, 100)) {
         INTERRUPTS.set(InterruptType.TMR0);
@@ -181,6 +197,11 @@ public final class Hardware {
       }
       if(TIMERS.tick(2, 100)) {
         INTERRUPTS.set(InterruptType.TMR2);
+      }
+
+      if(JOYPAD.tick()) {
+        //TODO
+//        INTERRUPTS.set(InterruptType.CONTROLLER);
       }
 
       if(SPU.tick(100)) {

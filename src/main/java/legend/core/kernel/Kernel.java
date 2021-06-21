@@ -1,5 +1,6 @@
 package legend.core.kernel;
 
+import legend.core.DebugHelper;
 import legend.core.memory.Method;
 import legend.core.memory.Ref;
 import legend.core.memory.Value;
@@ -15,12 +16,15 @@ import legend.core.memory.types.VariadicFunctionRef;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.annotation.Nullable;
 import java.util.function.Function;
 
 import static legend.core.Hardware.CPU;
+import static legend.core.Hardware.GATE;
 import static legend.core.Hardware.MEMORY;
 import static legend.core.InterruptController.I_MASK;
 import static legend.core.InterruptController.I_STAT;
+import static legend.core.MemoryHelper.getMethodAddress;
 import static legend.core.Timers.TMR_DOTCLOCK_MAX;
 import static legend.core.Timers.TMR_DOTCLOCK_MODE;
 import static legend.core.Timers.TMR_DOTCLOCK_VAL;
@@ -30,6 +34,11 @@ import static legend.core.Timers.TMR_HRETRACE_VAL;
 import static legend.core.Timers.TMR_SYSCLOCK_MAX;
 import static legend.core.Timers.TMR_SYSCLOCK_MODE;
 import static legend.core.Timers.TMR_SYSCLOCK_VAL;
+import static legend.core.input.MemoryCard.JOY_MCD_BAUD;
+import static legend.core.input.MemoryCard.JOY_MCD_CTRL;
+import static legend.core.input.MemoryCard.JOY_MCD_DATA;
+import static legend.core.input.MemoryCard.JOY_MCD_MODE;
+import static legend.core.input.MemoryCard.JOY_MCD_STAT;
 import static legend.core.kernel.Bios.EventControlBlockAddr_a0000120;
 import static legend.core.kernel.Bios.EventControlBlockSize_a0000124;
 import static legend.core.kernel.Bios.ExceptionChainAddr_a0000100;
@@ -50,17 +59,21 @@ public final class Kernel {
 
   private static final SupplierRef<Integer> exceptionVector_00000080 = MEMORY.ref(4, 0x00000080L, SupplierRef::new);
 
-  private static final Value exceptionChainAddr_00000100 = MEMORY.ref(4, 0x00000100L);
+  private static final Pointer<ArrayRef<Pointer<PriorityChainEntry>>> exceptionChainAddr_00000100 = (Pointer<ArrayRef<Pointer<PriorityChainEntry>>>)MEMORY.ref(4, 0x00000100L, Pointer.of(ArrayRef.of(Pointer.class, 4, 4, 8, (Function)Pointer.of(PriorityChainEntry::new))));
+
+  private static final Value _00000cf0 = MEMORY.ref(1, 0x00000cf0L);
+
+  private static final Value _00006408 = MEMORY.ref(1, 0x00006408L);
 
   private static final jmp_buf DefaultExceptionExitStruct_00006cf4 = MEMORY.ref(0x30, 0x00006cf4L, jmp_buf::new);
 
   private static final Value systemMemoryInitialized_00006d30 = MEMORY.ref(4, 0x00006d30L);
 
-  private static final Value _00006d58 = MEMORY.ref(1, 0x00006d58L);
+  private static final ArrayRef<PriorityChainEntry> _00006d58 = MEMORY.ref(1, 0x00006d58L, ArrayRef.of(PriorityChainEntry.class, 4, 16, PriorityChainEntry::new));
 
-  private static final Value DefaultInterruptPriorityChainStruct_00006d98 = MEMORY.ref(1, 0x00006d98L);
+  private static final PriorityChainEntry DefaultInterruptPriorityChainStruct_00006d98 = MEMORY.ref(1, 0x00006d98L, PriorityChainEntry::new);
 
-  private static final Value SyscallHandlerStruct_00006da8 = MEMORY.ref(1, 0x00006da8L);
+  private static final PriorityChainEntry SyscallHandlerStruct_00006da8 = MEMORY.ref(1, 0x00006da8L, PriorityChainEntry::new);
 
   private static final Value _00006e54 = MEMORY.ref(4, 0x00006e54L);
 
@@ -68,11 +81,53 @@ public final class Kernel {
 
   private static final Value _00007200 = MEMORY.ref(4, 0x00007200L);
 
+  private static final Value _00007264 = MEMORY.ref(1, 0x00007264L);
+
+  private static final Value _000072f0 = MEMORY.ref(4, 0x000072f0L);
+
   private static final Value systemMemoryAddr_00007460 = MEMORY.ref(4, 0x00007460L);
   private static final Value systemMemorySize_00007464 = MEMORY.ref(4, 0x00007464L);
   private static final Value systemMemoryEnd_00007468 = MEMORY.ref(4, 0x00007468L);
 
   private static final Value _00007480 = MEMORY.ref(4, 0x00007480L);
+
+  private static final Value _000074a0 = MEMORY.ref(4, 0x000074a0L);
+  private static final Value _000074a4 = MEMORY.ref(4, 0x000074a4L);
+  private static final PriorityChainEntry memcardPriorityChain_000074a8 = MEMORY.ref(16, 0x000074a8L, PriorityChainEntry::new);
+  private static final Value _000074b8 = MEMORY.ref(4, 0x000074b8L);
+  private static final Value _000074bc = MEMORY.ref(4, 0x000074bcL);
+  private static final Value _000074c0 = MEMORY.ref(4, 0x000074c0L);
+  private static final Value _000074c4 = MEMORY.ref(4, 0x000074c4L);
+
+  private static final Value _00007500 = MEMORY.ref(4, 0x00007500L);
+
+  private static final Value _00007508 = MEMORY.ref(4, 0x00007508L);
+
+  private static final Value _00007514 = MEMORY.ref(4, 0x00007514L);
+
+  private static final Value _0000751c = MEMORY.ref(4, 0x0000751cL);
+  private static final Value _00007520 = MEMORY.ref(4, 0x00007520L);
+
+  private static final Value _00007528 = MEMORY.ref(4, 0x00007528L);
+
+  private static final PriorityChainEntry priorityChainEntry_00007540 = MEMORY.ref(4, 0x00007540L, PriorityChainEntry::new);
+  private static final Value _00007550 = MEMORY.ref(4, 0x00007550L);
+
+  private static final Value _00007558 = MEMORY.ref(1, 0x00007558L);
+
+  private static final Value _0000755a = MEMORY.ref(1, 0x0000755aL);
+
+  private static final Value _00007560 = MEMORY.ref(4, 0x00007560L);
+
+  private static final Value _00007568 = MEMORY.ref(1, 0x00007568L);
+  private static final Value _00007569 = MEMORY.ref(1, 0x00007569L);
+
+  private static final Value _0000756c = MEMORY.ref(4, 0x0000756cL);
+
+  private static final Value _000075c0 = MEMORY.ref(4, 0x000075c0L);
+  private static final Value _000075c4 = MEMORY.ref(4, 0x000075c4L);
+  private static final Value _000075c8 = MEMORY.ref(4, 0x000075c8L);
+  private static final Value _000075cc = MEMORY.ref(4, 0x000075ccL);
 
   private static final Pointer<jmp_buf> ExceptionExitStruct_000075d0 = MEMORY.ref(4, 0x000075d0L, Pointer.of(jmp_buf::new));
 
@@ -80,6 +135,7 @@ public final class Kernel {
   private static final Value _000085fc = MEMORY.ref(4, 0x000085fcL);
   private static final ArrayRef<BoolRef> _00008600 = MEMORY.ref(16, 0x00008600L, ArrayRef.of(BoolRef.class, 4, 4, BoolRef::new));
 
+  private static final Value _0000860c = MEMORY.ref(4, 0x0000860cL);
   private static final Value _00008610 = MEMORY.ref(4, 0x00008610L);
   private static final Value _00008614 = MEMORY.ref(4, 0x00008614L);
   private static final Value _00008618 = MEMORY.ref(4, 0x00008618L);
@@ -178,7 +234,8 @@ public final class Kernel {
    * No {@link Method} annotation - this method is not registered automatically. See {@link #InstallExceptionHandlers_Impl_C07()}
    */
   public static int exceptionVector() {
-    return ExceptionHandler_Impl_C06();
+    // ExceptionHandler_Impl_C06
+    return (int)MEMORY.ref(4, 0xc80L).call();
   }
 
   @Method(0x500L)
@@ -242,32 +299,28 @@ public final class Kernel {
     MEMORY.ref(4, k0).offset(0x8cL).setu(CPU.R12_SR.get());
     MEMORY.ref(4, k0).offset(0x90L).setu(CPU.R13_CAUSE.get());
 
-    long s3 = ExceptionChainAddr_a0000100.get();
-    final long s4 = s3 + 0x20L;
+    final ArrayRef<Pointer<PriorityChainEntry>> chains = ExceptionChainAddr_a0000100.deref();
 
     //LAB_00000de8
-    do {
-      long s6 = MEMORY.ref(4, s3).get();
-      if(s6 != 0) {
-        //LAB_00000df8
-        do {
-          final long s1 = MEMORY.ref(4, s6).offset(0x8L).get();
-          final long s0 = MEMORY.ref(4, s6).offset(0x4L).get();
+    for(int i = 0; i < 4; i++) {
+      Pointer<PriorityChainEntry> ptr = chains.get(i);
 
-          final int v0 = (int)MEMORY.ref(4, s1).cast(SupplierRef::new).run();
+      //LAB_00000df8
+      while(!ptr.isNull()) {
+        final PriorityChainEntry entry = ptr.deref();
 
-          if(v0 != 0 && s0 != 0) {
-            MEMORY.ref(4, s0).cast(ConsumerRef::new).run(v0);
-          }
+        final int ret = entry.firstFunction.deref().run();
 
-          //LAB_00000e28
-          s6 = MEMORY.ref(4, s6).get();
-        } while(s6 != 0);
+        if(ret != 0 && !entry.secondFunction.isNull()) {
+          entry.secondFunction.deref().run(ret);
+        }
+
+        //LAB_00000e28
+        ptr = entry.next;
       }
+    }
 
-      //LAB_00000e38
-      s3 += 0x8L;
-    } while(s4 != s3);
+    ExceptionExitStruct_000075d0.deref().run();
 
     return 1;
   }
@@ -526,58 +579,109 @@ public final class Kernel {
   }
 
   @Method(0x1420L)
-  public static long SysEnqIntRP_Impl_C02(final int priority, final long struct) {
-    final Value address = exceptionChainAddr_00000100.deref(4).offset(priority * 8L);
-    MEMORY.ref(4, struct).setu(address);
-    address.setu(struct);
+  public static long SysEnqIntRP_Impl_C02(final int priority, final PriorityChainEntry struct) {
+    final Pointer<PriorityChainEntry> current = exceptionChainAddr_00000100.deref().get(priority);
+
+    if(current.isNull()) {
+      struct.next.clear();
+    } else {
+      if(struct.getAddress() == current.deref().getAddress()) {
+        throw new IllegalStateException("Priority chain entry cannot reference itself");
+      }
+
+      struct.next.set(current.deref());
+    }
+
+    current.set(struct);
     return 0;
   }
 
+  /**
+   * Don't think my decomp was right. I rewrote it in the way I'm pretty sure it's supposed to work.
+   * It just removes the element from the specified priority chain if it exists.
+   */
   @Method(0x1444L)
-  public static long SysDeqIntRP_Impl_C03(final int priority, final long struct) {
-    long v1 = exceptionChainAddr_00000100.deref(4).offset(priority * 8L).getAddress();
-    long a2 = MEMORY.ref(4, v1).get();
+  @Nullable
+  public static PriorityChainEntry SysDeqIntRP_Impl_C03(final int priority, final PriorityChainEntry struct) {
+    Pointer<PriorityChainEntry> current = exceptionChainAddr_00000100.deref().get(priority);
 
-    if(a2 == 0) {
-      return 0;
-    }
+    while(!current.isNull()) {
+      final PriorityChainEntry entry = current.deref();
 
-    //LAB_0000146c
-    if(a2 == struct) {
-      MEMORY.ref(4, v1).setu(MEMORY.ref(4, a2));
-      return a2;
-    }
+      if(entry.getAddress() == struct.getAddress()) {
+        if(entry.next.isNull()) {
+          current.clear();
+        } else {
+          current.set(entry.next.deref());
+        }
 
-    //LAB_00001484
-    long v0 = MEMORY.ref(4, a2).get();
-    if(v0 == 0) {
-      return 0;
-    }
-
-    //LAB_0000149c
-    //LAB_000014b0
-    //LAB_000014c4
-    do {
-      v1 = a2;
-      a2 = v0;
-
-      //LAB_000014c8
-      if(v0 == struct) {
-        break;
+        return entry;
       }
 
-      v0 = MEMORY.ref(4, v0).get();
-    } while(v0 != 0);
-
-    //LAB_000014e4
-    if(a2 != struct) {
-      return 0;
+      current = entry.next;
     }
 
-    MEMORY.ref(4, v1).setu(MEMORY.ref(4, a2));
+    return null;
 
-    //LAB_00001500
-    return a2;
+//    if(current.isNull()) {
+//      return null;
+//    }
+//
+//    Pointer<PriorityChainEntry> next = current.deref().next;
+//
+//    if(next.isNull()) {
+//      return null;
+//    }
+//
+//    //LAB_0000146c
+//    if(next.deref().getAddress() == struct.getAddress()) {
+//      if(next.deref().next.isNull()) {
+//        next.clear();
+//        return null;
+//      }
+//
+//      if(next.deref().next.deref().getAddress() == current.deref().getAddress()) {
+//        throw new IllegalStateException("Priority chain entry cannot reference itself");
+//      }
+//
+//      next.set(next.deref().next.deref());
+//      return next.deref();
+//    }
+//
+//    //LAB_00001484
+//    Pointer<PriorityChainEntry> nextNext = next.deref().next;
+//    if(nextNext.isNull()) {
+//      return null;
+//    }
+//
+//    //LAB_0000149c
+//    //LAB_000014b0
+//    //LAB_000014c4
+//    do {
+//      current = next;
+//      next = nextNext;
+//
+//      //LAB_000014c8
+//      if(nextNext.deref().getAddress() == struct.getAddress()) {
+//        break;
+//      }
+//
+//      nextNext = nextNext.deref().next;
+//    } while(!nextNext.isNull());
+//
+//    //LAB_000014e4
+//    if(next.deref().getAddress() != struct.getAddress()) {
+//      return null;
+//    }
+//
+//    if(next.deref().getAddress() == current.deref().getAddress()) {
+//      throw new IllegalStateException("Priority chain entry cannot reference itself");
+//    }
+//
+//    current.deref().next.set(next.deref());
+//
+//    //LAB_00001500
+//    return next.deref();
   }
 
   @Method(0x1508L)
@@ -586,17 +690,11 @@ public final class Kernel {
 
     FUN_000027a0();
 
-    final long end = DefaultInterruptPriorityChainStruct_00006d98.getAddress();
-    long struct = _00006d58.getAddress();
-    int i = 0;
-
     //LAB_00001570
-    do {
+    for(int i = 0; i < 4; i++) {
       _00008600.get(i).set(true);
-      SysEnqIntRP_Impl_C02(priority, struct);
-      struct += 0x10L;
-      i++;
-    } while(struct != end);
+      SysEnqIntRP_Impl_C02(priority, _00006d58.get(i));
+    }
 
     //LAB_00001594
     TMR_DOTCLOCK_VAL.setu(0);
@@ -656,6 +754,14 @@ public final class Kernel {
 
     DeliverEvent_Impl_B07(RCntCNT3, EvSpINT);
     return 1;
+  }
+
+  @Method(0x19c8L)
+  public static void FUN_000019c8(final long a0) {
+    if(_0000860c.get() != 0) {
+      I_STAT.setu(0xfffffffeL);
+      ReturnFromException_Impl_B17();
+    }
   }
 
   /**
@@ -724,7 +830,7 @@ public final class Kernel {
 
   @Method(0x1b20L)
   public static long EnqueueSyscallHandler_Impl_C01(final int priority) {
-    return SysEnqIntRP_Impl_C02(priority, SyscallHandlerStruct_00006da8.getAddress());
+    return SysEnqIntRP_Impl_C02(priority, SyscallHandlerStruct_00006da8);
   }
 
   @Method(0x1b44L)
@@ -823,16 +929,16 @@ public final class Kernel {
 
   @Method(0x1e1cL)
   public static int CloseEvent_Impl_B09(final int event) {
-    EventControlBlockAddr_a0000120.deref(4).offset(event * 28L).setu(0);
+    EventControlBlockAddr_a0000120.deref(4).offset((event & 0xffff) * 28L).setu(0);
     return 1;
   }
 
   @Method(0x1ec8L)
   public static int TestEvent_Impl_B0b(final int event) {
-    final long v0 = EventControlBlockAddr_a0000120.get() + event * 28L;
+    final Value addr = EventControlBlockAddr_a0000120.deref(4).offset((event & 0xffff) * 28L).offset(0x4L);
 
-    if(MEMORY.ref(4, v0).offset(0x4L).get() == 0x4000L) {
-      MEMORY.ref(4, v0).offset(0x4L).setu(0x2000L);
+    if(addr.get() == 0x4000L) {
+      addr.setu(0x2000L);
       return 1;
     }
 
@@ -842,10 +948,10 @@ public final class Kernel {
 
   @Method(0x1f10L)
   public static boolean EnableEvent_Impl_B0c(final int event) {
-    final Value addr = EventControlBlockAddr_a0000120.deref(4).offset((event & 0xffff) * 28);
+    final Value addr = EventControlBlockAddr_a0000120.deref(4).offset((event & 0xffff) * 28L).offset(0x4L);
 
-    if(addr.offset(0x4L).get() != 0) {
-      addr.offset(0x4L).setu(0x2000L);
+    if(addr.get() != 0) {
+      addr.setu(0x2000L);
     }
 
     //LAB_00001f44
@@ -929,7 +1035,7 @@ public final class Kernel {
       _0000861c.offset(i).setu(0);
     }
 
-    return SysEnqIntRP_Impl_C02(priority, DefaultInterruptPriorityChainStruct_00006d98.getAddress());
+    return SysEnqIntRP_Impl_C02(priority, DefaultInterruptPriorityChainStruct_00006d98);
   }
 
   @Method(0x27c0L)
@@ -1389,6 +1495,594 @@ public final class Kernel {
     return oldValue;
   }
 
+  @Method(0x43e8L)
+  public static void FUN_000043e8() {
+    JOY_MCD_CTRL.setu(0x40L);
+    JOY_MCD_BAUD.setu(0x88L);
+    JOY_MCD_MODE.setu(0xdL);
+
+    JOY_MCD_CTRL.setu(0);
+    FUN_0000445c(10L);
+
+    JOY_MCD_CTRL.setu(0x2L);
+    FUN_0000445c(10L);
+
+    JOY_MCD_CTRL.setu(0x2002L);
+    FUN_0000445c(10L);
+
+    JOY_MCD_CTRL.setu(0);
+    _000074c0.setu(0);
+  }
+
+  @Method(0x445cL)
+  public static void FUN_0000445c(final long a0) {
+//    long sp00 = a0 - 1;
+//
+//    while(sp00 >= 0) {
+//      sp00--;
+//    }
+    DebugHelper.sleep(a0);
+  }
+
+  @Method(0x4498L)
+  public static void FUN_00004498(long a0) {
+    assert false;
+    //TODO
+  }
+
+  @Method(0x49bcL)
+  public static int FUN_000049bc(final long a0) {
+    if(_000074b8.get() != 0) {
+      FUN_00004498(0);
+      FUN_00004498(1);
+
+      if(_000074c4.get() != 0) {
+        OutdatedPadGetButtons_Impl_B16();
+      }
+    }
+
+    //LAB_000049fc
+    if(_00008914.get() != 0) {
+      I_STAT.setu(0xfffffffe);
+    }
+
+    //LAB_00004a20
+    if(_000074bc.get() != 0) {
+      FUN_00005000();
+    }
+
+    //LAB_00004a40
+    return 0;
+  }
+
+  @Method(0x4a4cL)
+  public static int FUN_00004a4c() {
+    if(I_MASK.get(0x1L) == 0 || I_STAT.get(0x1L) == 0) {
+      return 0;
+    }
+
+    return 1;
+  }
+
+  @Method(0x4a94L)
+  public static void FUN_00004a94() {
+    memcardPriorityChain_000074a8.next.clear();
+    memcardPriorityChain_000074a8.secondFunction.set(MEMORY.ref(4, getMethodAddress(Kernel.class, "FUN_000049bc", long.class), ConsumerRef::new));
+    memcardPriorityChain_000074a8.firstFunction.set(MEMORY.ref(4, getMethodAddress(Kernel.class, "FUN_00004a4c"), SupplierRef::new));
+    memcardPriorityChain_000074a8.unknown.set(0);
+  }
+
+  @Method(0x4c70L)
+  public static int StartCard_Impl_B4b() {
+    FUN_000043e8();
+    EnterCriticalSection();
+
+    SysDeqIntRP_Impl_C03(2, memcardPriorityChain_000074a8);
+    SysEnqIntRP_Impl_C02(2, memcardPriorityChain_000074a8);
+
+    I_MASK.oru(0x1L);
+
+    ChangeClearPad_Impl_B5b(true);
+    ChangeClearRCnt_Impl_C0a(3, false);
+
+    _000074bc.setu(0x1L);
+
+    ExitCriticalSection();
+
+    return 1;
+  }
+
+  @Method(0x4d3cL)
+  public static void allow_new_card_Impl_B50() {
+    _000074c0.setu(0x1L);
+  }
+
+  @Method(0x4d4cL)
+  public static long FUN_00004d4c(final long a0) {
+    final long v1 = _0000756c.get();
+    _0000756c.setu(a0);
+    return v1;
+  }
+
+  @Method(0x4d6cL)
+  @Nullable
+  public static PriorityChainEntry FUN_00004d6c(final long a0) {
+    long v0;
+
+    if(_00007264.get() == 0) {
+      v0 = 0;
+    } else {
+      //LAB_00004d88
+      v0 = 0x2000L;
+    }
+
+    //LAB_00004d8c
+    JOY_MCD_CTRL.setu(JOY_MCD_CTRL.get() | v0 | 0x12L);
+    _00007514.addu(0x1L);
+    _000074a0.setu(v0);
+    v0 = (long)_00007528.offset(_00007264.get() * 4).deref(4).call();
+
+    //LAB_00004df0
+    if(v0 == 0) {
+      //LAB_00004e10
+      I_STAT.setu(0xffffff7fL);
+      I_MASK.oru(0x80L);
+      return null;
+    }
+
+    if(v0 == 0x1L) {
+      //LAB_00004de4
+      _000074a4.setu(0);
+    } else {
+      //LAB_00004e34
+      _0000755a.setu(0);
+      JOY_MCD_CTRL.setu(0);
+      if(_00007520.get() == 0) {
+        _000074c0.setu(0);
+        _00007568.offset(_00007264).setu(0x21L);
+        _0000751c.setu(_00007264);
+        bu_callback_err_write();
+        DeliverEvent_Impl_B07(0xf0000011L, 0x8000);
+      }
+
+      //LAB_00004e9c
+      _00007514.setu(0);
+      _00007520.setu(0);
+      SysDeqIntRP_Impl_C03(0x1, priorityChainEntry_00007540);
+      I_STAT.setu(0xffffff7fL);
+      I_MASK.and(0xffffff7fL);
+      return null;
+    }
+
+    //LAB_00004ee0
+    _0000755a.setu(0);
+    JOY_MCD_CTRL.setu(0);
+    _00007514.setu(0);
+    SysDeqIntRP_Impl_C03(0x1, priorityChainEntry_00007540);
+    I_STAT.setu(0xffffff7fL);
+    I_MASK.and(0xffffff7fL);
+
+    if(_00007520.get() == 0) {
+      _000074c0.setu(0);
+      _00007568.offset(_00007264).setu(0x1L);
+      _0000751c.setu(_00007264);
+      bu_callback_okay();
+      DeliverEvent_Impl_B07(0xf0000011L, 0x4);
+    }
+
+    //LAB_00004f7c
+    //LAB_00004f80
+    return null;
+  }
+
+  @Method(0x4f90L)
+  public static int FUN_00004f90() {
+    if(I_MASK.get(0x80L) == 0 || I_STAT.get(0x80L) == 0) {
+      return 0;
+    }
+
+    if((FUN_000063f8() & 0x1L) != 0) {
+      return 0;
+    }
+
+    return 1;
+  }
+
+  @Method(0x5000L)
+  @Nullable
+  public static PriorityChainEntry FUN_00005000() {
+    UnDeliverEvent_Impl_B20(0xf0000011L, 0x4);
+    UnDeliverEvent_Impl_B20(0xf0000011L, 0x8000);
+    UnDeliverEvent_Impl_B20(0xf0000011L, 0x100);
+    UnDeliverEvent_Impl_B20(0xf0000011L, 0x200);
+    UnDeliverEvent_Impl_B20(0xf0000011L, 0x2000);
+
+    if(_0000755a.get() != 0) {
+      _0000755a.setu(0);
+      _000074a4.setu(0);
+      _00007514.setu(0);
+      I_STAT.setu(0xffffff7fL);
+      I_MASK.and(0xffffff7fL);
+      JOY_MCD_CTRL.setu(0);
+      _000074c0.setu(0);
+      _00007568.offset(_00007264).setu(0x11L);
+      _0000751c.setu(_00007264);
+      bu_callback_err_busy();
+      DeliverEvent_Impl_B07(0xf0000011L, 0x100);
+      final PriorityChainEntry v0 = SysDeqIntRP_Impl_C03(0x1, priorityChainEntry_00007540);
+      JOY_MCD_CTRL.setu(0x40L);
+      JOY_MCD_BAUD.setu(0x88L);
+      JOY_MCD_MODE.setu(0xdL);
+      JOY_MCD_CTRL.setu(0);
+      return v0;
+    }
+
+    //LAB_00005128
+    _00007264.setu(0x1L - _00007264.get());
+    if(_00007568.offset(_00007264).get(0x1L) != 0) {
+      return null;
+    }
+
+    //LAB_00005170
+    FUN_00006390(
+      _00007550.offset(_00007264.get() * 4).get(),
+      _00007568.offset(_00007264).getAddress(),
+      _00007560.offset(_00007264.get() * 4).getAddress()
+    );
+
+    SysDeqIntRP_Impl_C03(0x1, priorityChainEntry_00007540);
+    SysEnqIntRP_Impl_C02(0x1, priorityChainEntry_00007540);
+    _00007514.setu(0);
+    _00007520.setu(0);
+
+    //LAB_000051e4
+    return FUN_00004d6c(0);
+  }
+
+  @Method(0x5688L)
+  public static long FUN_00005688() {
+    final long a0;
+    final long a3 = _00007264.get();
+    long v0 = _00007514.get();
+    final long a2 = _00007508.offset(a3 * 4).get();
+    final long a1 = _00007550.offset(a3 * 4).get();
+
+    switch((int)v0) {
+      case 0x1:
+        if(a3 == 0) {
+          v0 = 0;
+        } else {
+          v0 = 0x2000L;
+        }
+
+        //LAB_000056fc
+        JOY_MCD_CTRL.setu(v0 | 0x1003L);
+        JOY_MCD_DATA.get(); // Intentional read to nowhere
+        final long t3 = _00007500.offset(a3 * 4).get(0xfL) << 24 >> 24;
+        JOY_MCD_DATA.setu(t3 + 0x81L);
+        JOY_MCD_CTRL.oru(0x10L);
+        I_STAT.setu(0xffff_ff7fL);
+        _0000755a.setu(0x1L);
+        _000074a0.setu(v0);
+        return 0;
+
+      case 0x2:
+        JOY_MCD_DATA.get(); // Intentional read to nowhere
+        JOY_MCD_DATA.setu(0x52L);
+        JOY_MCD_CTRL.oru(0x10L);
+        I_STAT.setu(0xffff_ff7fL);
+        return 0;
+
+      case 0x3:
+        a0 = JOY_MCD_DATA.get();
+        JOY_MCD_DATA.setu(0);
+        JOY_MCD_CTRL.oru(0x10L);
+        I_STAT.setu(0xffff_ff7fL);
+
+        if(_000074c0.get() != 0) {
+          return 0;
+        }
+
+        if((a0 & 0x8L) == 0) {
+          return 0;
+        }
+
+        _000074c0.setu(0);
+        _00007568.offset(a3).setu(0x1L);
+        _0000751c.setu(_00007264);
+
+        bu_callback_err_eject();
+        DeliverEvent_Impl_B07(HwCARD, EvSpNEW);
+
+        _00007520.setu(0x1L);
+
+        return 0xffff_ffffL;
+
+      case 0x4:
+        a0 = JOY_MCD_DATA.get();
+        JOY_MCD_DATA.setu(0);
+        JOY_MCD_CTRL.oru(0x10L);
+        I_STAT.setu(0xffff_ff7fL);
+
+        if(a0 != 0x5aL) {
+          return 0xffff_ffffL;
+        }
+
+        return 0;
+
+      case 0x5:
+        a0 = JOY_MCD_DATA.get();
+        JOY_MCD_DATA.setu(a2 >> 0x8L & 0xffL);
+        JOY_MCD_CTRL.oru(0x10L);
+        I_STAT.setu(0xffff_ff7fL);
+
+        if(a0 != 0x5dL) {
+          return 0xffff_ffffL;
+        }
+
+        return 0;
+
+      case 0x6:
+        JOY_MCD_DATA.get(); // Intentional read to nowhere
+        JOY_MCD_DATA.setu(a2 & 0xffL);
+        JOY_MCD_CTRL.oru(0x10L);
+        I_STAT.setu(0xffff_ff7fL);
+        return 0;
+
+      case 0x7:
+        JOY_MCD_DATA.get(); // Intentional read to nowhere
+        JOY_MCD_DATA.setu(0);
+        JOY_MCD_CTRL.oru(0xffff_ff7fL);
+        I_STAT.setu(0xffff_ff7fL);
+        return 0;
+
+      case 0x8:
+        a0 = JOY_MCD_DATA.get();
+        JOY_MCD_DATA.setu(0);
+        JOY_MCD_CTRL.oru(0x10L);
+        I_STAT.setu(0xffff_ff7fL);
+
+        if(a0 != 0x5cL) {
+          return 0xffff_ffffL;
+        }
+
+        return 0;
+
+      case 0x9:
+        a0 = JOY_MCD_DATA.get();
+        JOY_MCD_DATA.setu(0);
+        JOY_MCD_CTRL.oru(0x10L);
+        I_STAT.setu(0xffff_ff7fL);
+
+        if(a0 != 0x5dL) {
+          return 0xffff_ffffL;
+        }
+
+        return 0;
+
+      case 0xa:
+        a0 = JOY_MCD_DATA.get();
+        JOY_MCD_DATA.setu(0);
+        JOY_MCD_CTRL.oru(0x10L);
+        I_STAT.setu(0xffff_ff7fL);
+
+        v0 = a2 >>> 0x8L & 0xffL;
+        if(a0 != v0) {
+          return 0xffff_ffffL;
+        }
+
+        //LAB_000059d0
+        _00007560.offset(a3 * 4).setu(a2 & 0xffL ^ v0);
+        _00007558.offset(a3).setu(0);
+        return 0;
+
+      case 0xb:
+        a0 = JOY_MCD_DATA.get();
+        JOY_MCD_DATA.setu(_00007558.offset(a3));
+        JOY_MCD_CTRL.oru(0x10L);
+        I_STAT.setu(0xffff_ff7fL);
+
+        if(a0 != (a2 & 0xffL)) {
+          return 0xffff_ffffL;
+        }
+
+        //LAB_00005a48
+        FUN_00006380();
+        return 0;
+
+      case 0xc:
+        a0 = JOY_MCD_DATA.get();
+        JOY_MCD_DATA.setu(0);
+        JOY_MCD_CTRL.oru(0x10L);
+        I_STAT.setu(0xffff_ff7fL);
+
+        MEMORY.ref(1, a1).offset(0x7fL).setu(a0);
+        _00007560.offset(a3 * 4).xoru(MEMORY.ref(1, a1).offset(0x7fL));
+        return 0;
+
+      case 0xd:
+        a0 = JOY_MCD_DATA.get();
+        JOY_MCD_DATA.setu(0);
+        JOY_MCD_CTRL.oru(0x10L);
+        I_STAT.setu(0xffff_ff7fL);
+
+        if(a0 != _00007560.offset(a3 * 4L).get()) {
+          return 0xffff_ffffL;
+        }
+
+        //LAB_00005b00
+        //LAB_00005b14
+        while(JOY_MCD_STAT.get(0x2L) == 0) {
+          DebugHelper.sleep(1);
+        }
+
+        //LAB_00005b28
+        if(JOY_MCD_DATA.get() != 0x47L) {
+          return 0xffff_ffffL;
+        }
+
+        //LAB_00005b40
+        return 0x1;
+    }
+
+    return 0xffff_ffffL;
+  }
+
+  @Method(0x5da8L)
+  public static void InitCard_Impl_B4a(final boolean pad_enable) {
+    FUN_00004a94();
+
+    _0000755a.setu(0);
+    _00007264.setu(0);
+    _00007568.setu(0x1L);
+    _00007569.setu(0x1L);
+    priorityChainEntry_00007540.next.clear();
+    priorityChainEntry_00007540.secondFunction.set(MEMORY.ref(4, getMethodAddress(Kernel.class, "FUN_00004d6c", long.class), ConsumerRef::new));
+    priorityChainEntry_00007540.firstFunction.set(MEMORY.ref(4, getMethodAddress(Kernel.class, "FUN_00004f90"), SupplierRef::new));
+    priorityChainEntry_00007540.unknown.set(0);
+
+    installEarlyCardIrqHandler();
+    FUN_00004d4c(0x1L);
+
+    _000074b8.setu(pad_enable ? 1 : 0);
+  }
+
+  @Method(0x5e30L)
+  public static int get_bu_callback_port_Impl_B58() {
+    return (int)_00007500.offset(_0000751c.get() * 4).get();
+  }
+
+  @Method(0x5e50L)
+  public static int read_card_sector_Impl_B4f(final int port, final int sector, final long dest) {
+    long at = port;
+    if(port < 0) {
+      at += 0xfL;
+    }
+
+    //LAB_00005e64
+    final long v1 = at / 16;
+    if(_00007568.offset(v1).get(0x1L) == 0 || sector < 0 || sector > 0x400L) {
+      //LAB_00005e90
+      return 0;
+    }
+
+    //LAB_00005e98
+    _000074a4.setu(0);
+    _00007514.setu(0);
+
+    _00007500.offset(v1 * 4).setu(port);
+    _00007508.offset(v1 * 4).setu(sector);
+    _00007528.offset(v1 * 4).setu(getMethodAddress(Kernel.class, "FUN_00005688"));
+    _00007550.offset(v1 * 4).setu(dest);
+
+    _00007568.offset(v1).setu(0x2L);
+
+    return 1;
+  }
+
+  @Method(0x61c4L)
+  public static long OutdatedPadGetButtons_Impl_B16() {
+    assert false;
+    //TODO
+    return 0;
+  }
+
+  @Method(0x6380L)
+  public static void FUN_00006380() {
+    _000075c0.setu(0x1L);
+  }
+
+  @Method(0x6390L)
+  public static void FUN_00006390(final long a0, final long a1, final long a2) {
+    _000072f0.setu(0);
+    _000075c0.setu(0);
+    _000075c4.setu(a0);
+    _000075c8.setu(a1);
+    _000075cc.setu(a2);
+  }
+
+  /**
+   * Injects card handling code into the exception handler
+   */
+  @Method(0x63bcL)
+  public static void installEarlyCardIrqHandler() {
+    _000075c0.setu(0);
+
+    //LAB_000063dc
+    for(int i = 0; i < 0x10; i += 4) {
+      _00000cf0.offset(i).setu(_00006408.offset(i));
+    }
+
+    MEMORY.ref(4, 0xc80L, SupplierRef::new).set(() -> {
+      if(early_card_irq_vector()) {
+        CPU.RFE();
+        return 1;
+      }
+
+      return ExceptionHandler_Impl_C06();
+    });
+
+    FlushCache();
+  }
+
+  @Method(0x63f8L)
+  public static long FUN_000063f8() {
+    return _000075c0.get();
+  }
+
+  @Method(0x641cL)
+  public static boolean early_card_irq_vector() {
+    if(_000075c0.get() == 0 || I_STAT.get(0x80L) == 0 || I_MASK.get(0x80L) == 0) {
+      return false;
+    }
+
+    final long v0 = _000075c8.deref(1).get();
+    if(v0 == 0x4L) {
+      JOY_MCD_DATA.get(); // Intentional read to nowhere
+
+      final long v1 = _000075c4.deref(1).get();
+      _000075c4.addu(0x1L);
+      JOY_MCD_DATA.setu(v1);
+      JOY_MCD_CTRL.oru(0x10L);
+
+      I_STAT.setu(0xffff_ff7fL);
+
+      _000075cc.deref(4).xoru(v1);
+      _000072f0.addu(0x1L);
+
+      if(_000072f0.get() >= 0x80L) {
+        _000075c0.setu(0);
+      }
+
+      //LAB_000064ec;
+    } else if(v0 == 0x2L) {
+      final long v1 = JOY_MCD_DATA.get();
+      _000075c4.deref(1).setu(v1);
+      _000075c4.addu(0x1L);
+      JOY_MCD_DATA.setu(0);
+      JOY_MCD_CTRL.oru(0x10L);
+
+      I_STAT.setu(0xffff_ff7fL);
+
+      _000075cc.deref(4).xoru(v1);
+      _000072f0.addu(0x1L);
+
+      if(_000072f0.get() >= 0x7fL) {
+        _000075c0.setu(0);
+      }
+
+      //LAB_0000658c
+    } else {
+      //LAB_00006594
+      return false;
+    }
+
+    //LAB_0000659c
+    ProcessControlBlockAddr_a0000108.deref(4).deref(4).offset(0x88L).deref(4).call();
+    CPU.RFE();
+    return true;
+  }
+
   @Method(0x6a70L)
   public static void FlushCache() {
     functionVectorA(0x44L);
@@ -1437,5 +2131,41 @@ public final class Kernel {
   @Method(0x6b20L)
   public static long memcpy(final long dst, final long src, final int len) {
     return (long)functionVectorA(0x2aL, dst, src, len);
+  }
+
+  @Method(0x6b30L)
+  public static void bu_callback_okay() {
+    functionVectorA(0xa7L);
+  }
+
+  @Method(0x6b40L)
+  public static void bu_callback_err_write() {
+    functionVectorA(0xa8L);
+  }
+
+  @Method(0x6b50L)
+  public static void bu_callback_err_busy() {
+    functionVectorA(0xa9L);
+  }
+
+  @Method(0x6b60L)
+  public static void bu_callback_err_eject() {
+    functionVectorA(0xaaL);
+  }
+
+  @Method(0x6b80L)
+  public static boolean EnterCriticalSection() {
+    CPU.SYSCALL(1);
+
+    // The exception handler stores v0 (return value) here
+    GATE.acquire();
+    final boolean ret = ProcessControlBlockAddr_a0000108.deref(4).deref(4).offset(0x10).get() != 0;
+    GATE.release();
+    return ret;
+  }
+
+  @Method(0x6b90L)
+  public static void ExitCriticalSection() {
+    CPU.SYSCALL(2);
   }
 }

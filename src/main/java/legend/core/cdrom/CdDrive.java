@@ -329,7 +329,7 @@ public class CdDrive {
     }
     this.responseBuffer.clear();
 
-    final Runnable callback = this.commandCallbacks.computeIfAbsent(CdlCOMMAND.fromLong(value), key -> {
+    final Runnable callback = this.commandCallbacks.computeIfAbsent(CdlCOMMAND.fromCommand((int)value), key -> {
       throw new RuntimeException("Cannot write to reg1.0 - unknown command " + Long.toString(value, 16));
     });
 

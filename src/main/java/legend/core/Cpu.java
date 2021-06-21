@@ -1,9 +1,12 @@
 package legend.core;
 
+import legend.core.gte.Gte;
 import legend.core.memory.types.RunnableRef;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 
 import static legend.core.Hardware.GATE;
 import static legend.core.Hardware.INTERRUPTS;
@@ -23,6 +26,10 @@ public class Cpu {
   public final Register R14_EPC = new Register();
   public final Register R15_PRID = new Register();
 
+  private final Map<CpuRegisterType, Register> registers = new EnumMap<>(CpuRegisterType.class);
+
+  private final Gte gte = new Gte();
+
   private final List<Runnable> delegatedExecutions = new ArrayList<>();
 
   private int lastSyscall;
@@ -31,6 +38,18 @@ public class Cpu {
   private final RunnableRef[] exceptionAddresses;
 
   public Cpu() {
+    this.registers.put(CpuRegisterType.BPC, this.R3_BPC);
+    this.registers.put(CpuRegisterType.BDA, this.R5_BDA);
+    this.registers.put(CpuRegisterType.JUMPDEST, this.R6_JUMPDEST);
+    this.registers.put(CpuRegisterType.DCIC, this.R7_DCIC);
+    this.registers.put(CpuRegisterType.BadVaddr, this.R8_BadVaddr);
+    this.registers.put(CpuRegisterType.BDAM, this.R9_BDAM);
+    this.registers.put(CpuRegisterType.BPCM, this.R11_BPCM);
+    this.registers.put(CpuRegisterType.SR, this.R12_SR);
+    this.registers.put(CpuRegisterType.CAUSE, this.R13_CAUSE);
+    this.registers.put(CpuRegisterType.EPC, this.R14_EPC);
+    this.registers.put(CpuRegisterType.PRID, this.R15_PRID);
+
     this.exceptionAddresses = new RunnableRef[] {
       MEMORY.ref(4, 0x80000080L, RunnableRef::new),
       MEMORY.ref(4, 0xbfc00180L, RunnableRef::new),
@@ -114,6 +133,68 @@ public class Cpu {
     this.R12_SR.set(this.R12_SR.get() | mode >>> 2);
 
     this.exceptionHandled = true;
+  }
+
+  public long MFC0(final CpuRegisterType register) {
+    if(!this.registers.containsKey(register)) {
+      this.EXCEPTION(CpuException.ILLEGAL_INSTR, 0);
+    }
+
+    return this.registers.get(register).get();
+  }
+
+  public void MTC0(final CpuRegisterType register, final long value) {
+    //MTC0 can trigger soft interrupts
+    final boolean prevIEC = this.R12_SR.getIEc();
+
+    this.registers.get(register).set(value);
+
+    final long IM = this.R12_SR.getIm();
+    final long IP = this.R13_CAUSE.get() >>> 8 & 0x3;
+
+    if(!prevIEC && this.R12_SR.getIEc() && (IM & IP) > 0) {
+      this.EXCEPTION(CpuException.INTERRUPT, 0);
+    }
+  }
+
+  /**
+   * Stores val in GTE control register
+   *
+   * Register is (cmd >>> 11) &amp; 0x1f
+   */
+  public void CTC2(final long val, final long register) {
+    this.gte.writeControl((int)register, (int)val);
+  }
+
+  /**
+   * Stores val in GTE data register
+   *
+   * Register is (cmd >>> 11) &amp; 0x1f
+   */
+  public void MTC2(final long val, final long register) {
+    this.gte.writeData((int)register, (int)val);
+  }
+
+  /**
+   * Returns value in GTE data register
+   *
+   * Return moved from a0 to return
+   *
+   * Register is (cmd >>> 11) &amp; 0x1f
+   */
+  public long MFC2(final long register) {
+    return this.gte.loadData((int)register);
+  }
+
+  /**
+   * Returns value in GTE control register
+   *
+   * Return moved from a0 to return
+   *
+   * Register is (cmd >>> 11) &amp; 0x1f
+   */
+  public long CFC2(final long register) {
+    return this.gte.loadControl((int)register);
   }
 
   public static class Register {
@@ -565,7 +646,6 @@ public class Cpu {
     }
 
     public void setCU2() {
-      assert false : "Unimplemented";
       this.CU2 = true;
     }
 

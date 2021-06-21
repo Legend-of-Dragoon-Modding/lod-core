@@ -43,8 +43,20 @@ public class Pointer<T extends MemoryRef> implements MemoryRef {
   }
 
   public T deref() {
-    if(this.isNull()) {
+    final T value = this.derefNullable();
+
+    if(value == null) {
       throw new NullPointerException("Pointer " + Long.toHexString(this.getAddress()) + " is null");
+    }
+
+    return value;
+  }
+
+  @Nullable
+  public T derefNullable() {
+    if(this.isNull()) {
+      this.cache = null;
+      return null;
     }
 
     if(this.cache == null || this.ref.get() != this.cache.getAddress()) {

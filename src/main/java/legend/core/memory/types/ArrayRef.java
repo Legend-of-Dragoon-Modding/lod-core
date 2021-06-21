@@ -6,6 +6,10 @@ import java.lang.reflect.Array;
 import java.util.function.Function;
 
 public class ArrayRef<T extends MemoryRef> implements MemoryRef {
+  public static <T extends MemoryRef> Function<Value, ArrayRef<T>> of(final Class<T> cls, final int length, final int elementSize, final int stride, final Function<Value, T> constructor) {
+    return ref -> new ArrayRef<>(ref, cls, length, elementSize, stride, constructor);
+  }
+
   public static <T extends MemoryRef> Function<Value, ArrayRef<T>> of(final Class<T> cls, final int length, final int stride, final Function<Value, T> constructor) {
     return ref -> new ArrayRef<>(ref, cls, length, stride, constructor);
   }
@@ -13,15 +17,19 @@ public class ArrayRef<T extends MemoryRef> implements MemoryRef {
   private final Value ref;
   private final T[] elements;
 
-  public ArrayRef(final Value ref, final Class<T> cls, final int length, final int stride, final Function<Value, T> constructor) {
+  public ArrayRef(final Value ref, final Class<T> cls, final int length, final int elementSize, final int stride, final Function<Value, T> constructor) {
     this.ref = ref;
 
     //noinspection unchecked
     this.elements = (T[])Array.newInstance(cls, length);
 
     for(int i = 0; i < length; i++) {
-      this.elements[i] = constructor.apply(ref.offset(stride, i * stride));
+      this.elements[i] = constructor.apply(ref.offset(elementSize, i * stride));
     }
+  }
+
+  public ArrayRef(final Value ref, final Class<T> cls, final int length, final int stride, final Function<Value, T> constructor) {
+    this(ref, cls, length, stride, stride, constructor);
   }
 
   private void checkIndex(final int index) {

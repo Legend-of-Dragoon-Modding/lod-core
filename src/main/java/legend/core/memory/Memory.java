@@ -298,6 +298,8 @@ public class Memory {
         }
 
         return binding.method().invoke(binding.instance(), finalParams);
+      } catch(final IllegalArgumentException e) {
+        throw new RuntimeException("Method " + Long.toHexString(this.address), e);
       } catch(final IllegalAccessException e) {
         throw new RuntimeException(e);
       } catch(final InvocationTargetException e) {

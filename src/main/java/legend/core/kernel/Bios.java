@@ -6,40 +6,50 @@ import legend.core.cdrom.SyncCode;
 import legend.core.memory.Memory;
 import legend.core.memory.Method;
 import legend.core.memory.Value;
+import legend.core.memory.types.ArrayRef;
 import legend.core.memory.types.BiConsumerRef;
 import legend.core.memory.types.BiFunctionRef;
 import legend.core.memory.types.CString;
+import legend.core.memory.types.ConsumerRef;
 import legend.core.memory.types.IntRef;
+import legend.core.memory.types.Pointer;
 import legend.core.memory.types.RunnableRef;
+import legend.core.memory.types.SupplierRef;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
-import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static legend.core.Hardware.CPU;
 import static legend.core.Hardware.DMA;
+import static legend.core.Hardware.ENTRY_POINT;
 import static legend.core.Hardware.GATE;
 import static legend.core.Hardware.MEMORY;
-import static legend.core.Hardware.ENTRY_POINT;
 import static legend.core.InterruptController.I_MASK;
 import static legend.core.InterruptController.I_STAT;
 import static legend.core.MathHelper.toBcd;
+import static legend.core.MemoryHelper.getMethodAddress;
 import static legend.core.cdrom.CdDrive.CDROM_REG0;
 import static legend.core.cdrom.CdDrive.CDROM_REG1;
 import static legend.core.cdrom.CdDrive.CDROM_REG2;
 import static legend.core.cdrom.CdDrive.CDROM_REG3;
 import static legend.core.dma.DmaManager.DMA_DICR;
 import static legend.core.dma.DmaManager.DMA_DPCR;
+import static legend.core.gpu.Gpu.GPU_REG0;
+import static legend.core.gpu.Gpu.GPU_REG1;
 import static legend.core.kernel.Kernel.EvMdNOINTR;
 import static legend.core.kernel.Kernel.EvSpACK;
 import static legend.core.kernel.Kernel.EvSpCOMP;
 import static legend.core.kernel.Kernel.EvSpDE;
 import static legend.core.kernel.Kernel.EvSpDR;
 import static legend.core.kernel.Kernel.EvSpERROR;
+import static legend.core.kernel.Kernel.EvSpIOE;
+import static legend.core.kernel.Kernel.EvSpNEW;
 import static legend.core.kernel.Kernel.EvSpTIMOUT;
 import static legend.core.kernel.Kernel.EvSpUNKNOWN;
 import static legend.core.kernel.Kernel.HwCdRom;
+import static legend.core.kernel.Kernel.SwCARD;
 import static legend.core.memory.segments.ExpansionRegion1Segment.EXPANSION_REGION_1;
 import static legend.core.memory.segments.ExpansionRegion2Segment.BOOT_STATUS;
 import static legend.core.memory.segments.ExpansionRegion2Segment.EXPANSION_REGION_2;
@@ -73,7 +83,7 @@ public final class Bios {
 
   public static final Value jumpTableA_00000200 = MEMORY.ref(4, 0x00000200L);
 
-  public static final Value ExceptionChainAddr_a0000100 = MEMORY.ref(4, 0xa0000100L);
+  public static final Pointer<ArrayRef<Pointer<PriorityChainEntry>>> ExceptionChainAddr_a0000100 = (Pointer<ArrayRef<Pointer<PriorityChainEntry>>>)MEMORY.ref(4, 0xa0000100L, Pointer.of(ArrayRef.of(Pointer.class, 4, 4, 8, (Function)Pointer.of(PriorityChainEntry::new))));
   public static final Value ExceptionChainSize_a0000104 = MEMORY.ref(4, 0xa0000104L);
   public static final Value ProcessControlBlockAddr_a0000108 = MEMORY.ref(4, 0xa0000108L);
   public static final Value ProcessControlBlockSize_a000010c = MEMORY.ref(4, 0xa000010cL);
@@ -107,14 +117,8 @@ public final class Bios {
   public static final Value _a00091c4 = MEMORY.ref(4, 0xa00091c4L);
   public static final Value _a00091c8 = MEMORY.ref(4, 0xa00091c8L);
   public static final Value _a00091cc = MEMORY.ref(4, 0xa00091ccL);
-  public static final Value _a00091d0 = MEMORY.ref(4, 0xa00091d0L);
-  public static final Value _a00091d4 = MEMORY.ref(4, 0xa00091d4L);
-  public static final Value _a00091d8 = MEMORY.ref(4, 0xa00091d8L);
-
-  public static final Value _a00091e0 = MEMORY.ref(4, 0xa00091e0L);
-  public static final Value _a00091e4 = MEMORY.ref(4, 0xa00091e4L);
-  public static final Value _a00091e8 = MEMORY.ref(4, 0xa00091e8L);
-
+  public static final PriorityChainEntry _a00091d0 = MEMORY.ref(4, 0xa00091d0L, PriorityChainEntry::new);
+  public static final PriorityChainEntry _a00091e0 = MEMORY.ref(4, 0xa00091e0L, PriorityChainEntry::new);
   public static final Value _a00091f0 = MEMORY.ref(4, 0xa00091f0L);
 
   public static final Value _a00091fc = MEMORY.ref(4, 0xa00091fcL);
@@ -138,6 +142,13 @@ public final class Bios {
   public static final Value _a0009e10 = MEMORY.ref(4, 0xa0009e10L);
 
   public static final Value _a0009e18 = MEMORY.ref(1, 0xa0009e18L);
+
+  public static final Value _a0009f20 = MEMORY.ref(1, 0xa0009f20L);
+  public static final Value _a0009f24 = MEMORY.ref(1, 0xa0009f24L);
+  public static final Value _a0009f28 = MEMORY.ref(1, 0xa0009f28L);
+  public static final Value _a0009f30 = MEMORY.ref(1, 0xa0009f30L);
+
+  public static final Value _a0009f90 = MEMORY.ref(1, 0xa0009f90L);
 
   public static final Value _a000b068 = MEMORY.ref(4, 0xa000b068L);
 
@@ -181,6 +192,25 @@ public final class Bios {
   public static final Value EventId_HwCdRom_EvSpDR_a000b9c0 = MEMORY.ref(1, 0xa000b9c0L);
   public static final Value EventId_HwCdRom_EvSpDE_a000b9c4 = MEMORY.ref(1, 0xa000b9c4L);
   public static final Value EventId_HwCdRom_EvSpERROR_a000b9c8 = MEMORY.ref(1, 0xa000b9c8L);
+
+  public static final Value _a000b9d0 = MEMORY.ref(4, 0xa000b9d0L);
+  public static final Value _a000b9d4 = MEMORY.ref(4, 0xa000b9d4L);
+  public static final Value _a000b9d8 = MEMORY.ref(4, 0xa000b9d8L);
+  public static final Value _a000b9dc = MEMORY.ref(4, 0xa000b9dcL);
+  public static final Value _a000b9e0 = MEMORY.ref(4, 0xa000b9e0L);
+
+  public static final Value _a000b9e4 = MEMORY.ref(4, 0xa000b9e4L);
+  public static final Value _a000b9e8 = MEMORY.ref(4, 0xa000b9e8L);
+
+  public static final Value _a000ba88 = MEMORY.ref(4, 0xa000ba88L);
+  public static final Value _a000ba8c = MEMORY.ref(4, 0xa000ba8cL);
+  public static final Value _a000ba90 = MEMORY.ref(4, 0xa000ba90L);
+
+  public static final Value _a000bc68 = MEMORY.ref(4, 0xa000bc68L);
+  public static final Value _a000bc6c = MEMORY.ref(4, 0xa000bc6cL);
+  public static final Value _a000bc70 = MEMORY.ref(4, 0xa000bc70L);
+
+  public static final Value _a000be48 = MEMORY.ref(1, 0xa000be48L);
 
   public static final Value responseFromBootMenu_a000dffc = MEMORY.ref(1, 0xa000dffcL);
   public static final Value kernelMemoryStart_a000e000 = MEMORY.ref(1, 0xa000e000L);
@@ -238,8 +268,6 @@ public final class Bios {
 
   /**
    * See no$ "BIOS Memory Map"
-   *
-   * TODO verify
    */
   @Method(0xbfc00420L)
   public static void copyKernelSegment2() {
@@ -476,7 +504,7 @@ public final class Bios {
   }
 
   @Method(0xbfc02240L)
-  public static void setjmp_Impl_A13(final jmp_buf buffer, final Consumer<Long> callback) {
+  public static void setjmp_Impl_A13(final jmp_buf buffer, final RunnableRef callback) {
     buffer.set(callback);
   }
 
@@ -605,6 +633,70 @@ public final class Bios {
     return 0x1L;
   }
 
+  @Method(0xbfc03facL)
+  public static void GPU_cw_Impl_A49(final int gp0cmd) {
+    gpu_sync_Impl_A4e();
+    GPU_REG0.setu(gp0cmd);
+  }
+
+  @Method(0xbfc040ecL)
+  public static void gpu_abort_dma_Impl_A4c() {
+    DMA.gpu.CHCR.setu(0x401L);
+    GPU_REG1.setu(0x400_0000L);
+    GPU_REG1.setu(0x200_0000L);
+    GPU_REG1.setu(0x100_0000L);
+  }
+
+  @Method(0xbfc04138L)
+  public static int gpu_sync_Impl_A4e() {
+    long v1 = 0x1000_0000L;
+    if(GPU_REG1.get(0x6000_0000L) == 0) {
+      //LAB_bfc04174
+      while(GPU_REG1.get(0x1000_0000L) == 0) {
+        if(v1 == 0) {
+          FUN_bfc04260("GPU_sync(FG)");
+          return 0xffff_ffff;
+        }
+
+        //LAB_bfc04190
+        v1--;
+      }
+
+      //LAB_bfc041a4
+      return 0;
+    }
+
+    //LAB_bfc041ac
+    //LAB_bfc041d0
+    while(DMA.gpu.CHCR.get(0x100_0000L) != 0) {
+      if(v1 == 0) {
+        FUN_bfc04260("GPU_sync(BG)");
+        return 0xffff_ffff;
+      }
+
+      //LAB_bfc041ec
+      v1--;
+    }
+
+    //LAB_bfc04200
+    //LAB_bfc04214
+    while(GPU_REG1.get(0x400_0000L) == 0) {
+      DebugHelper.sleep(1);
+    }
+
+    //LAB_bfc04248
+    GPU_REG1.setu(0x400_0000L);
+
+    //LAB_bfc04250
+    return 0;
+  }
+
+  @Method(0xbfc04260L)
+  public static void FUN_bfc04260(final String log) {
+    LOGGER.error("%s timeout: gp1=%08x", log, GPU_REG1.get());
+    gpu_abort_dma_Impl_A4c();
+  }
+
   @Method(0xbfc042a0L)
   public static void copyAbcFunctionVectors_Impl_A45() {
     for(int i = 0; i < 0x30; i += 4) {
@@ -632,7 +724,7 @@ public final class Bios {
 
     //LAB_bfc04640
     bzero_Impl_A28(mem, size);
-    ExceptionChainAddr_a0000100.setu(mem);
+    ExceptionChainAddr_a0000100.set(MEMORY.ref(4, mem, (Function<Value, ArrayRef<Pointer<PriorityChainEntry>>>)ArrayRef.of(Pointer.class, 4, 4, 8, (Function)Pointer.of(PriorityChainEntry::new))));
     ExceptionChainSize_a0000104.setu(size);
 
     //LAB_bfc04668
@@ -705,21 +797,21 @@ public final class Bios {
 
   @Method(0xbfc04850L)
   public static void EnqueueCdIntr_Impl_Aa2() {
-    _a00091d0.setu(0);
-    _a00091d4.setu(0xbfc0506cL); // CdromIoIrqFunc2_Impl_A92
-    _a00091d8.setu(0xbfc04decL); // CdromIoIrqFunc1_Impl_A90
-    SysEnqIntRP(0, _a00091d0.getAddress());
+    _a00091d0.next.clear();
+    _a00091d0.secondFunction.set(MEMORY.ref(4, 0xbfc0506cL, ConsumerRef::new)); // CdromIoIrqFunc2_Impl_A92
+    _a00091d0.firstFunction.set(MEMORY.ref(4, 0xbfc04decL, SupplierRef::new)); // CdromIoIrqFunc1_Impl_A90
+    SysEnqIntRP(0, _a00091d0);
 
-    _a00091e0.setu(0);
-    _a00091e4.setu(0xbfc050a4L); // CdromDmaIrqFunc2_Impl_A93
-    _a00091e8.setu(0xbfc04fbcL); // CdromDmaIrqFunc1_Impl_A91
-    SysEnqIntRP(0, _a00091e0.getAddress());
+    _a00091e0.next.clear();
+    _a00091e0.secondFunction.set(MEMORY.ref(4, 0xbfc050a4L, ConsumerRef::new)); // CdromDmaIrqFunc2_Impl_A93
+    _a00091e0.firstFunction.set(MEMORY.ref(4, 0xbfc04fbcL, SupplierRef::new)); // CdromDmaIrqFunc1_Impl_A91
+    SysEnqIntRP(0, _a00091e0);
   }
 
   @Method(0xbfc048d0L)
   public static void DequeueCdIntr_Impl_Aa3() {
-    SysDeqIntRP(0, _a00091d0.getAddress());
-    SysDeqIntRP(0, _a00091e0.getAddress());
+    SysDeqIntRP(0, _a00091d0);
+    SysDeqIntRP(0, _a00091e0);
   }
 
   @Method(0xbfc04910L)
@@ -1562,6 +1654,27 @@ public final class Bios {
     DMA.cdrom.CHCR.setu(0x1100_0000L);
   }
 
+  @Method(0xbfc06680L)
+  public static void SetMemSize_Impl_A9f(final int megabytes) {
+    if(megabytes == 0x2L) {
+      //LAB_bfc066bc
+      RAM_SIZE.and(0xffff_f8ffL);
+    } else {
+      if(megabytes != 0x8L) {
+        //LAB_bfc066e4
+        LOGGER.error("Effective memory must be 2/8 MBytes");
+        return;
+      }
+
+      //LAB_bfc066c8
+      RAM_SIZE.setu(RAM_SIZE.get(0xffff_f8ff) | 0x300L);
+    }
+
+    //LAB_bfc066cc
+    MEMORY.ref(4, 0x60L).setu(megabytes);
+    LOGGER.info("Change effective memory : %d MBytes", megabytes);
+  }
+
   @Method(0xbfc06784L)
   public static void FUN_bfc06784() {
     bootstrapExecutable("cdrom:SYSTEM.CNF;1", "cdrom:PSX.EXE;1");
@@ -1626,7 +1739,7 @@ public final class Bios {
     SPU_REVERB_OUT_R.setu(0);
     SPU_MAIN_VOL_L.setu(0);
     SPU_MAIN_VOL_R.setu(0);
-    setjmp_Impl_A13(jmp_buf_a000b980, value -> stop(0x385));
+    setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop385"), RunnableRef::new));
 
     setBootStatus(0x7L);
     loadIntroAndBootMenu();
@@ -1635,23 +1748,23 @@ public final class Bios {
     I_MASK.setu(0);
     I_STAT.setu(0);
     CdInit_Impl_A54();
-    setjmp_Impl_A13(jmp_buf_a000b980, value -> stop(0x399));
+    setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop399"), RunnableRef::new));
 
     // PIO shell init here (loadPioShell)
 
     LOGGER.info("");
     LOGGER.info("BOOTSTRAP LOADER Type C Ver 2.1   03-JUL-1994");
     LOGGER.info("Copyright 1993,1994 (C) Sony Computer Entertainment Inc.");
-    setjmp_Impl_A13(jmp_buf_a000b980, value -> stop(0x386));
+    setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop386"), RunnableRef::new));
 
     setBootStatus(0x9L);
-    setjmp_Impl_A13(jmp_buf_a000b980, value -> stop(0x387));
+    setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop387"), RunnableRef::new));
 
     //LAB_bfc06a3c
     final int fp = open(cnf, 1);
     if(fp < 0) {
       //LAB_bfc06b18
-      setjmp_Impl_A13(jmp_buf_a000b980, value -> stop(0x391));
+      setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop391"), RunnableRef::new));
 
       //LAB_bfc06b34
       argv_00000180.setu(0);
@@ -1659,7 +1772,7 @@ public final class Bios {
       _a000b8b0.set(exe);
     } else {
       LOGGER.info("setup file    : %s", cnf);
-      setjmp_Impl_A13(jmp_buf_a000b980, value -> stop(0x38f));
+      setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop38f"), RunnableRef::new));
 
       //LAB_bfc06a7c
       final long size = read(fp, _a000b070.getAddress(), 0x800);
@@ -1670,7 +1783,7 @@ public final class Bios {
         //LAB_bfc06ac4
         _a000b070.offset(size).setu(0);
         close(fp);
-        setjmp_Impl_A13(jmp_buf_a000b980, value -> stop(0x390));
+        setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop390"), RunnableRef::new));
 
         //LAB_bfc06af4
         loadCnf(_a000b070.getAddress(), _a000b940.getAddress(), _a000b8b0.getAddress());
@@ -1678,12 +1791,12 @@ public final class Bios {
     }
 
     //LAB_bfc06b60
-    setjmp_Impl_A13(jmp_buf_a000b980, value -> stop(0x388));
+    setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop388"), RunnableRef::new));
 
     //LAB_bfc06b7c
     reinitKernel();
     LOGGER.info("boot file     : %s", _a000b8b0.getString());
-    setjmp_Impl_A13(jmp_buf_a000b980, value -> stop(0x389));
+    setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop389"), RunnableRef::new));
 
     //LAB_bfc06bb4
     clearUserRam();
@@ -1700,12 +1813,62 @@ public final class Bios {
     LOGGER.info("                S_ADDR(%08x)  S_SIZE(%08x)", _a000b948.get(), 0);
 
     EnterCriticalSection();
-    setjmp_Impl_A13(jmp_buf_a000b980, value -> stop(0x38b));
+    setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop38b"), RunnableRef::new));
 
     //LAB_bfc06c6c
     FUN_bfc0d570(_a000b870, 1, 0);
     LOGGER.info("End of Main");
     stop(0x38c);
+  }
+
+  @Method(0xbfc06980L)
+  public static void stop385() {
+    stop(0x385);
+  }
+
+  @Method(0xbfc069c8L)
+  public static void stop399() {
+    stop(0x399);
+  }
+
+  @Method(0xbfc06a0cL)
+  public static void stop386() {
+    stop(0x386);
+  }
+
+  @Method(0xbfc06a30L)
+  public static void stop387() {
+    stop(0x387);
+  }
+
+  @Method(0xbfc06a70L)
+  public static void stop38f() {
+    stop(0x38f);
+  }
+
+  @Method(0xbfc06aecL)
+  public static void stop390() {
+    stop(0x390);
+  }
+
+  @Method(0xbfc06b2cL)
+  public static void stop391() {
+    stop(0x391);
+  }
+
+  @Method(0xbfc06b78L)
+  public static void stop388() {
+    stop(0x388);
+  }
+
+  @Method(0xbfc06bb0L)
+  public static void stop389() {
+    stop(0x389);
+  }
+
+  @Method(0xbfc06c64L)
+  public static void stop38b() {
+    stop(0x38b);
   }
 
   @Method(0xbfc06ec4L)
@@ -2322,9 +2485,323 @@ public final class Bios {
     AddDevice(DummyTtyDeviceInfo_bfc0e350.getAddress());
   }
 
+  @Method(0xbfc08720L)
+  public static int FUN_bfc08720(long a0) {
+    assert false;
+    //TODO
+    return 0;
+  }
+
+  @Method(0xbfc0884cL)
+  public static void FUN_bfc0884c() {
+    _a000b9d0.setu(0);
+
+    for(int i = 0; i < 0x10; i += 0x10) {
+      _a000b9d4.offset(i).setu(0);
+      _a000b9d8.offset(i).setu(0);
+      _a000b9dc.offset(i).setu(0);
+      _a000b9e0.offset(i).setu(0);
+    }
+
+    FUN_bfc0c354();
+  }
+
+  @Method(0xbfc088a0L)
+  public static void FUN_bfc088a0() {
+    _a0009f20.setu(0);
+    _a0009f24.setu(0);
+    _a0009f90.setu(0);
+
+    FUN_bfc0884c();
+
+    for(int i = 0; i < 15; i++) {
+      bzero_Impl_A28(_a000ba88.offset(i * 0x20L).getAddress(), 0x20);
+      bzero_Impl_A28(_a000bc68.offset(i * 0x20L).getAddress(), 0x20);
+
+      _a000ba88.offset(4, i * 0x20L).setu(0xa0L);
+      _a000ba8c.offset(4, i * 0x20L).setu(0);
+      _a000ba90.offset(2, i * 0x20L).setu(0xffffL);
+
+      _a000bc68.offset(4, i * 0x20L).setu(0xa0L);
+      _a000bc6c.offset(4, i * 0x20L).setu(0);
+      _a000bc70.offset(2, i * 0x20L).setu(0xffffL);
+    }
+  }
+
+  @Method(0xbfc08b3cL)
+  public static long FUN_bfc08b3c(final int port) {
+    final long s1;
+    final long s2;
+
+    allow_new_card();
+    long at = port;
+    if(port < 0) {
+      at += 0xfL;
+    }
+
+    //LAB_bfc08b80
+    final long v0 = (int)at >> 0x4L;
+    final long s3 = _a000be48.getAddress() + v0 * 128;
+    if(read_card_sector(port, 0, s3) == 0x1L && FUN_bfc09144() != 0) {
+      //LAB_bfc08bf4
+      Outer:
+      if(MEMORY.ref(1, s3).get() == 'M' && MEMORY.ref(1, s3).offset(0x1L).get() == 'C') {
+        //LAB_bfc08c7c
+        allow_new_card();
+        write_card_sector(port, 0x3f, s3);
+        FUN_bfc09144();
+
+        s2 = _a000ba88.getAddress() + v0 * 480;
+
+        //LAB_bfc08cc0
+        for(int i = 0; i < 0xfL; i++) {
+          final long a2 = s2 + i * 32L;
+          bzero_Impl_A28(a2, 0x20);
+          MEMORY.ref(4, a2).setu(0xa0L);
+          MEMORY.ref(4, a2).offset(0x4L).setu(0);
+        }
+
+        //LAB_bfc08cf8
+        for(int i = 0; i != 0xfL; i++) {
+          if(read_card_sector(port, i + 1, s3) != 0x1L || FUN_bfc09144() == 0) {
+            //LAB_bfc08d24
+            s1 = _a000b9e8.getAddress() + v0 * 80;
+            break Outer;
+          }
+
+          //LAB_bfc08d44
+          if(FUN_bfc08720(s3) == 0) {
+            s1 = _a000b9e8.getAddress() + v0 * 80;
+            break Outer;
+          }
+
+          //LAB_bfc08d7c
+          memcpy_Impl_A2a(s2 + i * 32L, s3, 0x20);
+        }
+
+        //LAB_bfc08da4
+        final long[] sp58 = new long[15];
+        for(int i = 0; i < 0xfL; i++) {
+          sp58[i] = 0;
+          if(FUN_bfc08ffc(v0, i) == 0x1L) {
+            sp58[i] = 0x52L;
+          }
+        }
+
+        sp58[0] = 0;
+        sp58[1] = 0;
+        sp58[2] = 0;
+
+        //LAB_bfc08dec
+        for(int i = 0; i < 0x3; i++) {
+          sp58[i + 3] = 0;
+          sp58[i + 4] = 0;
+          sp58[i + 5] = 0;
+          sp58[i + 6] = 0;
+        }
+
+        //LAB_bfc08e18
+        for(int i = 0; i < 0xfL; i++) {
+          final long a2 = s2 + i * 32L;
+          final long v2 = MEMORY.ref(4, a2).get();
+          if(v2 == 0x51L || v2 == 0xa1L) {
+            //LAB_bfc08e38
+            sp58[i] = 0x1L;
+            at = MEMORY.ref(4, a2).offset(0x4L).get();
+            long v1 = MEMORY.ref(2, a2).offset(0x8L).get();
+            if((int)at < 0) {
+              at += 0x1fffL;
+            }
+
+            //LAB_bfc08e58
+            long a5 = (int)at >> 0xdL;
+            a5--;
+            //LAB_bfc08e74
+            while(a5 > 0 && v1 != 0xffffL) {
+              sp58[(int)v1]++;
+              final long t3 = s2 + v1 * 32;
+              v1 = MEMORY.ref(2, t3).offset(0x8L).get();
+              a5--;
+            }
+          }
+        }
+
+        //LAB_bfc08ec4
+        for(int i = 0; i < 0xfL; i++) {
+          if(sp58[i] == 0) {
+            final long a2 = s2 + i * 32L;
+            MEMORY.ref(4, a2).setu(0xa0L);
+            MEMORY.ref(4, a2).offset(0x4L).setu(0);
+            MEMORY.ref(4, a2).offset(0x8L).setu(0xffffL);
+          }
+        }
+
+        s1 = _a000b9e8.getAddress() + v0 * 80;
+
+        //LAB_bfc08f1c
+        for(int i = 0; i < 0x14; i++) {
+          if(read_card_sector(port, i + 0x10, s3) != 0x1L || FUN_bfc09144() == 0) {
+            //LAB_bfc08f40
+            break Outer;
+          }
+
+          //LAB_bfc08f48
+          if(FUN_bfc08720(s3) == 0) {
+            break Outer;
+          }
+
+          //LAB_bfc08f64
+          memcpy_Impl_A2a(s1 + i * 4, s3, 0x4);
+        }
+
+        return 1;
+      } else {
+        //LAB_bfc08c14
+        if(_a0009f90.get() == 0x1L) {
+          return FUN_bfc0b170(port);
+        }
+
+        //LAB_bfc08c40
+        s2 = _a000ba88.getAddress() + v0 * 480;
+        s1 = _a000b9e8.getAddress() + v0 * 80;
+      }
+    } else {
+      //LAB_bfc08bb8
+      s2 = _a000ba88.getAddress() + v0 * 480;
+      s1 = _a000b9e8.getAddress() + v0 * 80;
+    }
+
+    //LAB_bfc08f8c
+    //LAB_bfc08f90
+    for(int i = 0; i < 0xfL; i++) {
+      bzero_Impl_A28(s2 + i * 32L, 0x20);
+    }
+
+    //LAB_bfc08fb4
+    for(int i = 0; i < 20; i += 4) {
+      final long v2 = s1 + i * 4L;
+      MEMORY.ref(4, v2).setu(0xffff_ffffL);
+      MEMORY.ref(4, v2).offset(0x4L).setu(0xffff_ffffL);
+      MEMORY.ref(4, v2).offset(0x8L).setu(0xffff_ffffL);
+      MEMORY.ref(4, v2).offset(0xcL).setu(0xffff_ffffL);
+    }
+
+    //LAB_bfc08fd8
+    //LAB_bfc08fdc
+    return 0;
+  }
+
+  @Method(0xbfc08ffcL)
+  public static int FUN_bfc08ffc(long a0, long a1) {
+    assert false;
+    //TODO
+    return 0;
+  }
+
+  @Method(0xbfc09144L)
+  public static int FUN_bfc09144() {
+    LOGGER.warn("------------------------------------------------");
+    LOGGER.warn("SKIPPING MEMCARD STUFF I HAVEN'T FIGURED OUT YET");
+    LOGGER.warn("------------------------------------------------");
+    boolean a = true;
+    if(a) {
+      return 0;
+    }
+
+    //LAB_bfc09158
+    while(true) {
+      if(_a000b9d0.get() == 0x1L) {
+        FUN_bfc0884c();
+        return 1;
+      }
+
+      //LAB_bfc0917c
+      //LAB_bfc09188
+      for(int i = 0; i < 0x10; i += 4) {
+        if(_a000b9d4.offset(i).get() == 0x1L) {
+          FUN_bfc0884c();
+          return 0;
+        }
+      }
+    }
+  }
+
+  @Method(0xbfc09914L)
+  public static void _bu_init_Impl_A55() {
+    _a0009f20.setu(0);
+    _a0009f24.setu(0);
+    FUN_bfc088a0();
+    FUN_bfc08b3c(0);
+    FUN_bfc08b3c(0x10);
+  }
+
+  @Method(0xbfc0b170L)
+  public static int FUN_bfc0b170(int port) {
+    assert false;
+    //TODO
+    return 0;
+  }
+
+  @Method(0xbfc0b54cL)
+  public static void FUN_bfc0b54c() {
+    int port = get_bu_callback_port();
+    if(port < 0) {
+      port += 0xfL;
+    }
+
+    //LAB_bfc0b568
+    final long v1 = port >> 0x4L;
+    if(_a0009f20.offset(v1 * 4).get() != 0) {
+      FUN_bfc0bff0(v1, EvSpTIMOUT);
+    }
+
+    //LAB_bfc0b594
+  }
+
+  @Method(0xbfc0b5a0L)
+  public static void FUN_bfc0b5a0() {
+    long port = get_bu_callback_port();
+    if((int)port < 0) {
+      port += 0xfL;
+    }
+
+    final long v1 = port >> 0x4L;
+    if(_a0009f20.offset(v1 * 4L).get() != 0) {
+      FUN_bfc0bff0(v1, EvSpERROR);
+    }
+  }
+
+  @Method(0xbfc0bff0L)
+  public static void FUN_bfc0bff0(final long a0, final int spec) {
+    _a0009f20.offset(a0 * 4L).setu(0);
+    _a0009f28.offset(a0 * 4L).setu(0);
+    _a0009f30.offset(a0 * 4L).setu(0);
+    DeliverEvent(SwCARD, spec);
+  }
+
   @Method(0xbfc0c1fcL)
   public static void AddMemCardDevice_Impl_A97() {
     AddDevice(MemCardDeviceInfo_bfc0e3e4.getAddress());
+  }
+
+  @Method(0xbfc0c248L)
+  public static void bu_callback_err_write_Impl_Aa8() {
+    _a000b9d4.setu(0x1L);
+    FUN_bfc0b5a0();
+  }
+
+  @Method(0xbfc0c270L)
+  public static void bu_callback_err_busy_Impl_Aa9() {
+    _a000b9d8.setu(0x1L);
+    FUN_bfc0b54c();
+  }
+
+  @Method(0xbfc0c354L)
+  public static void FUN_bfc0c354() {
+    UnDeliverEvent(SwCARD, EvSpIOE);
+    UnDeliverEvent(SwCARD, EvSpERROR);
+    UnDeliverEvent(SwCARD, EvSpNEW);
+    UnDeliverEvent(SwCARD, EvSpTIMOUT);
   }
 
   @Method(0xbfc0d570L)
@@ -2459,19 +2936,39 @@ public final class Bios {
     return (boolean)functionVectorB_000000b0.run(0x47L, new Object[] {deviceInfo});
   }
 
+  @Method(0xbfc0da00L)
+  public static int read_card_sector(final int port, final int sector, final long dest) {
+    return (int)functionVectorB_000000b0.run(0x4fL, new Object[] {port, sector, dest});
+  }
+
+  @Method(0xbfc0da10L)
+  public static void allow_new_card() {
+    functionVectorB_000000b0.run(0x50L, EMPTY_OBJ_ARRAY);
+  }
+
+  @Method(0xbfc0da20L)
+  public static void write_card_sector(final int port, final int sector, final long source) {
+    functionVectorB_000000b0.run(0x4eL, new Object[] {port, sector, source});
+  }
+
+  @Method(0xbfc0da30L)
+  public static int get_bu_callback_port() {
+    return (int)functionVectorB_000000b0.run(0x58L, EMPTY_OBJ_ARRAY);
+  }
+
   @Method(0xbfc0dae0L)
   public static long alloc_kernel_memory(final int size) {
     return (long)functionVectorB_000000b0.run(0x0L, new Object[] {size});
   }
 
   @Method(0xbfc0daf0L)
-  public static long SysEnqIntRP(final int priority, final long struct) {
+  public static long SysEnqIntRP(final int priority, final PriorityChainEntry struct) {
     return (long)functionVectorC_000000c0.run(0x2L, new Object[] {priority, struct});
   }
 
   @Method(0xbfc0db00L)
-  public static long SysDeqIntRP(final int priority, final long struct) {
-    return (long)functionVectorC_000000c0.run(0x3L, new Object[] {priority, struct});
+  public static PriorityChainEntry SysDeqIntRP(final int priority, final PriorityChainEntry struct) {
+    return (PriorityChainEntry)functionVectorC_000000c0.run(0x3L, new Object[] {priority, struct});
   }
 
   @Method(0xbfc0db10L)
