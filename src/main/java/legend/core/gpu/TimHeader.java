@@ -51,6 +51,14 @@ public class TimHeader implements MemoryRef {
     };
   }
 
+  public void set(final TimHeader other) {
+    this.flags.set(other.flags);
+    this.imageRect.set(other.imageRect);
+    this.imageAddress.set(other.imageAddress);
+    this.clutRect.set(other.clutRect);
+    this.clutAddress.set(other.clutAddress);
+  }
+
   public void setImage(final RECT rect, final long address) {
     this.imageRect.set(rect);
     this.imageAddress.set((int)address);

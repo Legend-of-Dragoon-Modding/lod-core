@@ -20,6 +20,17 @@ public class CdlPacket implements MemoryRef {
   public final Pointer<BiConsumerRef<SyncCode, byte[]>> syncCallback;
   public final IntRef retries;
 
+  public CdlPacket() {
+    this.ref = null;
+
+    this.batch = new UnsignedIntRef();
+    this.command = ref.offset(1, 0x4L).cast(EnumRef.of(CdlCOMMAND.values()));
+    this.args = ref.offset(4, 0x5L).cast(ArrayRef.of(ByteRef.class, 4, 1, ByteRef::new));
+    this.argsPtr = ref.offset(4, 0xcL).cast(Pointer.of(ArrayRef.of(ByteRef.class, 4, 1, ByteRef::new)));
+    this.syncCallback = ref.offset(4, 0x10L).cast(Pointer.of(BiConsumerRef::new));
+    this.retries = new IntRef();
+  }
+
   public CdlPacket(final Value ref) {
     this.ref = ref;
 
@@ -29,6 +40,29 @@ public class CdlPacket implements MemoryRef {
     this.argsPtr = ref.offset(4, 0xcL).cast(Pointer.of(ArrayRef.of(ByteRef.class, 4, 1, ByteRef::new)));
     this.syncCallback = ref.offset(4, 0x10L).cast(Pointer.of(BiConsumerRef::new));
     this.retries = ref.offset(4, 0x14L).cast(IntRef::new);
+  }
+
+  public void set(final CdlPacket other) {
+    this.batch.set(other.batch);
+    this.command.set(other.command.get());
+
+    for(int i = 0; i < 4; i++) {
+      this.args.get(i).set(other.args.get(i));
+    }
+
+    if(other.argsPtr.isNull()) {
+      this.argsPtr.clear();
+    } else {
+      this.argsPtr.set(other.argsPtr.deref());
+    }
+
+    if(other.syncCallback.isNull()) {
+      this.syncCallback.clear();
+    } else {
+      this.syncCallback.set(other.syncCallback.deref());
+    }
+
+    this.retries.set(other.retries);
   }
 
   public long getArgsAddress() {

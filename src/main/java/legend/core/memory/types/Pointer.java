@@ -71,6 +71,18 @@ public class Pointer<T extends MemoryRef> implements MemoryRef {
     this.cache = ref;
   }
 
+  public void setNullable(@Nullable final T ref) {
+    if(ref == null) {
+      this.clear();
+    } else {
+      this.set(ref);
+    }
+  }
+
+  public long getPointer() {
+    return this.ref.get();
+  }
+
   public void clear() {
     this.ref.setu(0);
     this.cache = null;

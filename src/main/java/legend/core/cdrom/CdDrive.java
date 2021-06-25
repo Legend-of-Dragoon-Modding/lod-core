@@ -158,7 +158,7 @@ public class CdDrive {
   }
 
   private byte[] processDmaLoad(final int size) {
-    LOGGER.debug("[CDROM] DMA transferring %d words", size);
+    LOGGER.info("[CDROM] DMA transferring %d words", size);
 
     final byte[] data = new byte[size * 4];
 
@@ -172,7 +172,7 @@ public class CdDrive {
   }
 
   public void readFromDisk(final CdlLOC pos, final int sectorCount, final long dest) {
-    LOGGER.debug("Performing direct read from disk: %d sectors from %s to %08x", sectorCount, pos, dest);
+    LOGGER.info("Performing direct read from disk: %d sectors from %s to %08x", sectorCount, pos, dest);
 
     final CdlLOC loc = new CdlLOC().set(pos);
 
@@ -231,7 +231,7 @@ public class CdDrive {
 
         this.counter = 0;
 
-        LOGGER.debug("[CDROM] Performing read @ %s", this.readLoc);
+        LOGGER.info("[CDROM] Performing read @ %s", this.readLoc);
 
         byte[] rawSector = new byte[2352];
         try {
@@ -256,20 +256,20 @@ public class CdDrive {
 
         if(this.mode.isSendingAdpcmToSpu() && sectorSubHeader.isForm2()) {
           if(sectorSubHeader.isEndOfFile()) {
-            LOGGER.debug("[CDROM] XA ON: End of File!");
+            LOGGER.info("[CDROM] XA ON: End of File!");
             //is this even needed? There seems to not be an AutoPause flag like on CDDA
             //RR4, Castlevania and others hang sound here if hard stopped to STAT 0x2
           }
 
           if(sectorSubHeader.isRealTime() && sectorSubHeader.isAudio()) {
             if(this.mode.isXaFilter() /*TODO && (filterFile != sectorSubHeader.file || filterChannel != sectorSubHeader.channel)*/) {
-              LOGGER.debug("[CDROM] XA Filter: file || channel");
+              LOGGER.info("[CDROM] XA Filter: file || channel");
               assert false : "CDDA not yet supported";
               return false;
             }
 
             if(!this.mutedAudio && !this.mutedXAADPCM) {
-              LOGGER.debug("[CDROM] Sending realtime XA data to SPU"); //TODO Flag to pass to SPU?
+              LOGGER.info("[CDROM] Sending realtime XA data to SPU"); //TODO Flag to pass to SPU?
 
               final byte[] decodedXaAdpcm = XaAdpcm.decode(rawSector, sectorSubHeader.codingInfo);
               this.applyVolume(decodedXaAdpcm);
@@ -345,7 +345,7 @@ public class CdDrive {
   }
 
   private void onRegister1Index3Write(final long value) {
-    LOGGER.debug("Setting CDROM audio right -> SPU right to %02x", value);
+    LOGGER.info("Setting CDROM audio right -> SPU right to %02x", value);
     this.audioCdRightToSpuRightUncommitted = (int)value;
   }
 
@@ -360,12 +360,12 @@ public class CdDrive {
   }
 
   private void onRegister2Index2Write(final long value) {
-    LOGGER.debug("Setting CDROM audio left -> SPU left to %02x", value);
+    LOGGER.info("Setting CDROM audio left -> SPU left to %02x", value);
     this.audioCdLeftToSpuLeftUncommitted = (int)value;
   }
 
   private void onRegister2Index3Write(final long value) {
-    LOGGER.debug("Setting CDROM audio right -> SPU left to %02x", value);
+    LOGGER.info("Setting CDROM audio right -> SPU left to %02x", value);
     this.audioCdRightToSpuLeftUncommitted = (int)value;
   }
 
@@ -422,17 +422,17 @@ public class CdDrive {
   }
 
   private void onRegister3Index2Write(final long value) {
-    LOGGER.debug("Setting CDROM audio left -> SPU right to %02x", value);
+    LOGGER.info("Setting CDROM audio left -> SPU right to %02x", value);
     this.audioCdLeftToSpuRightUncommitted = (int)value;
   }
 
   private void onRegister3Index3Write(final long value) {
     this.mutedXAADPCM = (value & 0b1L) != 0;
 
-    LOGGER.debug("[CDROM] XA-ADPCM muted: %b", this.mutedXAADPCM);
+    LOGGER.info("[CDROM] XA-ADPCM muted: %b", this.mutedXAADPCM);
 
     if((value & 0b100000) != 0) {
-      LOGGER.debug("Committing CDROM audio volume settings {LL: %x, LR: %x, RL: %x, RR: %x}", this.audioCdLeftToSpuLeftUncommitted, this.audioCdLeftToSpuRightUncommitted, this.audioCdRightToSpuLeftUncommitted, this.audioCdRightToSpuRightUncommitted);
+      LOGGER.info("Committing CDROM audio volume settings {LL: %x, LR: %x, RL: %x, RR: %x}", this.audioCdLeftToSpuLeftUncommitted, this.audioCdLeftToSpuRightUncommitted, this.audioCdRightToSpuLeftUncommitted, this.audioCdRightToSpuRightUncommitted);
       this.audioCdLeftToSpuLeft = this.audioCdLeftToSpuLeftUncommitted;
       this.audioCdLeftToSpuRight = this.audioCdLeftToSpuRightUncommitted;
       this.audioCdRightToSpuRight = this.audioCdRightToSpuRightUncommitted;
@@ -474,20 +474,20 @@ public class CdDrive {
   }
 
   private void getStat() {
-    LOGGER.debug("Running GetSTAT...");
+    LOGGER.info("Running GetSTAT...");
 
     this.status.shellOpen = false;
     this.queueResponse(0x3, this.status.pack());
   }
 
   private void setLoc() {
-    LOGGER.debug("Running SetLoc...");
+    LOGGER.info("Running SetLoc...");
 
     this.seekLoc.setMinute(fromBcd(this.parameterBuffer.remove()));
     this.seekLoc.setSecond(fromBcd(this.parameterBuffer.remove()));
     this.seekLoc.setSector(fromBcd(this.parameterBuffer.remove()));
 
-    LOGGER.debug("Seeking to %s", this.seekLoc);
+    LOGGER.info("Seeking to %s", this.seekLoc);
 
     try {
       this.diskAsync.seekSectorRaw(this.seekLoc);
@@ -499,7 +499,7 @@ public class CdDrive {
   }
 
   private void read() {
-    LOGGER.debug("Beginning data read...");
+    LOGGER.info("Beginning data read...");
 
     this.readLoc.set(this.seekLoc);
 
@@ -512,7 +512,7 @@ public class CdDrive {
   }
 
   private void pause() {
-    LOGGER.debug("Running pause...");
+    LOGGER.info("Running pause...");
 
     this.queueResponse(0x3, this.status.pack());
 
@@ -523,7 +523,7 @@ public class CdDrive {
   }
 
   private void init() {
-    LOGGER.debug("Initializing CDROM...");
+    LOGGER.info("Initializing CDROM...");
 
     this.status.clear();
     this.status.spindleMotor = true;
@@ -542,7 +542,7 @@ public class CdDrive {
   }
 
   private void demute() {
-    LOGGER.debug("Unmuting CDROM...");
+    LOGGER.info("Unmuting CDROM...");
     this.mode.sendAdpcmToSpu().readCddaSectors();
     this.mutedAudio = false;
 
@@ -550,22 +550,22 @@ public class CdDrive {
   }
 
   private void setMode() {
-    LOGGER.debug("Setting CDROM mode...");
+    LOGGER.info("Setting CDROM mode...");
     this.mode.set(this.parameterBuffer.remove());
-    LOGGER.debug("New mode: %s", this.mode);
+    LOGGER.info("New mode: %s", this.mode);
 
     this.queueResponse(0x3, this.status.pack());
   }
 
   private void getTN() {
-    LOGGER.debug("Getting track number...");
+    LOGGER.info("Getting track number...");
     //TODO verify that there is, in fact, only one track
 
     this.queueResponse(0x3, this.status.pack(), 1, 1);
   }
 
   private void seekL() {
-    LOGGER.debug("Seeking to %s...", this.seekLoc);
+    LOGGER.info("Seeking to %s...", this.seekLoc);
 
     this.readLoc.set(this.seekLoc);
 
@@ -584,7 +584,7 @@ public class CdDrive {
   }
 
   private void queueResponse(final int interrupt, final int... responses) {
-    LOGGER.debug("Queueing CDROM response interrupt %d with responses %s", interrupt, Arrays.toString(responses));
+    LOGGER.debug("[CDROM] Queueing CDROM response interrupt %d with responses %s", interrupt, Arrays.toString(responses));
 
     synchronized(this.interruptQueue) {
       this.interruptQueue.add((byte)interrupt);

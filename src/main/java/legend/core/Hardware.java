@@ -8,6 +8,7 @@ import legend.core.input.DigitalController;
 import legend.core.input.Joypad;
 import legend.core.input.MemoryCard;
 import legend.core.kernel.Bios;
+import legend.core.mdec.Mdec;
 import legend.core.memory.EntryPoint;
 import legend.core.memory.Memory;
 import legend.core.memory.segments.ExpansionRegion1Segment;
@@ -42,6 +43,7 @@ public final class Hardware {
   public static final InterruptController INTERRUPTS;
   public static final DmaManager DMA;
   public static final Gpu GPU;
+  public static final Mdec MDEC;
   public static final Timers TIMERS;
   public static final CdDrive CDROM;
   public static final Spu SPU;
@@ -141,6 +143,7 @@ public final class Hardware {
     INTERRUPTS = new InterruptController(MEMORY);
     DMA = new DmaManager(MEMORY);
     GPU = new Gpu(MEMORY);
+    MDEC = new Mdec(MEMORY);
     TIMERS = new Timers(MEMORY);
     CDROM = new CdDrive(MEMORY);
     SPU = new Spu(MEMORY);

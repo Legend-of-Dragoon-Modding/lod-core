@@ -58,6 +58,11 @@ public class RECT implements MemoryRef {
   }
 
   @Override
+  public String toString() {
+    return "RECT (" + this.x.get() + ", " + this.y.get() + ", " + this.w.get() + ", " + this.h.get() + ')';
+  }
+
+  @Override
   public long getAddress() {
     if(this.ref != null) {
       return this.ref.getAddress();

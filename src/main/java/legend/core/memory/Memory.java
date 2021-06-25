@@ -75,7 +75,7 @@ public class Memory {
       }
     }
 
-    throw new RuntimeException("There is no memory segment at " + Long.toHexString(masked));
+    throw new RuntimeException("There is no memory segment at " + Long.toHexString(masked) + " (address: " + Long.toHexString(address) + ')');
   }
 
   public byte get(final long address) {
@@ -153,18 +153,27 @@ public class Memory {
   }
 
   public TemporaryReservation temp() {
+    return this.temp(1);
+  }
+
+  public TemporaryReservation temp(final int length) {
+    outer:
     for(int i = 0; i < this.temp.length; i++) {
-      if(!this.tempUsage.get(i)) {
-        this.tempUsage.set(i);
-        return new TemporaryReservation(TEMP_FLAG | i);
+      for(int n = 0; n < length; n++) {
+        if(this.tempUsage.get(i + n)) {
+          continue outer;
+        }
       }
+
+      this.tempUsage.set(i, i + length);
+      return new TemporaryReservation(TEMP_FLAG | i, length);
     }
 
     throw new RuntimeException("Ran out of temporary space");
   }
 
-  public void releaseTemp(final long address) {
-    this.tempUsage.clear((int)(address & TEMP_MASK));
+  public void releaseTemp(final long address, final int length) {
+    this.tempUsage.clear((int)(address & TEMP_MASK), (int)(address & TEMP_MASK) + length);
   }
 
   private static record MethodInfo(java.lang.reflect.Method method, boolean ignoreExtraParams) { }
@@ -423,10 +432,12 @@ public class Memory {
 
   public final class TemporaryReservation {
     public final long address;
+    public final int length;
     private boolean released;
 
-    private TemporaryReservation(final long address) {
+    private TemporaryReservation(final long address, final int length) {
       this.address = address;
+      this.length = length;
     }
 
     public Value get() {
@@ -439,7 +450,7 @@ public class Memory {
 
     public void release() {
       this.released = true;
-      Memory.this.releaseTemp(this.address);
+      Memory.this.releaseTemp(this.address, this.length);
     }
   }
 }
