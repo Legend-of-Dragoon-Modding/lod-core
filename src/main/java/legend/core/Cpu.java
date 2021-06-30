@@ -197,6 +197,32 @@ public class Cpu {
     return this.gte.loadControl((int)register);
   }
 
+  public long COP2(final long cmd) {
+    //TODO I'm not sure why this part here is wrong... it thinks GTE commands are register reads/writes
+//    final long rs = cmd >>> 21 & 0x1F;
+//
+//    if((rs & 0x10) == 0) {
+//      assert false : "Use direct commands instead";
+//
+//      return switch((int)rs) {
+//        case 0b0_0000 -> mfc2(cmd);
+//        case 0b0_0010 ->
+//          CFC2();
+//          0;
+//        case 0b0_0100 ->
+//          mtc2();
+//          0;
+//        case 0b0_0110 ->
+//          ctc2();
+//          0;
+//        default -> throw new RuntimeException("Invalid instruction");
+//      };
+//    }
+
+    this.gte.execute((int)cmd);
+    return 0;
+  }
+
   public static class Register {
     protected long value;
 

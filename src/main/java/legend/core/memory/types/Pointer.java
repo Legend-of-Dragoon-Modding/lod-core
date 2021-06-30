@@ -7,7 +7,14 @@ import java.util.function.Function;
 
 public class Pointer<T extends MemoryRef> implements MemoryRef {
   public static <T extends MemoryRef> Function<Value, Pointer<T>> of(final Function<Value, T> constructor) {
-    return ref -> new Pointer<>(ref, constructor);
+    return ref -> new Pointer<>(ref, constructor, true);
+  }
+
+  /**
+   * Lazy mode - don't resolve pointer until used
+   */
+  public static <T extends MemoryRef> Function<Value, Pointer<T>> deferred(final Function<Value, T> constructor) {
+    return ref -> new Pointer<>(ref, constructor, false);
   }
 
   private final Value ref;
@@ -15,7 +22,7 @@ public class Pointer<T extends MemoryRef> implements MemoryRef {
   @Nullable
   private T cache;
 
-  public Pointer(final Value ref, final Function<Value, T> constructor) {
+  public Pointer(final Value ref, final Function<Value, T> constructor, final boolean precache) {
     this.ref = ref;
 
     if(ref.getSize() != 4) {
@@ -24,9 +31,11 @@ public class Pointer<T extends MemoryRef> implements MemoryRef {
 
     this.constructor = constructor;
 
-    try {
-      this.updateCache();
-    } catch(final IllegalArgumentException ignored) { }
+    if(precache) {
+      try {
+        this.updateCache();
+      } catch(final IllegalArgumentException ignored) {}
+    }
   }
 
   private void updateCache() {

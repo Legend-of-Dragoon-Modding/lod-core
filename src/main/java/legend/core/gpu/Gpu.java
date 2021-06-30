@@ -27,6 +27,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Queue;
@@ -36,6 +37,11 @@ import java.util.function.BiFunction;
 import static legend.core.Hardware.DMA;
 import static legend.core.Hardware.INTERRUPTS;
 import static legend.core.Hardware.MEMORY;
+import static legend.core.MathHelper.GetPixelBGR555;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_TAB;
+import static org.lwjgl.glfw.GLFW.glfwGetCurrentContext;
+import static org.lwjgl.opengl.GL11C.GL_NEAREST;
+import static org.lwjgl.opengl.GL11C.GL_RGBA;
 import static org.lwjgl.opengl.GL11C.GL_TRIANGLE_STRIP;
 
 public class Gpu implements Runnable {
@@ -58,8 +64,13 @@ public class Gpu implements Runnable {
   private final long[] vram24 = new long[VRAM_WIDTH * VRAM_HEIGHT];
   private final long[] vram15 = new long[VRAM_WIDTH * VRAM_HEIGHT];
 
+  private boolean isVramViewer = true;
+
   private Shader vramShader;
   private Texture vramTexture;
+
+  private Texture displayTexture;
+  private Mesh displayMesh;
 
   public final Status status = new Status();
   private int gpuInfo;
@@ -276,6 +287,12 @@ public class Gpu implements Runnable {
    * When the "Reverseflag" is set, the display scrolls down 2 lines or so, and colored regions are getting somehow hatched/distorted, but black and white regions are still looking okay. Don't know what that's good for? Probably relates to PAL/NTSC-Color Clock vs PSX-Dot Clock mismatches: Bit7=0 causes Flimmering errors (errors at different locations in each frame), and Bit7=1 causes Static errors (errors at same locations in all frames)?
    */
   private void displayMode(final HORIZONTAL_RESOLUTION_1 hRes1, final VERTICAL_RESOLUTION vRes, final VIDEO_MODE vMode, final DISPLAY_AREA_COLOUR_DEPTH dispColourDepth, final boolean interlace, final HORIZONTAL_RESOLUTION_2 hRes2) {
+    // Always run on the GPU thread
+    if(glfwGetCurrentContext() == 0) {
+      this.commandQueue.add(() -> this.displayMode(hRes1, vRes, vMode, dispColourDepth, interlace, hRes2));
+      return;
+    }
+
     this.status.horizontalResolution1 = hRes1;
     this.status.verticalResolution = vRes;
     this.status.videoMode = vMode;
@@ -283,6 +300,34 @@ public class Gpu implements Runnable {
     this.status.verticalInterlace = interlace;
     this.status.horizontalResolution2 = hRes2;
     this.status.reverse = false;
+
+    final int horizontalRes = hRes2 == HORIZONTAL_RESOLUTION_2._368 ? 368 : hRes1.res;
+    final int verticalRes = vRes.res;
+
+    this.displaySize(horizontalRes, verticalRes);
+  }
+
+  private void displaySize(final int horizontalRes, final int verticalRes) {
+    this.displayTexture = Texture.create(builder -> {
+      builder.size(horizontalRes, verticalRes);
+      builder.internalFormat(GL_RGBA);
+      builder.dataFormat(GL_RGBA);
+      builder.minFilter(GL_NEAREST);
+      builder.magFilter(GL_NEAREST);
+    });
+
+    this.displayMesh = new Mesh(GL_TRIANGLE_STRIP, new float[] {
+      0,           0, 0, 0,
+      0, verticalRes, 0, 1,
+      horizontalRes,           0, 1, 0,
+      horizontalRes, verticalRes, 1, 1,
+    }, 4);
+    this.displayMesh.attribute(0, 0L, 2, 4);
+    this.displayMesh.attribute(1, 2L, 2, 4);
+
+    if(!this.isVramViewer) {
+      this.window.resize(horizontalRes, verticalRes);
+    }
   }
 
   private Shader loadShader(final Path vsh, final Path fsh) {
@@ -311,8 +356,20 @@ public class Gpu implements Runnable {
   public void run() {
     this.camera = new Camera(0.0f, 0.0f);
     this.window = new Window(Config.GAME_NAME, Config.WINDOW_WIDTH, Config.WINDOW_HEIGHT);
-    this.window.setFpsLimit(30);
+//    this.window.setFpsLimit(30);
     this.ctx = new Context(this.window, this.camera);
+
+    this.window.events.onKeyPress((window, key, scancode, mods) -> {
+      if(key == GLFW_KEY_TAB) {
+        this.isVramViewer = !this.isVramViewer;
+
+        if(this.isVramViewer) {
+          this.window.resize(this.vramTexture.width, this.vramTexture.height);
+        } else {
+          this.window.resize(this.displayTexture.width, this.displayTexture.height);
+        }
+      }
+    });
 
     final FloatBuffer transform2Buffer = BufferUtils.createFloatBuffer(4 * 4);
     this.transforms2 = new Shader.UniformBuffer((long)transform2Buffer.capacity() * Float.BYTES, Shader.UniformBuffer.TRANSFORM2);
@@ -328,6 +385,8 @@ public class Gpu implements Runnable {
     }, 4);
     vramMesh.attribute(0, 0L, 2, 4);
     vramMesh.attribute(1, 2L, 2, 4);
+
+    this.displaySize(320, 240);
 
     this.ctx.onDraw(() -> {
       INTERRUPTS.set(InterruptType.VBLANK);
@@ -368,12 +427,14 @@ public class Gpu implements Runnable {
                 while(this.dma.getBlockCount() > 0) {
                   LOGGER.info("Transferring size %04x", this.dma.getBlockSize());
 
-                  for(int n = 0; n < this.dma.getBlockSize() / 4; n++) {
-                    this.queueGp0Command(this.dma.MADR.deref(4).offset(n * 4L).get());
-                  }
+                  synchronized(this.commandQueue) {
+                    for(int n = 0; n < this.dma.getBlockSize() / 4; n++) {
+                      this.queueGp0Command(this.dma.MADR.deref(4).offset(n * 4L).get());
+                    }
 
-                  while(!this.commandQueue.isEmpty()) {
-                    this.processGp0Command();
+                    while(!this.commandQueue.isEmpty()) {
+                      this.processGp0Command();
+                    }
                   }
 
                   this.dma.MADR.addu(this.dma.getBlockSize());
@@ -435,28 +496,103 @@ public class Gpu implements Runnable {
         this.dmaOtc.channelControl.resetBusy();
       }
 
-      final int size = VRAM_WIDTH * VRAM_HEIGHT;
-      final ByteBuffer pixels = BufferUtils.createByteBuffer(size * 4);
+      if(this.isVramViewer) {
+        final int size = VRAM_WIDTH * VRAM_HEIGHT;
+        final ByteBuffer pixels = BufferUtils.createByteBuffer(size * 4);
 
-      for(int i = 0; i < size; i++) {
-        final long packed = this.vram24[i];
+        for(int i = 0; i < size; i++) {
+          final long packed = this.vram24[i];
 
-        pixels.put((byte)(packed        & 0xff));
-        pixels.put((byte)(packed >>>  8 & 0xff));
-        pixels.put((byte)(packed >>> 16 & 0xff));
-        pixels.put((byte)(packed >>> 24 & 0xff));
+          pixels.put((byte)(packed        & 0xff));
+          pixels.put((byte)(packed >>>  8 & 0xff));
+          pixels.put((byte)(packed >>> 16 & 0xff));
+          pixels.put((byte)(packed >>> 24 & 0xff));
+        }
+
+        pixels.flip();
+
+        this.vramTexture.data(new RECT((short)0, (short)0, (short)VRAM_WIDTH, (short)VRAM_HEIGHT), pixels);
+
+        this.vramShader.use();
+        this.vramTexture.use();
+        vramMesh.draw();
+      } else if(this.status.displayAreaColourDepth == DISPLAY_AREA_COLOUR_DEPTH.BITS_24) {
+        int yRangeOffset = 240 - (this.displayRangeY2 - this.displayRangeY1) >> (this.status.verticalResolution == VERTICAL_RESOLUTION._480 ? 0 : 1);
+        if(yRangeOffset < 0) {
+          yRangeOffset = 0;
+        }
+
+        final int size = this.displayTexture.width * this.displayTexture.height;
+        final ByteBuffer pixels = BufferUtils.createByteBuffer(size * 4);
+        final IntBuffer pixelsInt = pixels.asIntBuffer();
+
+        for(int y = yRangeOffset; y < this.status.verticalResolution.res - yRangeOffset; y++) {
+          int offset = 0;
+          for(int x = 0; x < (this.status.horizontalResolution2 == HORIZONTAL_RESOLUTION_2._368 ? 368 : this.status.horizontalResolution1.res); x += 2) {
+            final int p0rgb = (int)this.vram24[offset++ + this.displayStartX + (y - yRangeOffset + this.displayStartY) * 1024];
+            final int p1rgb = (int)this.vram24[offset++ + this.displayStartX + (y - yRangeOffset + this.displayStartY) * 1024];
+            final int p2rgb = (int)this.vram24[offset++ + this.displayStartX + (y - yRangeOffset + this.displayStartY) * 1024];
+
+            final int p0bgr555 = GetPixelBGR555(p0rgb);
+            final int p1bgr555 = GetPixelBGR555(p1rgb);
+            final int p2bgr555 = GetPixelBGR555(p2rgb);
+
+            //[(G0R0][R1)(B0][B1G1)]
+            //   RG    B - R   GB
+
+            final int p0R = p0bgr555 & 0xff;
+            final int p0G = p0bgr555 >>> 8 & 0xff;
+            final int p0B = p1bgr555 & 0xff;
+            final int p1R = p1bgr555 >>> 8 & 0xff;
+            final int p1G = p2bgr555 & 0xff;
+            final int p1B = p2bgr555 >>> 8 & 0xff;
+
+            final int p0rgb24bpp = p0B << 16 | p0G << 8 | p0R;
+            final int p1rgb24bpp = p1B << 16 | p1G << 8 | p1R;
+
+            pixelsInt.put(p0rgb24bpp);
+            pixelsInt.put(p1rgb24bpp);
+          }
+        }
+
+        pixels.flip();
+
+        this.displayTexture.data(new RECT((short)0, (short)0, (short)this.displayTexture.width, (short)this.displayTexture.height), pixels);
+
+        this.vramShader.use();
+        this.displayTexture.use();
+        this.displayMesh.draw();
+      } else { // 15bpp
+        int yRangeOffset = 240 - (this.displayRangeY2 - this.displayRangeY1) >> (this.status.verticalResolution == VERTICAL_RESOLUTION._480 ? 0 : 1);
+        if(yRangeOffset < 0) {
+          yRangeOffset = 0;
+        }
+
+        final ByteBuffer vram = BufferUtils.createByteBuffer(this.vram24.length * 4);
+        final IntBuffer intVram = vram.asIntBuffer();
+
+        for(final long l : this.vram24) {
+          intVram.put((int)l);
+        }
+
+        final int size = this.displayTexture.width * this.displayTexture.height;
+        final ByteBuffer pixels = BufferUtils.createByteBuffer(size * 4);
+        final byte[] from = new byte[this.status.horizontalResolution1.res * 4];
+
+        for(int y = yRangeOffset; y < this.status.verticalResolution.res - yRangeOffset; y++) {
+          vram.get((this.displayStartX + (y - yRangeOffset + this.displayStartY) * this.vramTexture.width) * 4, from);
+          pixels.put(from, 0, from.length);
+        }
+
+        pixels.flip();
+
+        this.displayTexture.data(new RECT((short)0, (short)0, (short)this.displayTexture.width, (short)this.displayTexture.height), pixels);
       }
 
-      pixels.flip();
-
-      this.vramTexture.data(new RECT((short)0, (short)0, (short)VRAM_WIDTH, (short)VRAM_HEIGHT), pixels);
-
-      this.vramShader.use();
-      this.vramTexture.use();
-      vramMesh.draw();
-
-      while(!this.commandQueue.isEmpty()) {
-        this.processGp0Command();
+      synchronized(this.commandQueue) {
+        while(!this.commandQueue.isEmpty()) {
+          this.processGp0Command();
+        }
       }
 
       //TODO in 240-line vertical resolution mode, this changes per scanline. We don't do scanlines. Not sure of the implications.
@@ -1294,15 +1430,29 @@ public class Gpu implements Runnable {
   }
 
   public enum HORIZONTAL_RESOLUTION_1 {
-    _256,
-    _320,
-    _512,
-    _640,
+    _256(256),
+    _320(320),
+    _512(512),
+    _640(640),
+    ;
+
+    public final int res;
+
+    HORIZONTAL_RESOLUTION_1(final int res) {
+      this.res = res;
+    }
   }
 
   public enum VERTICAL_RESOLUTION {
-    _240,
-    _480,
+    _240(240),
+    _480(480),
+    ;
+
+    public final int res;
+
+    VERTICAL_RESOLUTION(final int res) {
+      this.res = res;
+    }
   }
 
   public enum VIDEO_MODE {
@@ -1374,8 +1524,11 @@ public class Gpu implements Runnable {
 
     private void onReg0Write(final long value) {
       Gpu.this.status.readyToReceiveCommand = false;
-      Gpu.this.queueGp0Command(value);
-      Gpu.this.processGp0Command();
+
+      synchronized(Gpu.this.commandQueue) {
+        Gpu.this.queueGp0Command(value);
+        Gpu.this.processGp0Command();
+      }
     }
 
     /**
@@ -1481,11 +1634,11 @@ public class Gpu implements Runnable {
           LOGGER.trace("Setting display mode %02x", value);
 
           final HORIZONTAL_RESOLUTION_1 hRes1 = HORIZONTAL_RESOLUTION_1.values()[(int)(value & 0b11)];
-          final VERTICAL_RESOLUTION vRes = (value & 0b100) != 0 ? VERTICAL_RESOLUTION._240 : VERTICAL_RESOLUTION._480;
-          final VIDEO_MODE videoMode = (value & 0b1000) != 0 ? VIDEO_MODE.NTSC : VIDEO_MODE.PAL;
-          final DISPLAY_AREA_COLOUR_DEPTH colourDepth = (value & 0b1_0000) != 0 ? DISPLAY_AREA_COLOUR_DEPTH.BITS_15 : DISPLAY_AREA_COLOUR_DEPTH.BITS_24;
+          final VERTICAL_RESOLUTION vRes = (value & 0b100) == 0 ? VERTICAL_RESOLUTION._240 : VERTICAL_RESOLUTION._480;
+          final VIDEO_MODE videoMode = (value & 0b1000) == 0 ? VIDEO_MODE.NTSC : VIDEO_MODE.PAL;
+          final DISPLAY_AREA_COLOUR_DEPTH colourDepth = (value & 0b1_0000) == 0 ? DISPLAY_AREA_COLOUR_DEPTH.BITS_15 : DISPLAY_AREA_COLOUR_DEPTH.BITS_24;
           final boolean interlace = (value & 0b10_0000) != 0;
-          final HORIZONTAL_RESOLUTION_2 hRes2 = (value & 0b100_0000) != 0 ? HORIZONTAL_RESOLUTION_2._256_320_512_640 : HORIZONTAL_RESOLUTION_2._368;
+          final HORIZONTAL_RESOLUTION_2 hRes2 = (value & 0b100_0000) == 0 ? HORIZONTAL_RESOLUTION_2._256_320_512_640 : HORIZONTAL_RESOLUTION_2._368;
 
           Gpu.this.displayMode(hRes1, vRes, videoMode, colourDepth, interlace, hRes2);
 

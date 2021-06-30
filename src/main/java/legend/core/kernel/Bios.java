@@ -2779,6 +2779,22 @@ public final class Bios {
     DeliverEvent(SwCARD, spec);
   }
 
+  @Method(0xbfc0c0dcL)
+  public static boolean _card_info_Impl_Aab(final int port) {
+    long at = port;
+    if(port < 0) {
+      at += 0xfL;
+    }
+
+    if(_card_info_subfunc(port)) {
+      _a0009f20.offset(at / 16 * 4).setu(0x1L);
+      return true;
+    }
+
+    _a0009f20.offset(at / 16 * 4).setu(0);
+    return false;
+  }
+
   @Method(0xbfc0c1fcL)
   public static void AddMemCardDevice_Impl_A97() {
     AddDevice(MemCardDeviceInfo_bfc0e3e4.getAddress());
@@ -2954,6 +2970,11 @@ public final class Bios {
   @Method(0xbfc0da30L)
   public static int get_bu_callback_port() {
     return (int)functionVectorB_000000b0.run(0x58L, EMPTY_OBJ_ARRAY);
+  }
+
+  @Method(0xbfc0da40L)
+  public static boolean _card_info_subfunc(final int port) {
+    return (boolean)functionVectorB_000000b0.run(0x4dL, new Object[] {port});
   }
 
   @Method(0xbfc0dae0L)

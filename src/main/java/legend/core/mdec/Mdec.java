@@ -1,5 +1,6 @@
 package legend.core.mdec;
 
+import legend.core.MathHelper;
 import legend.core.dma.DmaInterface;
 import legend.core.memory.IllegalAddressException;
 import legend.core.memory.Memory;
@@ -65,7 +66,7 @@ public class Mdec {
         final byte[] data = MEMORY.getBytes(DMA.mdecIn.MADR.get(), size * 4);
 
         for(int i = 0; i < data.length; i += 4) {
-          MDEC_REG0.setu((data[i + 3] & 0xffL) << 24 | (data[i + 2] & 0xffL) << 16 | (data[i + 1] & 0xffL) << 8 | data[i] & 0xffL);
+          MDEC_REG0.setu(MathHelper.get(data, i, 4));
         }
 
         DMA.mdecIn.MADR.addu(DMA.mdecIn.channelControl.getAddressStep().step * size);
@@ -100,23 +101,20 @@ public class Mdec {
     this.dataOutputDepth = value >>> 27 & 0x3;
     this.isSigned = (value >>> 26 & 0x1) == 1;
     this.bit15 = value >>> 25 & 0x1;
-    this.remainingDataWords = value & 0xFFFF;
+    this.remainingDataWords = value & 0xffff;
     this.isColored = (value & 0x1) == 1; //only used on command2;
 
     switch(rawCommand) {
-      case 1:
-        this.command = this::decodeMacroBlocks;
-        break;
-      case 2:
+      case 1 -> this.command = this::decodeMacroBlocks;
+      case 2 -> {
         this.command = this::setQuantTable;
         this.remainingDataWords = 16 + (this.isColored ? 16 : 0);
-        break;
-      case 3:
+      }
+      case 3 -> {
         this.command = this::setScaleTable;
         this.remainingDataWords = 32;
-        break;
-      default:
-        throw new RuntimeException("[MDEC] Unhandled Command " + Long.toString(rawCommand, 16));
+      }
+      default -> throw new RuntimeException("[MDEC] Unhandled Command " + Long.toHexString(rawCommand));
     }
   }
 
@@ -172,7 +170,7 @@ public class Mdec {
         b ^= 0x80;
 
         final int position = (x + xx + (y + yy) * 16) * 3 + this.yuvToRgbBlockPos;
-        this.outBuffer[position] = (byte)r;
+        this.outBuffer[position    ] = (byte)r;
         this.outBuffer[position + 1] = (byte)g;
         this.outBuffer[position + 2] = (byte)b;
       }
@@ -192,25 +190,25 @@ public class Mdec {
         return;
       }
       this.n = this.inBuffer.remove();
-      while(this.n == (short)0xFE00) {
+      while((this.n & 0xffff) == 0xfe00) {
         if(this.inBuffer.isEmpty()) {
           return;
         }
         this.n = this.inBuffer.remove();
       }
 
-      this.q_scale = this.n >>> 10 & 0x3F;
-      this.val = this.signed10bit(this.n & 0x3FF) * qt[0];
+      this.q_scale = this.n >>> 10 & 0x3f;
+      this.val = this.signed10bit(this.n & 0x3ff) * (qt[0] & 0xff);
 
       this.blockPointer = 0;
     }
 
     while(this.blockPointer < blk.length) {
       if(this.q_scale == 0) {
-        this.val = this.signed10bit(this.n & 0x3FF) * 2;
+        this.val = this.signed10bit(this.n & 0x3ff) * 2;
       }
 
-      this.val = Math.min(Math.max(this.val, -0x400), 0x3FF);
+      this.val = Math.min(Math.max(this.val, -0x400), 0x3ff);
 
       if(this.q_scale > 0) {
         blk[zigzag[this.blockPointer]] = (short)this.val;
@@ -225,8 +223,8 @@ public class Mdec {
       }
 
       this.n = this.inBuffer.remove();
-      this.blockPointer += (this.n >>> 10 & 0x3F) + 1;
-      this.val = (this.signed10bit(this.n & 0x3FF) * qt[this.blockPointer & 0x3F] * this.q_scale + 4) / 8;
+      this.blockPointer += (this.n >>> 10 & 0x3f) + 1;
+      this.val = (this.signed10bit(this.n & 0x3ff) * qt[this.blockPointer & 0x3f] * this.q_scale + 4) / 8;
     }
   }
 
@@ -239,7 +237,7 @@ public class Mdec {
             sum += src[y + z * 8] * (this.scaleTable[x + z * 8] / 8);
           }
 
-          this.dst[x + y * 8] = (short)((sum + 0xFFF) / 0x2000);
+          this.dst[x + y * 8] = (short)((sum + 0xfff) / 0x2000);
         }
       }
 
@@ -256,7 +254,7 @@ public class Mdec {
   private void setQuantTable() {//64 unsigned parameter bytes for the Luminance Quant Table (used for Y1..Y4)
     for(int i = 0; i < 32; i++) { //16 words for each table
       final short value = this.inBuffer.remove();
-      this.luminanceQuantTable[i * 2 + 0] = (byte)value;
+      this.luminanceQuantTable[i * 2    ] = (byte)value;
       this.luminanceQuantTable[i * 2 + 1] = (byte)(value >>> 8);
     }
 
@@ -268,7 +266,7 @@ public class Mdec {
 
     for(int i = 0; i < 32; i++) { //16 words continuation from buffer
       final short value = this.inBuffer.remove();
-      this.colorQuantTable[i * 2 + 0] = (byte)value;
+      this.colorQuantTable[i * 2    ] = (byte)value;
       this.colorQuantTable[i * 2 + 1] = (byte)(value >>> 8);
     }
 
@@ -282,48 +280,50 @@ public class Mdec {
   }
 
   public byte[] processDmaLoad(final int size) {
-    if(this.dataOutputDepth == 2) { //2 24b
+    if(this.dataOutputDepth == 2) { // 24b
+      // RGBR, GBRG, BRGB...
       final byte[] data = new byte[size * 4];
-      System.arraycopy(this.outBuffer, this.outBufferPos++ * size * 4, data, 0, size * 4);
+      System.arraycopy(this.outBuffer, this.outBufferPos++ * data.length, data, 0, data.length);
       return data;
     }
 
-    if(this.dataOutputDepth == 3) { //3 15b
+    if(this.dataOutputDepth == 3) { // 15b
+      // RGB * 2 => b15|b15
       final byte[] byteSpan = new byte[size * 6];
-      System.arraycopy(this.outBuffer, this.outBufferPos++ * 6, byteSpan, 0, byteSpan.length);
+      System.arraycopy(this.outBuffer, this.outBufferPos++ * byteSpan.length, byteSpan, 0, byteSpan.length);
 
       for(int b24 = 0, b15 = 0; b24 < byteSpan.length; b24 += 3, b15 += 2) {
-        final var r = byteSpan[b24 + 0] >> 3;
-        final var g = byteSpan[b24 + 1] >> 3;
-        final var b = byteSpan[b24 + 2] >> 3;
+        final var r = (byteSpan[b24    ] & 0xff) >>> 3;
+        final var g = (byteSpan[b24 + 1] & 0xff) >>> 3;
+        final var b = (byteSpan[b24 + 2] & 0xff) >>> 3;
 
-        final var rgb15 = (short)(b << 10 | g << 5 | r);
+        final var rgb15 = (short)((b & 0xff) << 10 | (g & 0xff) << 5 | r & 0xff);
         final var lo = (byte)rgb15;
-        final var hi = (byte)(rgb15 >> 8);
+        final var hi = (byte)(rgb15 >>> 8);
 
-        byteSpan[b15 + 0] = lo;
+        byteSpan[b15    ] = lo;
         byteSpan[b15 + 1] = hi;
       }
 
       final byte[] data = new byte[size * 4];
-      System.arraycopy(byteSpan, 0, data, 0, size * 4);
+      System.arraycopy(byteSpan, 0, data, 0, data.length);
       return data;
     }
 
     //unsupported mode allocate and return garbage so can be seen
     final byte[] garbage = new byte[size * 4];
-    for(int i = 0; i < size * 2; i++) {
+    for(int i = 0; i < size * 4; i += 2) {
       garbage[i] = (byte)0xff;
     }
     return garbage; // ff00ff00ff00ff00...
   }
 
   public short convert24to15bpp(final byte sr, final byte sg, final byte sb) {
-    final byte r = (byte)(sr >> 3);
-    final byte g = (byte)(sg >> 3);
-    final byte b = (byte)(sb >> 3);
+    final byte r = (byte)(sr >>> 3);
+    final byte g = (byte)(sg >>> 3);
+    final byte b = (byte)(sb >>> 3);
 
-    return (short)(b << 10 | g << 5 | r);
+    return (short)((b & 0xff) << 10 | (g & 0xff) << 5 | r & 0xff);
   }
 
   private boolean isDataOutFifoEmpty() {
@@ -360,16 +360,16 @@ public class Mdec {
       return switch(offset & 0b100) {
         case 0x0 -> {
           if(Mdec.this.dataOutputDepth == 2) { //2 24b
-            final int val = Mdec.this.outBuffer[Mdec.this.outBufferPos * 4] & 0xff | (Mdec.this.outBuffer[Mdec.this.outBufferPos * 4 + 1] & 0xff) << 8 | (Mdec.this.outBuffer[Mdec.this.outBufferPos * 4 + 2] & 0xff) << 16 | (Mdec.this.outBuffer[Mdec.this.outBufferPos * 4 + 3] & 0xff) << 24;
+            final int val = (Mdec.this.outBuffer[Mdec.this.outBufferPos * 4 + 3] & 0xff) << 24 | (Mdec.this.outBuffer[Mdec.this.outBufferPos * 4 + 2] & 0xff) << 16 | (Mdec.this.outBuffer[Mdec.this.outBufferPos * 4 + 1] & 0xff) << 8 | Mdec.this.outBuffer[Mdec.this.outBufferPos * 4] & 0xff;
             Mdec.this.outBufferPos++;
             yield val;
           }
 
           if(Mdec.this.dataOutputDepth == 3) { //3 15b
-            final short lo = (short)(Mdec.this.bit15 << 15 | Mdec.this.convert24to15bpp(Mdec.this.outBuffer[Mdec.this.outBufferPos * 6], Mdec.this.outBuffer[Mdec.this.outBufferPos * 6 + 1], Mdec.this.outBuffer[Mdec.this.outBufferPos * 6 + 2]));
-            final short hi = (short)(Mdec.this.bit15 << 15 | Mdec.this.convert24to15bpp(Mdec.this.outBuffer[Mdec.this.outBufferPos * 6 + 3], Mdec.this.outBuffer[Mdec.this.outBufferPos * 6 + 4], Mdec.this.outBuffer[Mdec.this.outBufferPos * 6 + 5]));
+            final short lo = (short)(Mdec.this.bit15 << 15 | Mdec.this.convert24to15bpp(Mdec.this.outBuffer[Mdec.this.outBufferPos * 6    ], Mdec.this.outBuffer[Mdec.this.outBufferPos * 6 + 1], Mdec.this.outBuffer[Mdec.this.outBufferPos * 6 + 2]) & 0xffff);
+            final short hi = (short)(Mdec.this.bit15 << 15 | Mdec.this.convert24to15bpp(Mdec.this.outBuffer[Mdec.this.outBufferPos * 6 + 3], Mdec.this.outBuffer[Mdec.this.outBufferPos * 6 + 4], Mdec.this.outBuffer[Mdec.this.outBufferPos * 6 + 5]) & 0xffff);
 
-            yield hi << 16 | lo;
+            yield (hi & 0xffffL) << 16 | lo & 0xffffL;
           }
 
           yield 0x00ff_00ffL;
@@ -393,7 +393,7 @@ public class Mdec {
 
           Mdec.this.isCommandBusy = false;
 
-          yield  status;
+          yield status;
         }
 
         default -> throw new IllegalAddressException("There is no MDEC port at " + Long.toHexString(this.getAddress() + offset));

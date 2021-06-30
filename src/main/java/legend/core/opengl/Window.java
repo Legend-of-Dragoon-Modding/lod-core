@@ -53,6 +53,7 @@ import static org.lwjgl.glfw.GLFW.glfwSetMouseButtonCallback;
 import static org.lwjgl.glfw.GLFW.glfwSetScrollCallback;
 import static org.lwjgl.glfw.GLFW.glfwSetWindowPos;
 import static org.lwjgl.glfw.GLFW.glfwSetWindowShouldClose;
+import static org.lwjgl.glfw.GLFW.glfwSetWindowSize;
 import static org.lwjgl.glfw.GLFW.glfwSetWindowSizeCallback;
 import static org.lwjgl.glfw.GLFW.glfwShowWindow;
 import static org.lwjgl.glfw.GLFW.glfwSwapBuffers;
@@ -190,6 +191,10 @@ public class Window {
 
   public void setClipboardString(final ByteBuffer string) {
     glfwSetClipboardString(this.window, string);
+  }
+
+  public void resize(final int width, final int height) {
+    glfwSetWindowSize(this.window, (int)(width * this.scale), (int)(height * this.scale));
   }
 
   public int getWidth() {

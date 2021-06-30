@@ -21,4 +21,8 @@ class ShortVector3 {
   public int getXY() {
     return (this.y & 0xffff) << 16 | this.x & 0xffff;
   }
+
+  public ShortVector3 copy() {
+    return new ShortVector3(this.x, this.y, this.z);
+  }
 }

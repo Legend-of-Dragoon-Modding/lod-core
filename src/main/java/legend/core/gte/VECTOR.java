@@ -79,4 +79,9 @@ public class VECTOR implements MemoryRef {
 
     return this.ref.getAddress();
   }
+
+  @Override
+  public String toString() {
+    return "VECTOR {x: " + this.x + ", y: " + this.y + ", z: " + this.z + '}' + (this.ref == null ? " (local)" : " @ " + Long.toHexString(this.getAddress()));
+  }
 }

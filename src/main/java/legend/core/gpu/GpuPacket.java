@@ -29,7 +29,7 @@ public class GpuPacket implements MemoryRef {
     private int next = 0xff_ffff;
 
     public Builder add(final long command) {
-      GpuPacket.this.ref.offset(4, this.size * 0x4L).setu(command);
+      GpuPacket.this.ref.offset(4, (this.size + 1) * 0x4L).setu(command);
       this.size++;
       return this;
     }

@@ -25,6 +25,15 @@ public final class MathHelper {
     return (a & 0xffL) << 24 | (b & 0xffL) << 16 | (g & 0xffL) << 8 | r & 0xffL;
   }
 
+  public static int GetPixelBGR555(final int colour) {
+    final byte m = (byte)((colour & 0xff000000) >>> 24);
+    final byte r = (byte)((colour & 0x00ff0000) >>> 16 + 3);
+    final byte g = (byte)((colour & 0x0000ff00) >>> 8 + 3);
+    final byte b = (byte)((colour & 0x000000ff) >>> 3);
+
+    return (m & 0xff) << 15 | (b & 0xff) << 10 | (g & 0xff) << 5 | r & 0xff;
+  }
+
   public static int leadingZeroBits(final short num) {
     for(int i = 0; i < 16; i++) {
       if((num & 1 << 15 - i) != 0) {
