@@ -1,5 +1,7 @@
 package legend.core.gpu;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongList;
 import legend.core.Config;
@@ -7,6 +9,7 @@ import legend.core.InterruptType;
 import legend.core.MathHelper;
 import legend.core.Timers;
 import legend.core.dma.DmaChannel;
+import legend.core.input.GamepadInputsEnum;
 import legend.core.memory.IllegalAddressException;
 import legend.core.memory.Memory;
 import legend.core.memory.MisalignedAccessException;
@@ -34,11 +37,28 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.BiFunction;
 
+import static legend.core.Hardware.CONTROLLER;
 import static legend.core.Hardware.DMA;
 import static legend.core.Hardware.INTERRUPTS;
 import static legend.core.Hardware.MEMORY;
 import static legend.core.MathHelper.GetPixelBGR555;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_1;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_3;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_A;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_C;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_D;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_E;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_Q;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_S;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_SPACE;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_TAB;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_UP;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_W;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_Z;
 import static org.lwjgl.glfw.GLFW.glfwGetCurrentContext;
 import static org.lwjgl.opengl.GL11C.GL_NEAREST;
 import static org.lwjgl.opengl.GL11C.GL_RGBA;
@@ -110,8 +130,27 @@ public class Gpu implements Runnable {
   private int scanLine;
   private boolean isOddLine;
 
+  final Int2ObjectMap<GamepadInputsEnum> gamepadKeyMap = new Int2ObjectOpenHashMap<>();
+
   public Gpu(final Memory memory) {
     memory.addSegment(new GpuSegment(0x1f80_1810L));
+
+    this.gamepadKeyMap.put(GLFW_KEY_SPACE, GamepadInputsEnum.SELECT);
+    this.gamepadKeyMap.put(GLFW_KEY_Z, GamepadInputsEnum.L3);
+    this.gamepadKeyMap.put(GLFW_KEY_C, GamepadInputsEnum.R3);
+    this.gamepadKeyMap.put(GLFW_KEY_ENTER, GamepadInputsEnum.START);
+    this.gamepadKeyMap.put(GLFW_KEY_UP, GamepadInputsEnum.UP);
+    this.gamepadKeyMap.put(GLFW_KEY_RIGHT, GamepadInputsEnum.RIGHT);
+    this.gamepadKeyMap.put(GLFW_KEY_DOWN, GamepadInputsEnum.DOWN);
+    this.gamepadKeyMap.put(GLFW_KEY_LEFT, GamepadInputsEnum.LEFT);
+    this.gamepadKeyMap.put(GLFW_KEY_1, GamepadInputsEnum.L2);
+    this.gamepadKeyMap.put(GLFW_KEY_3, GamepadInputsEnum.R2);
+    this.gamepadKeyMap.put(GLFW_KEY_Q, GamepadInputsEnum.L1);
+    this.gamepadKeyMap.put(GLFW_KEY_E, GamepadInputsEnum.R1);
+    this.gamepadKeyMap.put(GLFW_KEY_W, GamepadInputsEnum.TRIANGLE);
+    this.gamepadKeyMap.put(GLFW_KEY_D, GamepadInputsEnum.CIRCLE);
+    this.gamepadKeyMap.put(GLFW_KEY_S, GamepadInputsEnum.CROSS);
+    this.gamepadKeyMap.put(GLFW_KEY_A, GamepadInputsEnum.SQUARE);
   }
 
   public void command00Nop() {
@@ -387,6 +426,22 @@ public class Gpu implements Runnable {
     vramMesh.attribute(1, 2L, 2, 4);
 
     this.displaySize(320, 240);
+
+    this.window.events.onKeyPress((window, key, scancode, mods) -> {
+      final GamepadInputsEnum input = this.gamepadKeyMap.get(key);
+
+      if(input != null) {
+        CONTROLLER.handleJoyPadDown(input);
+      }
+    });
+
+    this.window.events.onKeyRelease((window, key, scancode, mods) -> {
+      final GamepadInputsEnum input = this.gamepadKeyMap.get(key);
+
+      if(input != null) {
+        CONTROLLER.handleJoyPadUp(input);
+      }
+    });
 
     this.ctx.onDraw(() -> {
       INTERRUPTS.set(InterruptType.VBLANK);
@@ -1137,7 +1192,7 @@ public class Gpu implements Runnable {
       final int height = (short)((size & 0xffff0000) >>> 16);
       final int width = (short)(size & 0xffff);
 
-      return () -> LOGGER.warn("COPY VRAM VRAM from (not implemented) %d %d to %d %d size %d %d", sourceX, sourceY, destX, destY, width, height);
+      return () -> LOGGER.debug("COPY VRAM VRAM from (not implemented) %d %d to %d %d size %d %d", sourceX, sourceY, destX, destY, width, height); //TODO
     }),
 
     DRAW_MODE_SETTINGS(0xe1, 1, (buffer, gpu) -> {

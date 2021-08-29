@@ -1,12 +1,16 @@
 package legend.core.input;
 
+import legend.core.DebugHelper;
+import legend.core.InterruptType;
 import legend.core.memory.Memory;
 import legend.core.memory.MisalignedAccessException;
 import legend.core.memory.Segment;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class Joypad {
+import static legend.core.Hardware.INTERRUPTS;
+
+public class Joypad implements Runnable {
   private static final Logger LOGGER = LogManager.getFormatterLogger(Joypad.class);
 
   private byte JOY_TX_DATA; //1F801040h JOY_TX_DATA(W)
@@ -14,9 +18,9 @@ public class Joypad {
   private boolean fifoFull;
 
   //1F801044 JOY_STAT(R)
-  boolean TXreadyFlag1 = true;
-  boolean TXreadyFlag2 = true;
-  boolean RXparityError;
+  boolean txReadyFlag1 = true;
+  boolean txReadyFlag2 = true;
+  boolean rxParityError;
   boolean ackInputLevel;
   boolean interruptRequest;
   int baudrateTimer;
@@ -29,31 +33,33 @@ public class Joypad {
   boolean clkOutputPolarity;
 
   //1F80104Ah JOY_CTRL (R/W) (usually 1003h,3003h,0000h)
-  boolean TXenable;
+  boolean txEnable;
   boolean JoyOutput;
-  boolean RXenable;
-  boolean joyControl_unknow_bit3;
+  boolean rxEnable;
+  boolean joyControlUnknownBit3;
   boolean controlAck;
-  boolean joyControl_unknow_bit5;
+  boolean joyControlUnknownBit5;
   boolean controlReset;
-  int RXinterruptMode;
-  boolean TXinterruptEnable;
-  boolean RXinterruptEnable;
-  boolean ACKinterruptEnable;
+  int rxInterruptMode;
+  boolean txInterruptEnable;
+  boolean rxInterruptEnable;
+  boolean ackInterruptEnable;
   int desiredSlotNumber;
 
-  private short JOY_BAUD;    //1F80104Eh JOY_BAUD(R/W) (usually 0088h, ie.circa 250kHz, when Factor = MUL1)
+  private short JOY_BAUD;    //1F80104Eh JOY_BAUD(R/W) (usually 0088h, i.e. circa 250kHz, when Factor = MUL1)
 
   private enum JoypadDevice {
-    None,
-    Controller,
-    MemoryCard
+    NONE,
+    CONTROLLER,
+    MEMORY_CARD,
   }
 
-  private JoypadDevice joypadDevice = JoypadDevice.None;
+  private JoypadDevice joypadDevice = JoypadDevice.NONE;
 
   private final Controller controller;
   private final MemoryCard memoryCard;
+
+  private boolean running;
 
   public Joypad(final Memory memory, final Controller controller, final MemoryCard memoryCard) {
     memory.addSegment(new JoypadSegment(0x1f80_1040L));
@@ -63,142 +69,169 @@ public class Joypad {
 
   int counter;
 
-  public boolean tick() {
-    if(this.counter > 0) {
-      this.counter -= 100;
-      if(this.counter == 0) {
-        //Console.WriteLine("[IRQ] TICK Triggering JOYPAD");
-        this.ackInputLevel = false;
-        this.interruptRequest = true;
-      }
-    }
+  private final Object registerLock = new Object();
 
-    return this.interruptRequest;
+  @Override
+  public void run() {
+    this.running = true;
+
+    final long timeout = 500L;
+    long timer = System.nanoTime() + timeout;
+
+    while(this.running) {
+      synchronized(this.registerLock) {
+        if(this.counter > 0) {
+          this.counter -= 100;
+          if(this.counter == 0) {
+            LOGGER.error("[IRQ] TICK Triggering JOYPAD");
+            this.ackInputLevel = false;
+            this.interruptRequest = true;
+          }
+        }
+
+        if(this.interruptRequest) {
+          INTERRUPTS.set(InterruptType.CONTROLLER);
+        }
+      }
+
+      while(timer > System.nanoTime()) {
+        DebugHelper.sleep(0);
+      }
+
+      timer = System.nanoTime() + timeout;
+    }
   }
 
   private void reloadTimer() {
-    //Console.WriteLine("[JOYPAD] RELOAD TIMER");
+    LOGGER.error("[JOYPAD] RELOAD TIMER");
     this.baudrateTimer = this.JOY_BAUD * this.baudrateReloadFactor & ~0x1;
   }
 
   private void setJOY_DATA(final int value) {
-    //Console.WriteLine("[JOYPAD] TX DATA ENQUEUE " + value.ToString("x2"));
-    this.JOY_TX_DATA = (byte)value;
-    this.JOY_RX_DATA = (byte)0xff;
-    this.fifoFull = true;
-    this.TXreadyFlag1 = true;
-    this.TXreadyFlag2 = false;
-    if(this.JoyOutput) {
-      this.TXreadyFlag2 = true;
+    synchronized(this.registerLock) {
+      LOGGER.error("[JOYPAD] TX DATA ENQUEUE %02x", value);
+      this.JOY_TX_DATA = (byte)value;
+      this.JOY_RX_DATA = (byte)0xff;
+      this.fifoFull = true;
+      this.txReadyFlag1 = true;
+      this.txReadyFlag2 = false;
+      if(this.JoyOutput) {
+        this.txReadyFlag2 = true;
 
-      //Console.WriteLine("[JOYPAD] DesiredSlot == " + desiredSlotNumber);
-      if(this.desiredSlotNumber == 1) {
-        this.JOY_RX_DATA = (byte)0xff;
-        this.ackInputLevel = false;
-        return;
-      }
+        LOGGER.error("[JOYPAD] DesiredSlot == %d", this.desiredSlotNumber);
+        if(this.desiredSlotNumber == 1) {
+          this.JOY_RX_DATA = (byte)0xff;
+          this.ackInputLevel = false;
+          return;
+        }
 
-      if(this.joypadDevice == JoypadDevice.None) {
-        //Console.ForegroundColor = ConsoleColor.Red;
-        if(value == 0x01) {
-          //Console.ForegroundColor = ConsoleColor.Green;
-          this.joypadDevice = JoypadDevice.Controller;
-        } else if(value == 0x81) {
-          //Console.ForegroundColor = ConsoleColor.Blue;
-          this.joypadDevice = JoypadDevice.MemoryCard;
+        if(this.joypadDevice == JoypadDevice.NONE) {
+          if(value == 0x01) {
+            this.joypadDevice = JoypadDevice.CONTROLLER;
+          } else if(value == 0x81) {
+            this.joypadDevice = JoypadDevice.MEMORY_CARD;
+          }
         }
-      }
 
-      if(this.joypadDevice == JoypadDevice.Controller) {
-        this.JOY_RX_DATA = this.controller.process(this.JOY_TX_DATA);
-        this.ackInputLevel = this.controller.ack;
-        if(this.ackInputLevel) {
-          this.counter = 500;
+        if(this.joypadDevice == JoypadDevice.CONTROLLER) {
+          this.JOY_RX_DATA = this.controller.process(this.JOY_TX_DATA);
+          this.ackInputLevel = this.controller.ack;
+          if(this.ackInputLevel) {
+            this.counter = 500;
+          }
+          LOGGER.error("[JOYPAD] Controller TICK Enqueued RX response %02x ack: %b", this.JOY_RX_DATA, this.ackInputLevel);
+          //Console.ReadLine();
+        } else if(this.joypadDevice == JoypadDevice.MEMORY_CARD) {
+          this.JOY_RX_DATA = this.memoryCard.process(this.JOY_TX_DATA);
+          this.ackInputLevel = this.memoryCard.ack;
+          if(this.ackInputLevel) {
+            this.counter = 500;
+          }
+          LOGGER.error("[JOYPAD] MemCard TICK Enqueued RX response %02x ack: %b", this.JOY_RX_DATA, this.ackInputLevel);
+          //Console.ReadLine();
+        } else {
+          this.ackInputLevel = false;
         }
-        //Console.WriteLine($"[JOYPAD] Conroller TICK Enqueued RX response {JOY_RX_DATA:x2} ack: {ackInputLevel}");
-        //Console.ReadLine();
-      } else if(this.joypadDevice == JoypadDevice.MemoryCard) {
-        this.JOY_RX_DATA = this.memoryCard.process(this.JOY_TX_DATA);
-        this.ackInputLevel = this.memoryCard.ack;
-        if(this.ackInputLevel) {
-          this.counter = 500;
+        if(!this.ackInputLevel) {
+          this.joypadDevice = JoypadDevice.NONE;
         }
-        //Console.WriteLine($"[JOYPAD] MemCard TICK Enqueued RX response {JOY_RX_DATA:x2} ack: {ackInputLevel}");
-        //Console.ReadLine();
       } else {
+        this.joypadDevice = JoypadDevice.NONE;
+        this.memoryCard.resetToIdle();
+        this.controller.resetToIdle();
+
         this.ackInputLevel = false;
       }
-      if(!this.ackInputLevel) {
-        this.joypadDevice = JoypadDevice.None;
-      }
-    } else {
-      this.joypadDevice = JoypadDevice.None;
-      this.memoryCard.resetToIdle();
-      this.controller.resetToIdle();
-
-      this.ackInputLevel = false;
     }
   }
 
   private void setJOY_CTRL(final int value) {
-    this.TXenable = (value & 0x1) != 0;
-    this.JoyOutput = (value >> 1 & 0x1) != 0;
-    this.RXenable = (value >> 2 & 0x1) != 0;
-    this.joyControl_unknow_bit3 = (value >> 3 & 0x1) != 0;
-    this.controlAck = (value >> 4 & 0x1) != 0;
-    this.joyControl_unknow_bit5 = (value >> 5 & 0x1) != 0;
-    this.controlReset = (value >> 6 & 0x1) != 0;
-    this.RXinterruptMode = value >> 8 & 0x3;
-    this.TXinterruptEnable = (value >> 10 & 0x1) != 0;
-    this.RXinterruptEnable = (value >> 11 & 0x1) != 0;
-    this.ACKinterruptEnable = (value >> 12 & 0x1) != 0;
-    this.desiredSlotNumber = value >> 13 & 0x1;
+    synchronized(this.registerLock) {
+      LOGGER.error("[JOYPAD] Set CTRL %04x", value);
 
-    if(this.controlAck) {
-      //Console.WriteLine("[JOYPAD] CONTROL ACK");
-      this.RXparityError = false;
-      this.interruptRequest = false;
-      this.controlAck = false;
-    }
+      this.txEnable = (value & 0x1) != 0;
+      this.JoyOutput = (value >> 1 & 0x1) != 0;
+      this.rxEnable = (value >> 2 & 0x1) != 0;
+      this.joyControlUnknownBit3 = (value >> 3 & 0x1) != 0;
+      this.controlAck = (value >> 4 & 0x1) != 0;
+      this.joyControlUnknownBit5 = (value >> 5 & 0x1) != 0;
+      this.controlReset = (value >> 6 & 0x1) != 0;
+      this.rxInterruptMode = value >> 8 & 0x3;
+      this.txInterruptEnable = (value >> 10 & 0x1) != 0;
+      this.rxInterruptEnable = (value >> 11 & 0x1) != 0;
+      this.ackInterruptEnable = (value >> 12 & 0x1) != 0;
+      this.desiredSlotNumber = value >> 13 & 0x1;
 
-    if(this.controlReset) {
-      //Console.WriteLine("[JOYPAD] CONTROL RESET");
-      this.joypadDevice = JoypadDevice.None;
-      this.controller.resetToIdle();
-      this.memoryCard.resetToIdle();
-      this.fifoFull = false;
+      if(this.controlAck) {
+        LOGGER.error("[JOYPAD] CONTROL ACK");
+        this.rxParityError = false;
+        this.interruptRequest = false;
+        this.controlAck = false;
+      }
 
-      this.setJOY_MODE(0);
-      this.setJOY_CTRL(0);
-      this.JOY_BAUD = 0;
+      if(this.controlReset) {
+        LOGGER.error("[JOYPAD] CONTROL RESET");
+        this.joypadDevice = JoypadDevice.NONE;
+        this.controller.resetToIdle();
+        this.memoryCard.resetToIdle();
+        this.fifoFull = false;
 
-      this.JOY_RX_DATA = (byte)0xFF;
-      this.JOY_TX_DATA = (byte)0xFF;
+        this.setJOY_MODE(0);
+        this.setJOY_CTRL(0);
+        this.JOY_BAUD = 0;
 
-      this.TXreadyFlag1 = true;
-      this.TXreadyFlag2 = true;
+        this.JOY_RX_DATA = (byte)0xFF;
+        this.JOY_TX_DATA = (byte)0xFF;
 
-      this.controlReset = false;
-    }
+        this.txReadyFlag1 = true;
+        this.txReadyFlag2 = true;
 
-    if(!this.JoyOutput) {
-      this.joypadDevice = JoypadDevice.None;
-      this.memoryCard.resetToIdle();
-      this.controller.resetToIdle();
+        this.controlReset = false;
+      }
+
+      if(!this.JoyOutput) {
+        this.joypadDevice = JoypadDevice.NONE;
+        this.memoryCard.resetToIdle();
+        this.controller.resetToIdle();
+      }
     }
   }
 
   private void setJOY_MODE(final int value) {
-    this.baudrateReloadFactor = value & 0x3;
-    this.characterLength = value >> 2 & 0x3;
-    this.parityEnable = (value >> 4 & 0x1) != 0;
-    this.parityTypeOdd = (value >> 5 & 0x1) != 0;
-    this.clkOutputPolarity = (value >> 8 & 0x1) != 0;
+    synchronized(this.registerLock) {
+      this.baudrateReloadFactor = value & 0x3;
+      this.characterLength = value >> 2 & 0x3;
+      this.parityEnable = (value >> 4 & 0x1) != 0;
+      this.parityTypeOdd = (value >> 5 & 0x1) != 0;
+      this.clkOutputPolarity = (value >> 8 & 0x1) != 0;
+    }
   }
 
   private void setJOY_BAUD(final int value) {
-    this.JOY_BAUD = (short)value;
-    this.reloadTimer();
+    synchronized(this.registerLock) {
+      this.JOY_BAUD = (short)value;
+      this.reloadTimer();
+    }
   }
 
   private byte getJOY_DATA() {
@@ -208,18 +241,18 @@ public class Joypad {
 
   private int getJOY_CTRL() {
     int joy_ctrl = 0;
-    joy_ctrl |= this.TXenable ? 1 : 0;
+    joy_ctrl |= this.txEnable ? 1 : 0;
     joy_ctrl |= (this.JoyOutput ? 1 : 0) << 1;
-    joy_ctrl |= (this.RXenable ? 1 : 0) << 2;
-    joy_ctrl |= (this.joyControl_unknow_bit3 ? 1 : 0) << 3;
+    joy_ctrl |= (this.rxEnable ? 1 : 0) << 2;
+    joy_ctrl |= (this.joyControlUnknownBit3 ? 1 : 0) << 3;
     //joy_ctrl |= (ack ? 1u : 0u) << 4; // only writeable
-    joy_ctrl |= (this.joyControl_unknow_bit5 ? 1 : 0) << 5;
+    joy_ctrl |= (this.joyControlUnknownBit5 ? 1 : 0) << 5;
     //joy_ctrl |= (reset ? 1u : 0u) << 6; // only writeable
     //bit 7 allways 0
-    joy_ctrl |= this.RXinterruptMode << 8;
-    joy_ctrl |= (this.TXinterruptEnable ? 1 : 0) << 10;
-    joy_ctrl |= (this.RXinterruptEnable ? 1 : 0) << 11;
-    joy_ctrl |= (this.ACKinterruptEnable ? 1 : 0) << 12;
+    joy_ctrl |= this.rxInterruptMode << 8;
+    joy_ctrl |= (this.txInterruptEnable ? 1 : 0) << 10;
+    joy_ctrl |= (this.rxInterruptEnable ? 1 : 0) << 11;
+    joy_ctrl |= (this.ackInterruptEnable ? 1 : 0) << 12;
     joy_ctrl |= this.desiredSlotNumber << 13;
     return joy_ctrl;
   }
@@ -236,10 +269,10 @@ public class Joypad {
 
   private int getJOY_STAT() {
     int joy_stat = 0;
-    joy_stat |= this.TXreadyFlag1 ? 1 : 0;
+    joy_stat |= this.txReadyFlag1 ? 1 : 0;
     joy_stat |= (this.fifoFull ? 1 : 0) << 1;
-    joy_stat |= (this.TXreadyFlag2 ? 1 : 0) << 2;
-    joy_stat |= (this.RXparityError ? 1 : 0) << 3;
+    joy_stat |= (this.txReadyFlag2 ? 1 : 0) << 2;
+    joy_stat |= (this.rxParityError ? 1 : 0) << 3;
     joy_stat |= (this.ackInputLevel ? 1 : 0) << 7;
     joy_stat |= (this.interruptRequest ? 1 : 0) << 9;
     joy_stat |= this.baudrateTimer << 11;
@@ -275,16 +308,16 @@ public class Joypad {
 
       if(size == 2) {
         return switch(offset & 0xe) {
-          case 0x08 -> Joypad.this.getJOY_MODE();
-          case 0x0a -> Joypad.this.getJOY_CTRL();
-          case 0x0e -> Joypad.this.getJOY_BAUD();
+          case 0x08 -> Joypad.this.getJOY_MODE() & 0xffffL;
+          case 0x0a -> Joypad.this.getJOY_CTRL() & 0xffffL;
+          case 0x0e -> Joypad.this.getJOY_BAUD() & 0xffffL;
           default -> throw new MisalignedAccessException("Peripheral IO port " + Long.toHexString(this.getAddress() + offset) + " may not be accessed with 16-bit reads or writes");
         };
       }
 
       return switch(offset & 0x4) {
-        case 0x00 -> Joypad.this.getJOY_DATA();
-        case 0x04 -> Joypad.this.getJOY_STAT();
+        case 0x00 -> Joypad.this.getJOY_DATA() & 0xffff_ffffL;
+        case 0x04 -> Joypad.this.getJOY_STAT() & 0xffff_ffffL;
         default -> throw new MisalignedAccessException("Peripheral IO port " + Long.toHexString(this.getAddress() + offset) + " may not be accessed with 32-bit reads or writes");
       };
     }

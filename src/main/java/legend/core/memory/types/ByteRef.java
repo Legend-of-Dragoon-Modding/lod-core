@@ -17,20 +17,47 @@ public class ByteRef implements MemoryRef {
     return (byte)this.ref.get();
   }
 
-  public void set(final byte val) {
+  public ByteRef set(final int val) {
     this.ref.setu(val);
+    return this;
   }
 
-  public void set(final ByteRef val) {
+  public ByteRef set(final ByteRef val) {
     this.set(val.get());
+    return this;
   }
 
   public long getUnsigned() {
-    return (byte)this.ref.get();
+    return this.ref.get() & 0xffL;
   }
 
-  public void setUnsigned(final long val) {
+  public ByteRef setUnsigned(final long val) {
     this.ref.setu(val);
+    return this;
+  }
+
+  public ByteRef add(final int amount) {
+    return this.set((byte)(this.get() + amount));
+  }
+
+  public ByteRef addUnsigned(final long amount) {
+    return this.setUnsigned(this.getUnsigned() + amount);
+  }
+
+  public ByteRef sub(final int amount) {
+    return this.set((byte)(this.get() - amount));
+  }
+
+  public ByteRef subUnsigned(final long amount) {
+    return this.setUnsigned(this.getUnsigned() - amount);
+  }
+
+  public ByteRef incr() {
+    return this.add(1);
+  }
+
+  public ByteRef decr() {
+    return this.sub(1);
   }
 
   @Override

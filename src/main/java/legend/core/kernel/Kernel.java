@@ -99,6 +99,8 @@ public final class Kernel {
   private static final Value _000074c0 = MEMORY.ref(4, 0x000074c0L);
   private static final Value _000074c4 = MEMORY.ref(4, 0x000074c4L);
 
+  private static final Value _000074f8 = MEMORY.ref(1, 0x000074f8L);
+
   private static final Value _00007500 = MEMORY.ref(4, 0x00007500L);
 
   private static final Value _00007508 = MEMORY.ref(4, 0x00007508L);
@@ -1739,6 +1741,289 @@ public final class Kernel {
     return FUN_00004d6c(0);
   }
 
+  @Method(0x51f4L)
+  public static long FUN_000051f4() {
+    long a0;
+    long a1;
+    long a2;
+    long a3;
+    long at;
+    long v0;
+    long v1;
+    long t0;
+    long t1;
+    long t2;
+    long t3;
+    long t4;
+    long t5;
+    long t6;
+    long t7;
+    long t8;
+    long t9;
+
+    a2 = _00007264.get();
+    v0 = _00007514.get();
+    t6 = a2 * 4;
+    a1 = t6;
+    a1 = _00007508.offset(a1).get();
+
+    switch((int)v0) {
+      case 0x1 -> {
+        if(a2 == 0) {
+          v0 = 0;
+        } else {
+          v0 = 0x2000L;
+        }
+
+        //LAB_00005258
+        t8 = v0 | 0x1003L;
+        t0 = a2 * 4;
+        t1 = t0;
+        JOY_MCD_CTRL.setu(t8);
+        t1 = _00007500.offset(t1).get();
+        t9 = 0x1L;
+        t2 = t1 & 0xfL;
+        t3 = t2 << 24L;
+        t4 = (int)t3 >> 24L;
+        JOY_MCD_DATA.get(); // Intentional read to nowhere
+        _0000755a.setu(t9);
+        t5 = t4 + 0x81L;
+        JOY_MCD_DATA.setu(t5);
+        t6 = JOY_MCD_CTRL.get();
+        t7 = t6 | 0x10L;
+        JOY_MCD_CTRL.setu(t7);
+        t8 = -0x81L;
+        I_STAT.setu(t8);
+        _000074a0.setu(v0);
+        return 0;
+      }
+
+      case 0x2 -> {
+        t0 = 0x57L;
+        JOY_MCD_DATA.get(); // Intentional read to nowhere
+        JOY_MCD_DATA.setu(t0);
+        t1 = JOY_MCD_CTRL.get();
+        t2 = t1 | 0x10L;
+        JOY_MCD_CTRL.setu(t2);
+        t3 = -0x81L;
+        I_STAT.setu(t3);
+        return 0;
+      }
+
+      case 0x3 -> {
+        v1 = JOY_MCD_DATA.get();
+        JOY_MCD_DATA.setu(0);
+        t5 = JOY_MCD_CTRL.get();
+        t7 = -0x81L;
+        t6 = t5 | 0x10L;
+        JOY_MCD_CTRL.setu(t6);
+        I_STAT.setu(t7);
+        t0 = _000074c0.get();
+        t9 = a2 * 4;
+        at = t9;
+        _000074f8.offset(at).setu(v1);
+        if(t0 != 0) {
+          return 0;
+        }
+
+        t1 = v1 & 0x8L;
+        if(t1 == 0) {
+          return 0;
+        }
+
+        _000074c0.setu(0);
+        at = a2;
+        t2 = 0x1L;
+        _00007568.offset(at).setu(t2);
+        t3 = _00007264.get();
+        _0000751c.setu(t3);
+        bu_callback_err_eject();
+        DeliverEvent_Impl_B07(HwCARD, EvSpNEW);
+        t4 = 0x1L;
+        _00007520.setu(t4);
+        return -0x1L;
+      }
+
+      case 0x4 -> {
+        v1 = JOY_MCD_DATA.get();
+        JOY_MCD_DATA.setu(0);
+        t5 = JOY_MCD_CTRL.get();
+        t7 = -0x81L;
+        t6 = t5 | 0x10L;
+        JOY_MCD_CTRL.setu(t6);
+        at = 0x5aL;
+        I_STAT.setu(t7);
+        if(v1 == at) {
+          return 0;
+        }
+
+        return -0x1L;
+      }
+
+      case 0x5 -> {
+        v0 = a1 >>> 8;
+        v1 = JOY_MCD_DATA.get();
+        v0 &= 0xffL;
+        JOY_MCD_DATA.setu(v0);
+        t9 = JOY_MCD_CTRL.get();
+        t0 = t9 | 0x10L;
+        JOY_MCD_CTRL.setu(t0);
+        t1 = -0x81L;
+        at = 0x5dL;
+        I_STAT.setu(t1);
+        if(v1 != at) {
+          return -0x1L;
+        }
+
+        //LAB_00005418
+        t3 = a2 * 4;
+        at = t3;
+        _00007560.offset(at).setu(v0);
+        return 0;
+      }
+
+      case 0x6 -> {
+        v1 = a1 & 0xffL;
+        JOY_MCD_DATA.get(); // Intentional read to nowhere
+        JOY_MCD_DATA.setu(v1);
+        t4 = JOY_MCD_CTRL.get();
+        t5 = t4 | 0x10L;
+        JOY_MCD_CTRL.setu(t5);
+        t6 = -0x81L;
+        t8 = a2 * 4;
+        v0 = t8;
+        I_STAT.setu(t6);
+        t0 = _00007560.offset(v0).get();
+        t1 = t0 ^ v1;
+        _00007560.offset(v0).setu(t1);
+        FUN_00006380();
+        return 0;
+      }
+
+      case 0x7 -> {
+        t2 = a2 * 4;
+        t3 = t2;
+        t3 = _00007560.offset(t3).get();
+        JOY_MCD_DATA.get(); // Intentional read to nowhere
+        JOY_MCD_DATA.get(); // Intentional read to nowhere
+        JOY_MCD_DATA.setu(t3);
+        t4 = JOY_MCD_CTRL.get();
+        t5 = t4 | 0x10L;
+        JOY_MCD_CTRL.setu(t5);
+        t6 = -0x81L;
+        I_STAT.setu(t6);
+        return 0;
+      }
+
+      case 0x8 -> {
+        JOY_MCD_DATA.get(); // Intentional read to nowhere
+        JOY_MCD_DATA.setu(0);
+        t8 = JOY_MCD_CTRL.get();
+        t0 = -0x81L;
+        t9 = t8 | 0x10L;
+        JOY_MCD_CTRL.setu(t9);
+        I_STAT.setu(t0);
+        return 0;
+      }
+
+      case 0x9 -> {
+        v1 = JOY_MCD_DATA.get();
+        JOY_MCD_DATA.setu(0);
+        t2 = JOY_MCD_CTRL.get();
+        t4 = -0x81L;
+        t3 = t2 | 0x10L;
+        JOY_MCD_CTRL.setu(t3);
+        at = 0x5cL;
+        I_STAT.setu(t4);
+        if(v1 == at) {
+          return 0;
+        }
+
+        return -0x1L;
+      }
+
+      case 0xa -> {
+        v1 = JOY_MCD_DATA.get();
+        JOY_MCD_DATA.setu(0);
+        t6 = JOY_MCD_CTRL.get();
+        t8 = -0x81L;
+        t7 = t6 | 0x10L;
+        JOY_MCD_CTRL.setu(t7);
+        at = 0x5dL;
+        I_STAT.setu(t8);
+        if(v1 != at) {
+          return -0x1L;
+        }
+
+        //LAB_00005574
+        t0 = JOY_MCD_STAT.get();
+        t1 = t0 & 0x2L;
+        if(t1 == 0) {
+          //LAB_00005588
+          do {
+            t2 = JOY_MCD_STAT.get();
+            t3 = t2 & 0x2L;
+          } while(t3 == 0);
+        }
+
+        //LAB_0000559c
+        t4 = _000074c0.get();
+        v1 = JOY_MCD_DATA.get();
+        at = 0x47L;
+        if(t4 == 0) {
+          t5 = a2 * 4;
+          v0 = t5;
+          v0 = _000074f8.offset(v0).get();
+          t6 = v0 & 0x4L;
+          if(t6 != 0) {
+            t7 = _00007264.get();
+            _000074c0.setu(0);
+            t9 = _00007264.get();
+            _0000751c.setu(t7);
+            t8 = 0x1L;
+            at = t9;
+            _00007568.offset(at).setu(t8);
+            bu_callback_err_prev_write();
+            DeliverEvent_Impl_B07(HwCARD, EvSpPERROR);
+            t0 = 0x1L;
+            _00007520.setu(t0);
+          }
+
+          //LAB_00005628
+          at = 0x47L;
+        }
+
+        //LAB_0000562c
+        if(v1 == at) {
+          //LAB_0000564c
+          return 0x1L;
+        }
+
+        at = 0x4eL;
+        if(v1 == at) {
+          //LAB_00005654
+          return -0x1L;
+        }
+
+        at = 0xffL;
+        if(v1 == at) {
+          //LAB_0000565c
+          return -0x1L;
+        }
+
+        //LAB_00005664
+        return -0x1L;
+      }
+
+      default -> {
+        return -0x1L;
+      }
+    }
+
+    //LAB_00005674
+    //LAB_00005678
+  }
+
   @Method(0x5688L)
   public static long FUN_00005688() {
     final long a0;
@@ -2067,10 +2352,46 @@ public final class Kernel {
     _00007508.offset(v1 * 4).setu(sector);
     _00007528.offset(v1 * 4).setu(getMethodAddress(Kernel.class, "FUN_00005688"));
     _00007550.offset(v1 * 4).setu(dest);
+    LOGGER.error("READ SECTOR %08x", dest);
+    new Throwable().printStackTrace();
 
     _00007568.offset(v1).setu(0x2L);
 
     return 1;
+  }
+
+  @Method(0x5f04L)
+  public static boolean write_card_sector_Impl_B4e(final int port, final int sector, final long src) {
+    int at = port;
+    if(port < 0) {
+      at += 0xf;
+    }
+
+    //LAB_00005f18
+    final long v1 = at / 16;
+    if(_00007568.offset(v1).get(0x1L) == 0) {
+      return false;
+    }
+
+    if(sector < 0 || sector > 0x400L) {
+      //LAB_00005f44
+      return false;
+    }
+
+    //LAB_00005f4c
+    _000074a4.setu(0);
+    _00007514.setu(0);
+
+    _00007500.offset(v1 * 4).setu(port);
+    _00007508.offset(v1 * 4).setu(sector);
+    _00007528.offset(v1 * 4).setu(getMethodAddress(Kernel.class, "FUN_000051f4"));
+    _00007550.offset(v1 * 4).setu(src);
+    LOGGER.error("WRITE SECTOR %08x", src);
+    new Throwable().printStackTrace();
+
+    _00007568.offset(v1).setu(0x4L);
+
+    return true;
   }
 
   @Method(0x5fb8L)
@@ -2095,6 +2416,10 @@ public final class Kernel {
     _00007528.offset(v1 * 4).setu(getMethodAddress(Kernel.class, "FUN_00005b64"));
     _00007508.offset(v1 * 4).setu(0);
     MEMORY.ref(1, a1).setu(0x8L);
+
+    LOGGER.error("CARD INFO");
+    new Throwable().printStackTrace();
+
     return true;
   }
 
@@ -2132,7 +2457,7 @@ public final class Kernel {
     }
 
     MEMORY.ref(4, 0xc80L, SupplierRef::new).set(() -> {
-      if(early_card_irq_vector()) {
+      if(early_card_irq_vector.run()) {
         CPU.RFE();
         return 1;
       }
@@ -2147,6 +2472,8 @@ public final class Kernel {
   public static long FUN_000063f8() {
     return _000075c0.get();
   }
+
+  private static final SupplierRef<Boolean> early_card_irq_vector = MEMORY.ref(4, 0x0000641cL, SupplierRef::new);
 
   @Method(0x641cL)
   public static boolean early_card_irq_vector() {
@@ -2269,6 +2596,11 @@ public final class Kernel {
   @Method(0x6b60L)
   public static void bu_callback_err_eject() {
     functionVectorA(0xaaL);
+  }
+
+  @Method(0x6b70L)
+  public static void bu_callback_err_prev_write() {
+    functionVectorA(0xaeL);
   }
 
   @Method(0x6b80L)

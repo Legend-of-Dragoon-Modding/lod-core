@@ -54,6 +54,8 @@ public final class Hardware {
   public static final Thread codeThread;
   public static final Thread hardwareThread;
   public static final Thread gpuThread;
+  public static final Thread timerThread;
+  public static final Thread joyThread;
 
   @Nullable
   public static final Class<?> ENTRY_POINT;
@@ -157,6 +159,10 @@ public final class Hardware {
     hardwareThread.setName("Hardware");
     gpuThread = new Thread(GPU);
     gpuThread.setName("GPU");
+    timerThread = new Thread(TIMERS);
+    timerThread.setName("Timers");
+    joyThread = new Thread(JOYPAD);
+    joyThread.setName("Joypad");
 
     LOGGER.info("Scanning for entry point class...");
     final Reflections reflections = new Reflections(ClasspathHelper.forClassLoader());
@@ -175,10 +181,10 @@ public final class Hardware {
   }
 
   public static void start() {
-    LOGGER.warn("WARNING: Joypad interrupts are currently disabled");
-
     codeThread.start();
     gpuThread.start();
+    timerThread.start();
+    joyThread.start();
 
     boolean running = true;
     while(running) {
@@ -191,21 +197,6 @@ public final class Hardware {
       }
 
       TIMERS.syncGPU(GPU.getBlanksAndDot());
-
-      if(TIMERS.tick(0, 100)) {
-        INTERRUPTS.set(InterruptType.TMR0);
-      }
-      if(TIMERS.tick(1, 100)) {
-        INTERRUPTS.set(InterruptType.TMR1);
-      }
-      if(TIMERS.tick(2, 100)) {
-        INTERRUPTS.set(InterruptType.TMR2);
-      }
-
-      if(JOYPAD.tick()) {
-        //TODO
-//        INTERRUPTS.set(InterruptType.CONTROLLER);
-      }
 
       if(SPU.tick(100)) {
         INTERRUPTS.set(InterruptType.SPU);

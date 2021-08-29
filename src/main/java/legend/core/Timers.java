@@ -6,9 +6,10 @@ import legend.core.memory.MisalignedAccessException;
 import legend.core.memory.Segment;
 import legend.core.memory.Value;
 
+import static legend.core.Hardware.INTERRUPTS;
 import static legend.core.Hardware.MEMORY;
 
-public class Timers {
+public class Timers implements Runnable {
   public static final Value TMR_DOTCLOCK_VAL = MEMORY.ref(4, 0x1f801100L);
   public static final Value TMR_DOTCLOCK_MODE = MEMORY.ref(4, 0x1f801104L);
   public static final Value TMR_DOTCLOCK_MAX = MEMORY.ref(4, 0x1f801108L);
@@ -25,9 +26,32 @@ public class Timers {
     new Timer(0x1f801120L, 2),
   };
 
+  private boolean running;
+
   public Timers(final Memory memory) {
     for(final Timer timer : this.timers) {
       memory.addSegment(timer);
+    }
+  }
+
+  @Override
+  public void run() {
+    this.running = true;
+
+    while(this.running) {
+      if(this.tick(0, 100)) {
+        INTERRUPTS.set(InterruptType.TMR0);
+      }
+
+      if(this.tick(1, 100)) {
+        INTERRUPTS.set(InterruptType.TMR1);
+      }
+
+      if(this.tick(2, 100)) {
+        INTERRUPTS.set(InterruptType.TMR2);
+      }
+
+      DebugHelper.sleep(1);
     }
   }
 
@@ -170,8 +194,7 @@ public class Timers {
           if(this.clockSource == 0 || this.clockSource == 2) {
             this.val += (short)this.cycles;
           } else {
-            final short dot = (short)(this.cycles * 11 / 7 / this.dotDiv);
-            this.val += dot; //DotClock
+            this.val += (short)(this.cycles * 11 / 7 / this.dotDiv); //DotClock
           }
 
           this.cycles = 0;

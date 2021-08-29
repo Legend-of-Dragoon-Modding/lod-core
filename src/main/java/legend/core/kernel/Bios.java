@@ -508,6 +508,11 @@ public final class Bios {
     buffer.set(callback);
   }
 
+  @Method(0xbfc02918L)
+  public static int abs_Impl_A0e(final int val) {
+    return Math.abs(val);
+  }
+
   @Method(0xbfc02b50L)
   public static long memcpy_Impl_A2a(final long dst, final long src, final int size) {
     if(dst == 0) {
@@ -2700,14 +2705,6 @@ public final class Bios {
 
   @Method(0xbfc09144L)
   public static int FUN_bfc09144() {
-    LOGGER.warn("------------------------------------------------");
-    LOGGER.warn("SKIPPING MEMCARD STUFF I HAVEN'T FIGURED OUT YET");
-    LOGGER.warn("------------------------------------------------");
-    boolean a = true;
-    if(a) {
-      return 0;
-    }
-
     //LAB_bfc09158
     while(true) {
       if(_a000b9d0.get() == 0x1L) {
@@ -2771,6 +2768,22 @@ public final class Bios {
     }
   }
 
+  @Method(0xbfc0b5f4L)
+  public static void FUN_bfc0b5f4() {
+    long at = get_bu_callback_port();
+    if(at < 0) {
+      at += 0xfL;
+    }
+
+    //lAB_bfc0b610
+    final long v1 = at / 16;
+    if(_a0009f20.offset(v1 * 4).get() != 0) {
+      FUN_bfc0bff0(v1, EvSpNEW);
+    }
+
+    //LAB_bfc0b63c
+  }
+
   @Method(0xbfc0bff0L)
   public static void FUN_bfc0bff0(final long a0, final int spec) {
     _a0009f20.offset(a0 * 4L).setu(0);
@@ -2810,6 +2823,12 @@ public final class Bios {
   public static void bu_callback_err_busy_Impl_Aa9() {
     _a000b9d8.setu(0x1L);
     FUN_bfc0b54c();
+  }
+
+  @Method(0xbfc0c298L)
+  public static void bu_callback_err_eject_Impl_Aaa() {
+    _a000b9dc.setu(0x1L);
+    FUN_bfc0b5f4();
   }
 
   @Method(0xbfc0c354L)

@@ -59,4 +59,9 @@ public class UnsignedIntRef implements MemoryRef {
 
     return this.ref.getAddress();
   }
+
+  @Override
+  public String toString() {
+    return this.get() + (this.ref == null ? " (local)" : " @ " + Long.toHexString(this.getAddress()));
+  }
 }

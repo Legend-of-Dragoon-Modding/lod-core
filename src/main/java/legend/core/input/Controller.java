@@ -1,10 +1,11 @@
 package legend.core.input;
 
-import java.util.ArrayDeque;
-import java.util.Queue;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public abstract class Controller {
-  protected Queue<Byte> transferDataFifo = new ArrayDeque<>();
+  private static final Logger LOGGER = LogManager.getFormatterLogger(Controller.class);
+
   protected short buttons = (short)0xffff;
   public boolean ack;
 
@@ -13,11 +14,11 @@ public abstract class Controller {
 
   public void handleJoyPadDown(final GamepadInputsEnum inputCode) {
     this.buttons &= (short)~(this.buttons & (short)inputCode.value);
-    //Console.WriteLine(buttons.ToString("x8"));
+    LOGGER.error("[JOYPAD] Button down %s (current button code: %08x)", inputCode, this.buttons);
   }
 
   public void handleJoyPadUp(final GamepadInputsEnum inputCode) {
     this.buttons |= (short)inputCode.value;
-    //Console.WriteLine(buttons.ToString("x8"));
+    LOGGER.error("[JOYPAD] Button up %s (current button code: %08x)", inputCode, this.buttons);
   }
 }
