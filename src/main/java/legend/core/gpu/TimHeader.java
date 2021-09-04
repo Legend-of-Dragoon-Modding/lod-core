@@ -61,12 +61,12 @@ public class TimHeader implements MemoryRef {
 
   public void setImage(final RECT rect, final long address) {
     this.imageRect.set(rect);
-    this.imageAddress.set((int)address);
+    this.imageAddress.set(address);
   }
 
   public void setClut(final RECT rect, final long address) {
     this.clutRect.set(rect);
-    this.clutAddress.set((int)address);
+    this.clutAddress.set(address);
   }
 
   public boolean hasClut() {

@@ -291,18 +291,22 @@ public class DigitalController extends Controller {
       }
 
       if(this.index == 4) {
+        this.index++;
         return (byte)this.response4;
       }
 
       if(this.index == 5) {
+        this.index++;
         return (byte)this.response5;
       }
 
       if(this.index == 6) {
+        this.index++;
         return (byte)this.response6;
       }
 
       if(this.index == 7) {
+        this.index++;
         return (byte)this.response7;
       }
 
@@ -333,6 +337,7 @@ public class DigitalController extends Controller {
       }
 
       if(this.index == 5) {
+        this.index++;
         return (byte)this.response5;
       }
 

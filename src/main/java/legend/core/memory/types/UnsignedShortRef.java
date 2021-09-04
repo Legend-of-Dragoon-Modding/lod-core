@@ -4,76 +4,76 @@ import legend.core.memory.Value;
 
 import javax.annotation.Nullable;
 
-public class UnsignedIntRef implements MemoryRef {
+public class UnsignedShortRef implements MemoryRef {
   @Nullable
   private final Value ref;
 
   private int val;
 
-  public UnsignedIntRef() {
+  public UnsignedShortRef() {
     this.ref = null;
   }
 
-  public UnsignedIntRef(final Value ref) {
+  public UnsignedShortRef(final Value ref) {
     this.ref = ref;
 
-    if(ref.getSize() != 4) {
-      throw new IllegalArgumentException("Size of int refs must be 4");
+    if(ref.getSize() != 2) {
+      throw new IllegalArgumentException("Size of short refs must be 2");
     }
   }
 
-  public long get() {
+  public int get() {
     if(this.ref != null) {
-      return this.ref.get();
+      return (int)this.ref.get();
     }
 
-    return this.val & 0xffff_ffffL;
+    return this.val;
   }
 
-  public UnsignedIntRef set(final long val) {
-    if((val & ~0xffff_ffffL) != 0) {
+  public UnsignedShortRef set(final int val) {
+    if((val & ~0xffff) != 0) {
       throw new IllegalArgumentException("Overflow: " + val);
     }
 
     if(this.ref != null) {
       this.ref.setu(val);
     } else {
-      this.val = (int)val;
+      this.val = val & 0xffff;
     }
 
     return this;
   }
 
-  public UnsignedIntRef set(final UnsignedIntRef val) {
+  public UnsignedShortRef set(final UnsignedShortRef val) {
     return this.set(val.get());
   }
 
-  public UnsignedIntRef add(final long val) {
+  public UnsignedShortRef add(final int val) {
     return this.set(this.get() + val);
   }
 
-  public UnsignedIntRef add(final UnsignedIntRef val) {
-    return this.add(val.get());
-  }
-
-  public UnsignedIntRef sub(final long val) {
-    return this.set(this.get() - val);
-  }
-
-  public UnsignedIntRef sub(final UnsignedIntRef val) {
+  public UnsignedShortRef add(final UnsignedShortRef val) {
     return this.set(val.get());
   }
 
-  public UnsignedIntRef incr() {
+  public UnsignedShortRef sub(final int val) {
+    return this.set(this.get() - val);
+  }
+
+  public UnsignedShortRef sub(final UnsignedShortRef val) {
+    return this.set(val.get());
+  }
+
+  public UnsignedShortRef incr() {
     return this.add(1);
   }
 
-  public UnsignedIntRef decr() {
+  public UnsignedShortRef decr() {
     return this.sub(1);
   }
 
-  public UnsignedIntRef not() {
-    return this.set(~this.get() & 0xffff_ffffL);
+  public UnsignedShortRef not() {
+    return this.set(~this.get() & 0xffff);
   }
 
   @Override

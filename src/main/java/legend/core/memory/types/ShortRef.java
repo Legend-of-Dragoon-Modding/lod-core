@@ -30,25 +30,46 @@ public class ShortRef implements MemoryRef {
     return this.val;
   }
 
-  public void set(final short val) {
+  public ShortRef set(final short val) {
     if(this.ref != null) {
       this.ref.setu(val);
-      return;
+    } else {
+      this.val = val;
     }
 
-    this.val = val;
+    return this;
   }
 
-  public void set(final ShortRef val) {
-    this.set(val.get());
+  public ShortRef set(final ShortRef val) {
+    return this.set(val.get());
   }
 
-  public void add(final short val) {
-    this.set((short)(this.get() + val));
+  public ShortRef add(final short val) {
+    return this.set((short)(this.get() + val));
   }
 
-  public void sub(final short val) {
-    this.set((short)(this.get() - val));
+  public ShortRef add(final ShortRef val) {
+    return this.set(val.get());
+  }
+
+  public ShortRef sub(final short val) {
+    return this.set((short)(this.get() - val));
+  }
+
+  public ShortRef sub(final ShortRef val) {
+    return this.set(val.get());
+  }
+
+  public ShortRef incr() {
+    return this.add((short)1);
+  }
+
+  public ShortRef decr() {
+    return this.sub((short)1);
+  }
+
+  public ShortRef not() {
+    return this.set((short)~this.get());
   }
 
   @Override

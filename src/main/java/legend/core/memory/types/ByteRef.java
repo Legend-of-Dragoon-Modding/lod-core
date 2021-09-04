@@ -60,6 +60,10 @@ public class ByteRef implements MemoryRef {
     return this.sub(1);
   }
 
+  public ByteRef not() {
+    return this.set(~this.get());
+  }
+
   @Override
   public long getAddress() {
     return this.ref.getAddress();

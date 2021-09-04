@@ -48,8 +48,16 @@ public class IntRef implements MemoryRef {
     return this.set(this.get() + amount);
   }
 
+  public IntRef add(final IntRef amount) {
+    return this.set(amount.get());
+  }
+
   public IntRef sub(final int amount) {
     return this.set(this.get() - amount);
+  }
+
+  public IntRef sub(final IntRef amount) {
+    return this.set(amount.get());
   }
 
   public IntRef incr() {
@@ -58,6 +66,10 @@ public class IntRef implements MemoryRef {
 
   public IntRef decr() {
     return this.sub(1);
+  }
+
+  public IntRef not() {
+    return this.set(~this.get());
   }
 
   @Override
