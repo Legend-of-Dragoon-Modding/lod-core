@@ -17,9 +17,9 @@ public class PriorityChainEntry implements MemoryRef {
 
   public PriorityChainEntry(final Value ref) {
     this.ref = ref;
-    this.next = this.ref.offset(4, 0x0L).cast(Pointer.of(PriorityChainEntry::new));
-    this.secondFunction = this.ref.offset(4, 0x4L).cast(Pointer.of(ConsumerRef::new));
-    this.firstFunction = this.ref.offset(4, 0x8L).cast(Pointer.of(SupplierRef::new));
+    this.next = this.ref.offset(4, 0x0L).cast(Pointer.of(0x10, PriorityChainEntry::new));
+    this.secondFunction = this.ref.offset(4, 0x4L).cast(Pointer.of(4, ConsumerRef::new));
+    this.firstFunction = this.ref.offset(4, 0x8L).cast(Pointer.of(4, SupplierRef::new));
     this.unknown = this.ref.offset(4, 0xcL).cast(IntRef::new);
   }
 

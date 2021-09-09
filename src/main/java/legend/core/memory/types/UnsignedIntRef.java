@@ -76,6 +76,30 @@ public class UnsignedIntRef implements MemoryRef {
     return this.set(~this.get() & 0xffff_ffffL);
   }
 
+  public UnsignedIntRef and(final long val) {
+    return this.set(this.get() & val);
+  }
+
+  public UnsignedIntRef and(final UnsignedIntRef val) {
+    return this.and(val.get());
+  }
+
+  public UnsignedIntRef or(final long val) {
+    return this.set(this.get() | val);
+  }
+
+  public UnsignedIntRef or(final UnsignedIntRef val) {
+    return this.or(val.get());
+  }
+
+  public UnsignedIntRef xor(final long val) {
+    return this.set(this.get() ^ val);
+  }
+
+  public UnsignedIntRef xor(final UnsignedIntRef val) {
+    return this.xor(val.get());
+  }
+
   @Override
   public long getAddress() {
     if(this.ref == null) {

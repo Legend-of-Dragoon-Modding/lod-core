@@ -13,8 +13,10 @@ import legend.core.memory.types.CString;
 import legend.core.memory.types.ConsumerRef;
 import legend.core.memory.types.IntRef;
 import legend.core.memory.types.Pointer;
+import legend.core.memory.types.ProcessControlBlock;
 import legend.core.memory.types.RunnableRef;
 import legend.core.memory.types.SupplierRef;
+import legend.core.memory.types.ThreadControlBlock;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -83,9 +85,9 @@ public final class Bios {
 
   public static final Value jumpTableA_00000200 = MEMORY.ref(4, 0x00000200L);
 
-  public static final Pointer<ArrayRef<Pointer<PriorityChainEntry>>> ExceptionChainAddr_a0000100 = (Pointer<ArrayRef<Pointer<PriorityChainEntry>>>)MEMORY.ref(4, 0xa0000100L, Pointer.of(ArrayRef.of(Pointer.class, 4, 4, 8, (Function)Pointer.of(PriorityChainEntry::new))));
+  public static final Pointer<ArrayRef<Pointer<PriorityChainEntry>>> ExceptionChainPtr_a0000100 = (Pointer<ArrayRef<Pointer<PriorityChainEntry>>>)MEMORY.ref(4, 0xa0000100L, Pointer.of(0x20, ArrayRef.of(Pointer.class, 4, 4, 8, (Function)Pointer.of(0x10, PriorityChainEntry::new))));
   public static final Value ExceptionChainSize_a0000104 = MEMORY.ref(4, 0xa0000104L);
-  public static final Value ProcessControlBlockAddr_a0000108 = MEMORY.ref(4, 0xa0000108L);
+  public static final Pointer<ProcessControlBlock> ProcessControlBlockPtr_a0000108 = MEMORY.ref(4, 0xa0000108L, Pointer.of(4, ProcessControlBlock::new));
   public static final Value ProcessControlBlockSize_a000010c = MEMORY.ref(4, 0xa000010cL);
   public static final Value ThreadControlBlockAddr_a0000110 = MEMORY.ref(4, 0xa0000110L);
   public static final Value ThreadControlBlockSize_a0000114 = MEMORY.ref(4, 0xa0000114L);
@@ -143,10 +145,10 @@ public final class Bios {
 
   public static final Value _a0009e18 = MEMORY.ref(1, 0xa0009e18L);
 
-  public static final Value _a0009f20 = MEMORY.ref(1, 0xa0009f20L);
-  public static final Value _a0009f24 = MEMORY.ref(1, 0xa0009f24L);
-  public static final Value _a0009f28 = MEMORY.ref(1, 0xa0009f28L);
-  public static final Value _a0009f30 = MEMORY.ref(1, 0xa0009f30L);
+  public static final Value _a0009f20 = MEMORY.ref(4, 0xa0009f20L);
+  public static final Value _a0009f24 = MEMORY.ref(4, 0xa0009f24L);
+  public static final Value _a0009f28 = MEMORY.ref(4, 0xa0009f28L);
+  public static final Value _a0009f30 = MEMORY.ref(4, 0xa0009f30L);
 
   public static final Value _a0009f90 = MEMORY.ref(1, 0xa0009f90L);
 
@@ -729,7 +731,7 @@ public final class Bios {
 
     //LAB_bfc04640
     bzero_Impl_A28(mem, size);
-    ExceptionChainAddr_a0000100.set(MEMORY.ref(4, mem, (Function<Value, ArrayRef<Pointer<PriorityChainEntry>>>)ArrayRef.of(Pointer.class, 4, 4, 8, (Function)Pointer.of(PriorityChainEntry::new))));
+    ExceptionChainPtr_a0000100.set(MEMORY.ref(4, mem, (Function<Value, ArrayRef<Pointer<PriorityChainEntry>>>)ArrayRef.of(Pointer.class, 4, 4, 8, (Function)Pointer.of(0x10, PriorityChainEntry::new))));
     ExceptionChainSize_a0000104.setu(size);
 
     //LAB_bfc04668
@@ -761,8 +763,8 @@ public final class Bios {
   public static long allocateThreadControlBlock(final int processCount, final int threadCount) {
     LOGGER.info("TCB\t0x%02x", threadCount);
 
-    final int processSize = processCount * 4;
-    final int threadSize = threadCount * 192;
+    final int processSize = processCount * 0x4;
+    final int threadSize = threadCount * 0xc0;
 
     ProcessControlBlockSize_a000010c.setu(processSize);
     ThreadControlBlockSize_a0000114.setu(threadSize);
@@ -778,6 +780,9 @@ public final class Bios {
       return 0;
     }
 
+    final ProcessControlBlock pcb = MEMORY.ref(4, processAddr, ProcessControlBlock::new);
+    final ThreadControlBlock tcb = MEMORY.ref(4, threadAddr, ThreadControlBlock::new);
+
     //LAB_bfc047b8
     //LAB_bfc047d4
     for(int i = 0; i < processCount; i++) {
@@ -787,13 +792,13 @@ public final class Bios {
     //LAB_bfc047e8
     //LAB_bfc0480c
     for(int i = 0; i < threadCount; i++) {
-      MEMORY.ref(4, threadAddr).offset(i * 192L).setu(0x1000L);
+      MEMORY.ref(4, threadAddr).offset(i * 0xc0L).setu(0x1000L); // Uninitialized
     }
 
     //LAB_bfc0481c
-    MEMORY.ref(4, threadAddr).setu(0x4000L);
-    MEMORY.ref(4, processAddr).setu(threadAddr);
-    ProcessControlBlockAddr_a0000108.setu(processAddr);
+    tcb.status.set(0x4000L); // Initialized
+    pcb.threadControlBlockPtr.set(tcb);
+    ProcessControlBlockPtr_a0000108.set(pcb);
     ThreadControlBlockAddr_a0000110.setu(threadAddr);
 
     //LAB_bfc0483c
@@ -2808,6 +2813,31 @@ public final class Bios {
     return false;
   }
 
+  @Method(0xbfc0c140L)
+  public static boolean _card_async_load_directories_Impl_Aac(final int port) {
+    int at = port;
+    if(port < 0) {
+      at += 0xf;
+    }
+
+    //LAB_bfc0c16c
+    final long joypadIndex = at >> 0x4;
+
+    _a0009f20.offset(joypadIndex * 4).setu(0x4L);
+
+    if(read_card_sector(port, 0, _a000be48.offset(joypadIndex * 0x80).getAddress()) == 0) {
+      _a0009f20.offset(joypadIndex * 4).setu(0);
+      return false;
+    }
+
+    //LAB_bfc0c1b0
+    _a0009f20.offset(joypadIndex * 4).setu(0x4L);
+    _a0009f28.offset(joypadIndex * 4).setu(0x1L);
+
+    //LAB_bfc0c1cc
+    return true;
+  }
+
   @Method(0xbfc0c1fcL)
   public static void AddMemCardDevice_Impl_A97() {
     AddDevice(MemCardDeviceInfo_bfc0e3e4.getAddress());
@@ -2921,7 +2951,7 @@ public final class Bios {
 
     // The exception handler stores v0 (return value) here
     GATE.acquire();
-    final boolean ret = ProcessControlBlockAddr_a0000108.deref(4).deref(4).offset(0x10).get() != 0;
+    final boolean ret = ProcessControlBlockPtr_a0000108.deref().threadControlBlockPtr.deref().registers.get(1).get() != 0;
     GATE.release();
     return ret;
   }

@@ -20,7 +20,7 @@ public class jmp_buf implements MemoryRef {
   public jmp_buf(final Value ref) {
     this.ref = ref;
 
-    this.ra = ref.offset(4, 0x0L).cast(Pointer.of(RunnableRef::new));
+    this.ra = ref.offset(4, 0x0L).cast(Pointer.of(4, RunnableRef::new));
     this.sp = ref.offset(4, 0x4L).cast(UnsignedIntRef::new);
     this.fp = ref.offset(4, 0x8L).cast(UnsignedIntRef::new);
   }

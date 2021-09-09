@@ -6,23 +6,24 @@ import javax.annotation.Nullable;
 import java.util.function.Function;
 
 public class Pointer<T extends MemoryRef> implements MemoryRef {
-  public static <T extends MemoryRef> Function<Value, Pointer<T>> of(final Function<Value, T> constructor) {
-    return ref -> new Pointer<>(ref, constructor, true);
+  public static <T extends MemoryRef> Function<Value, Pointer<T>> of(final int size, final Function<Value, T> constructor) {
+    return ref -> new Pointer<>(ref, constructor, size, true);
   }
 
   /**
    * Lazy mode - don't resolve pointer until used
    */
-  public static <T extends MemoryRef> Function<Value, Pointer<T>> deferred(final Function<Value, T> constructor) {
-    return ref -> new Pointer<>(ref, constructor, false);
+  public static <T extends MemoryRef> Function<Value, Pointer<T>> deferred(final int size, final Function<Value, T> constructor) {
+    return ref -> new Pointer<>(ref, constructor, size, false);
   }
 
   private final Value ref;
   private final Function<Value, T> constructor;
+  private final int size;
   @Nullable
   private T cache;
 
-  public Pointer(final Value ref, final Function<Value, T> constructor, final boolean precache) {
+  public Pointer(final Value ref, final Function<Value, T> constructor, final int size, final boolean precache) {
     this.ref = ref;
 
     if(ref.getSize() != 4) {
@@ -30,6 +31,7 @@ public class Pointer<T extends MemoryRef> implements MemoryRef {
     }
 
     this.constructor = constructor;
+    this.size = size;
 
     if(precache) {
       try {
@@ -44,7 +46,7 @@ public class Pointer<T extends MemoryRef> implements MemoryRef {
       return;
     }
 
-    this.cache = this.constructor.apply(this.ref.deref(4));
+    this.cache = this.constructor.apply(this.ref.deref(this.size));
   }
 
   public boolean isNull() {

@@ -53,9 +53,9 @@ public class FileLoadingInfo implements MemoryRef {
     this.ref = ref;
     this.pos = new CdlLOC(ref.offset(4, 0x0L));
     this.size = ref.offset(4, 0x4L).cast(IntRef::new);
-    this.callback = ref.offset(4, 0x8L).cast(Pointer.of(TriConsumerRef::new));
+    this.callback = ref.offset(4, 0x8L).cast(Pointer.of(4, TriConsumerRef::new));
     this.transferDest = ref.offset(4, 0xcL);
-    this.namePtr = ref.offset(4, 0x10L).cast(Pointer.of(CString.maxLength(16)));
+    this.namePtr = ref.offset(4, 0x10L).cast(Pointer.of(16, CString.maxLength(16)));
     this.unknown1 = ref.offset(4, 0x14L).cast(IntRef::new);
     this.unknown2 = ref.offset(2, 0x18L).cast(ShortRef::new);
     this.unknown3 = ref.offset(2, 0x1aL).cast(ShortRef::new);

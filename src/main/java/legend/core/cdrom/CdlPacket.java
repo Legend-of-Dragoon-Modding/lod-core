@@ -24,10 +24,10 @@ public class CdlPacket implements MemoryRef {
     this.ref = null;
 
     this.batch = new UnsignedIntRef();
-    this.command = ref.offset(1, 0x4L).cast(EnumRef.of(CdlCOMMAND.values()));
-    this.args = ref.offset(4, 0x5L).cast(ArrayRef.of(ByteRef.class, 4, 1, ByteRef::new));
-    this.argsPtr = ref.offset(4, 0xcL).cast(Pointer.of(ArrayRef.of(ByteRef.class, 4, 1, ByteRef::new)));
-    this.syncCallback = ref.offset(4, 0x10L).cast(Pointer.of(BiConsumerRef::new));
+    this.command = this.ref.offset(1, 0x4L).cast(EnumRef.of(CdlCOMMAND.values()));
+    this.args = this.ref.offset(4, 0x5L).cast(ArrayRef.of(ByteRef.class, 4, 1, ByteRef::new));
+    this.argsPtr = this.ref.offset(4, 0xcL).cast(Pointer.of(4, ArrayRef.of(ByteRef.class, 4, 1, ByteRef::new)));
+    this.syncCallback = this.ref.offset(4, 0x10L).cast(Pointer.of(4, BiConsumerRef::new));
     this.retries = new IntRef();
   }
 
@@ -37,8 +37,8 @@ public class CdlPacket implements MemoryRef {
     this.batch = ref.offset(4, 0x0L).cast(UnsignedIntRef::new);
     this.command = ref.offset(1, 0x4L).cast(EnumRef.of(CdlCOMMAND.values()));
     this.args = ref.offset(4, 0x5L).cast(ArrayRef.of(ByteRef.class, 4, 1, ByteRef::new));
-    this.argsPtr = ref.offset(4, 0xcL).cast(Pointer.of(ArrayRef.of(ByteRef.class, 4, 1, ByteRef::new)));
-    this.syncCallback = ref.offset(4, 0x10L).cast(Pointer.of(BiConsumerRef::new));
+    this.argsPtr = ref.offset(4, 0xcL).cast(Pointer.of(4, ArrayRef.of(ByteRef.class, 4, 1, ByteRef::new)));
+    this.syncCallback = ref.offset(4, 0x10L).cast(Pointer.of(4, BiConsumerRef::new));
     this.retries = ref.offset(4, 0x14L).cast(IntRef::new);
   }
 
