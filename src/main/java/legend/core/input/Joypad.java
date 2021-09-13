@@ -83,7 +83,7 @@ public class Joypad implements Runnable {
         if(this.counter > 0) {
           this.counter -= 100;
           if(this.counter == 0) {
-            LOGGER.error("[IRQ] TICK Triggering JOYPAD");
+            LOGGER.debug("[IRQ] TICK Triggering JOYPAD");
             this.ackInputLevel = false;
             this.interruptRequest = true;
           }
@@ -103,13 +103,13 @@ public class Joypad implements Runnable {
   }
 
   private void reloadTimer() {
-    LOGGER.error("[JOYPAD] RELOAD TIMER");
+    LOGGER.debug("[JOYPAD] RELOAD TIMER");
     this.baudrateTimer = this.JOY_BAUD * this.baudrateReloadFactor & ~0x1;
   }
 
   private void setJOY_DATA(final int value) {
     synchronized(this.registerLock) {
-      LOGGER.error("[JOYPAD] TX DATA ENQUEUE %02x", value);
+      LOGGER.debug("[JOYPAD] TX DATA ENQUEUE %02x", value);
       this.JOY_TX_DATA = (byte)value;
       this.JOY_RX_DATA = (byte)0xff;
       this.fifoFull = true;
@@ -118,7 +118,7 @@ public class Joypad implements Runnable {
       if(this.JoyOutput) {
         this.txReadyFlag2 = true;
 
-        LOGGER.error("[JOYPAD] DesiredSlot == %d", this.desiredSlotNumber);
+        LOGGER.debug("[JOYPAD] DesiredSlot == %d", this.desiredSlotNumber);
         if(this.desiredSlotNumber == 1) {
           this.JOY_RX_DATA = (byte)0xff;
           this.ackInputLevel = false;
@@ -139,7 +139,7 @@ public class Joypad implements Runnable {
           if(this.ackInputLevel) {
             this.counter = 500;
           }
-          LOGGER.error("[JOYPAD] Controller TICK Enqueued RX response %02x ack: %b", this.JOY_RX_DATA, this.ackInputLevel);
+          LOGGER.debug("[JOYPAD] Controller TICK Enqueued RX response %02x ack: %b", this.JOY_RX_DATA, this.ackInputLevel);
           //Console.ReadLine();
         } else if(this.joypadDevice == JoypadDevice.MEMORY_CARD) {
           this.JOY_RX_DATA = this.memoryCard.process(this.JOY_TX_DATA);
@@ -147,7 +147,7 @@ public class Joypad implements Runnable {
           if(this.ackInputLevel) {
             this.counter = 500;
           }
-          LOGGER.error("[JOYPAD] MemCard TICK Enqueued RX response %02x ack: %b", this.JOY_RX_DATA, this.ackInputLevel);
+          LOGGER.debug("[JOYPAD] MemCard TICK Enqueued RX response %02x ack: %b", this.JOY_RX_DATA, this.ackInputLevel);
           //Console.ReadLine();
         } else {
           this.ackInputLevel = false;
@@ -167,7 +167,7 @@ public class Joypad implements Runnable {
 
   private void setJOY_CTRL(final int value) {
     synchronized(this.registerLock) {
-      LOGGER.error("[JOYPAD] Set CTRL %04x", value);
+      LOGGER.debug("[JOYPAD] Set CTRL %04x", value);
 
       this.txEnable = (value & 0x1) != 0;
       this.JoyOutput = (value >> 1 & 0x1) != 0;
@@ -183,14 +183,14 @@ public class Joypad implements Runnable {
       this.desiredSlotNumber = value >> 13 & 0x1;
 
       if(this.controlAck) {
-        LOGGER.error("[JOYPAD] CONTROL ACK");
+        LOGGER.debug("[JOYPAD] CONTROL ACK");
         this.rxParityError = false;
         this.interruptRequest = false;
         this.controlAck = false;
       }
 
       if(this.controlReset) {
-        LOGGER.error("[JOYPAD] CONTROL RESET");
+        LOGGER.debug("[JOYPAD] CONTROL RESET");
         this.joypadDevice = JoypadDevice.NONE;
         this.controller.resetToIdle();
         this.memoryCard.resetToIdle();

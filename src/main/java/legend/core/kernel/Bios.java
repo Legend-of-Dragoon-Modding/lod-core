@@ -150,6 +150,20 @@ public final class Bios {
   public static final Value _a0009f28 = MEMORY.ref(4, 0xa0009f28L);
   public static final Value _a0009f30 = MEMORY.ref(4, 0xa0009f30L);
 
+  public static final Value _a0009f50 = MEMORY.ref(4, 0xa0009f50L);
+
+  public static final Value _a0009f58 = MEMORY.ref(4, 0xa0009f58L);
+
+  public static final Value _a0009f60 = MEMORY.ref(4, 0xa0009f60L);
+
+  public static final Value _a0009f68 = MEMORY.ref(4, 0xa0009f68L);
+
+  public static final Value _a0009f70 = MEMORY.ref(4, 0xa0009f70L);
+
+  public static final Value _a0009f78 = MEMORY.ref(4, 0xa0009f78L);
+
+  public static final Value _a0009f88 = MEMORY.ref(2, 0xa0009f88L);
+
   public static final Value _a0009f90 = MEMORY.ref(1, 0xa0009f90L);
 
   public static final Value _a000b068 = MEMORY.ref(4, 0xa000b068L);
@@ -2496,10 +2510,15 @@ public final class Bios {
   }
 
   @Method(0xbfc08720L)
-  public static int FUN_bfc08720(long a0) {
+  public static int FUN_bfc08720(final long a0) {
     assert false;
     //TODO
     return 0;
+  }
+
+  @Method(0xbfc087c4L)
+  public static void FUN_bfc087c4(final long a0) {
+    assert false;
   }
 
   @Method(0xbfc0884cL)
@@ -2728,6 +2747,12 @@ public final class Bios {
     }
   }
 
+  @Method(0xbfc09540L)
+  public static int FUN_bfc09540(final long a0, final long a1) {
+    assert false;
+    return 0;
+  }
+
   @Method(0xbfc09914L)
   public static void _bu_init_Impl_A55() {
     _a0009f20.setu(0);
@@ -2735,6 +2760,12 @@ public final class Bios {
     FUN_bfc088a0();
     FUN_bfc08b3c(0);
     FUN_bfc08b3c(0x10);
+  }
+
+  @Method(0xbfc0a3d4L)
+  public static int FUN_bfc0a3d4(final long a0, final long a1, final long a2) {
+    assert false;
+    return 0;
   }
 
   @Method(0xbfc0b170L)
@@ -2789,6 +2820,295 @@ public final class Bios {
     //LAB_bfc0b63c
   }
 
+  @Method(0xbfc0b648L)
+  public static void FUN_bfc0b648() {
+    final long[] sp54 = new long[0xf];
+    long a0;
+    final int sector;
+    final int s0;
+    final int v0;
+    long v1;
+
+    final int port = get_bu_callback_port();
+    long at = port;
+    if((int)at < 0) {
+      at += 0xfL;
+    }
+
+    //LAB_bfc0b670
+    final long s1 = at >> 4;
+
+    switch((int)_a0009f20.offset(s1 * 4).get()) {
+      case 0:
+        return;
+
+      case 2:
+        _a0009f58.offset(s1 * 0x4L).subu(0x1L);
+        if(_a0009f58.offset(s1 * 0x4L).get() == 0) {
+          FUN_bfc0bff0(s1, EvSpIOE);
+          DeliverEvent(_a0009f70.offset(s1 * 0x4L).deref(4).offset(0x28L).get(), EvSpIOE);
+          return;
+        }
+
+        //LAB_bfc0b714
+        _a0009f78.offset(s1 * 0x4L).addu(0x80L);
+        _a0009f70.offset(s1 * 0x4L).deref(4).offset(0x10L).addu(0x80L);
+        _a0009f50.offset(s1 * 0x4L).addu(0x1L);
+
+        s0 = FUN_bfc0a3d4(s1, _a0009f70.offset(s1 * 0x4L).deref(4).offset(0x24L).get(), _a0009f50.offset(s1 * 0x4L).get());
+        v0 = FUN_bfc09540(s1, s0);
+
+        if(v0 == -0x1L) {
+          sector = s0;
+        } else {
+          sector = v0;
+        }
+
+        //LAB_bfc0b7b0
+        if(read_card_sector(port, sector, MEMORY.ref(4, _a0009f78.offset(s1 * 0x4L).getAddress()).get()) != 0x1L) {
+          _a000b9d0.setu(0);
+          _a000b9d4.setu(0x1L);
+          FUN_bfc0bff0(s1, EvSpERROR);
+        }
+
+        //LAB_bfc0b7e8
+        return;
+
+      case 6:
+        _a0009f20.offset(s1 * 4).setu(0x3L);
+        // Fall through
+
+      case 3:
+        _a0009f58.offset(s1 * 0x4L).subu(0x1L);
+        if(_a0009f58.offset(s1 * 0x4L).get() == 0) {
+          _a000b9d0.setu(0);
+
+          if(!_card_info_Impl_Aab(port)) {
+            _a000b9d4.setu(0x1L);
+            FUN_bfc0bff0(s1, EvSpERROR);
+          }
+
+          //LAB_bfc0b850
+          _a0009f20.offset(s1 * 0x4L).setu(0x7L);
+          return;
+        }
+
+        //LAB_bfc0b864
+        _a0009f78.offset(s1 * 0x4L).addu(0x80L);
+        _a0009f70.offset(s1 * 0x4L).deref(4).offset(0x10L).addu(0x80L);
+        _a0009f50.offset(s1 * 0x4L).addu(0x1L);
+
+        s0 = FUN_bfc0a3d4(s1, _a0009f70.offset(s1 * 0x4L).deref(4).offset(0x24L).get(), _a0009f50.offset(s1 * 0x4L).get());
+        v0 = FUN_bfc09540(s1, s0);
+
+        if(v0 == -0x1L) {
+          sector = s0;
+        } else {
+          sector = v0;
+        }
+
+        //LAB_bfc0b900
+        _a0009f88.offset(s1 * 0x2L).setu(sector);
+        if(!write_card_sector(port, sector, _a0009f78.offset(s1 * 0x4L).get())) {
+          _a000b9d0.setu(0);
+          _a000b9d4.setu(0x1L);
+          FUN_bfc0bff0(s1, EvSpERROR);
+        }
+
+        //LAB_bfc0b948
+        return;
+
+      case 5:
+        _a0009f20.offset(s1 * 0x4L).setu(0x6L);
+        _a000b9e8.offset(s1 * 0x50L).offset(_a0009f60.offset(s1 * 0x4L).get() * 0x4L).setu(_a0009f68.offset(s1 * 0x4L));
+
+        bzero_Impl_A28(_a000be48.offset(s1 * 0x80L).getAddress(), 0x80);
+        memcpy_Impl_A2a(_a000be48.offset(s1 * 0x80L).getAddress(), _a0009f68.offset(s1 * 0x4L).getAddress(), 0x4);
+        FUN_bfc087c4(_a000be48.offset(s1 * 0x80L).getAddress());
+        if(!write_card_sector(port, (int)(_a0009f60.offset(s1 * 0x4L).get() + 0x10), _a000be48.offset(s1 * 0x80L).getAddress())) {
+          _a000b9d0.setu(0);
+          _a000b9d4.setu(0x1L);
+          FUN_bfc0bff0(s1, EvSpERROR);
+        }
+
+        //LAB_bfc0ba2c
+        return;
+
+      case 7:
+        DeliverEvent(_a0009f70.offset(s1 * 4L).deref(4).offset(0x28L).get(), EvSpIOE);
+        _a0009f70.offset(s1 * 4L).deref(4).offset(0x10L).addu(0x80L);
+        // Fall through
+
+      case 8:
+      case 1:
+        FUN_bfc0bff0(s1, EvSpIOE);
+        return;
+
+      case 4:
+        v1 = _a0009f28.offset(s1 * 4).get();
+        if(v1 == 0x1L) {
+          //LAB_bfc0bad4
+          if(_a000be48.offset(s1 * 0x80).get() != 0x4dL || _a000be48.offset(s1 * 0x80).offset(0x1L).get() != 0x43L) {
+            //LAB_bfc0bb00
+            _a000b9d0.setu(0);
+            _a000b9dc.setu(0x1L);
+            FUN_bfc0bff0(s1, EvSpNEW);
+            return;
+          }
+
+          //LAB_bfc0bb28
+          //LAB_bfc0bb48
+          for(int i = 0; i < 0xf; i++) {
+            bzero_Impl_A28(_a000ba88.offset(s1 * 0x1e0L).offset(i * 0x20L).getAddress(), 0x20);
+            _a000ba88.offset(s1 * 0x1e0L).offset(i * 0x20L).offset(0x0L).setu(0xa0L);
+            _a000ba88.offset(s1 * 0x1e0L).offset(i * 0x20L).offset(0x4L).setu(0);
+            _a000ba88.offset(s1 * 0x1e0L).offset(i * 0x20L).offset(0x8L).setu(0xffffL);
+          }
+
+          if(read_card_sector(port, 1, _a000be48.offset(s1 * 0x80L).getAddress()) == 0x1L) {
+            //LAB_bfc0bbcc
+            _a0009f30.offset(s1 * 0x4L).setu(0);
+            _a0009f28.offset(s1 * 0x4L).setu(0x2L);
+          } else {
+            _a000b9d0.setu(0);
+            _a000b9d4.setu(0x1L);
+            FUN_bfc0bff0(s1, EvSpERROR);
+          }
+
+          //LAB_bfc0bbf4
+          return;
+        }
+
+        if(v1 == 0x2L) {
+          //LAB_bfc0bbfc
+          if(FUN_bfc08720(_a000be48.offset(s1 * 0x80L).getAddress()) != 0) {
+            memcpy_Impl_A2a(_a000ba88.offset(s1 * 0x1e0L).offset(_a0009f30.offset(s1 * 0x4L).get() * 0x20L).getAddress(), _a000be48.offset(s1 * 0x80L).getAddress(), 0x20);
+          }
+
+          //LAB_bfc0bc64
+          _a0009f30.offset(s1 * 0x4L).addu(0x1L);
+          if(_a0009f30.offset(s1 * 0x4L).get() < 0xfL) {
+            if(read_card_sector(port, (int)(_a0009f30.offset(s1 * 0x4L).get() + 1), _a000be48.offset(s1 * 0x80L).getAddress()) == 0x1L) {
+              return;
+            }
+
+            _a000b9d0.setu(0);
+            _a000b9d4.setu(0x1L);
+            FUN_bfc0bff0(s1, EvSpERROR);
+            return;
+          }
+
+          //LAB_bfc0bcd0
+          //LAB_bfc0bcfc
+          for(int i = 0; i < 0xfL; i++) {
+            if(FUN_bfc08ffc(s1, i) == 0x1L) {
+              sp54[i] = 0x52L;
+            } else {
+              sp54[i] = 0;
+            }
+
+            //LAB_bfc0bd38
+          }
+
+          sp54[0] = 0;
+          sp54[1] = 0;
+          sp54[2] = 0;
+
+          //LAB_bfc0bd5c
+          //TODO ??? these stack vals aren't used?
+//          for(int i = 0; i < 3; i++) {
+//            MEMORY.ref(4, sp60).offset(i * 0x10L).setu(0);
+//            MEMORY.ref(4, sp64).offset(i * 0x10L).setu(0);
+//            MEMORY.ref(4, sp68).offset(i * 0x10L).setu(0);
+//            MEMORY.ref(4, sp6c).offset(i * 0x10L).setu(0);
+//          }
+
+          //LAB_bfc0bd84
+          for(int i = 0; i < 0xf; i++) {
+            if(_a000ba88.offset(s1 * 0x1e0L).offset(i * 0x20L).get() == 0x51L) {
+              sp54[i] = 0x1L;
+              a0 = _a000ba88.offset(s1 * 0x1e0L).offset(i * 0x20L).offset(0x4L).get();
+              v1 = _a000ba88.offset(s1 * 0x1e0L).offset(i * 0x20L).offset(0x8L).get();
+              if((int)a0 < 0) {
+                a0 += 0x1fffL;
+              }
+
+              //LAB_bfc0bdbc
+              a0 = a0 / 0x2000 - 1;
+
+              //LAB_bfc0bdd8
+              while(v1 != 0xffffL && a0 > 0) {
+                sp54[(int)v1] += 0x1L;
+                v1 = _a000ba88.offset(s1 * 0x1e0L).offset(2, v1 * 0x20L).offset(0x8L).get();
+                a0--;
+              }
+            }
+
+            //LAB_bfc0be0c
+          }
+
+          //LAB_bfc0be28
+          for(int i = 0; i < 0xf; i++) {
+            if(sp54[i] == 0) {
+              _a000ba88.offset(s1 * 0x1e0L).offset(i * 0x20L).setu(0xa0L);
+            }
+
+            //LAB_bfc0be44
+          }
+
+          //LAB_bfc0be74
+          for(int i = 0; i < 5; i++) {
+            _a000b9e8.offset(s1 * 0x50L).offset(i * 0x10L).offset(0x0L).setu(-0x1L);
+            _a000b9e8.offset(s1 * 0x50L).offset(i * 0x10L).offset(0x4L).setu(-0x1L);
+            _a000b9e8.offset(s1 * 0x50L).offset(i * 0x10L).offset(0x8L).setu(-0x1L);
+            _a000b9e8.offset(s1 * 0x50L).offset(i * 0x10L).offset(0xcL).setu(-0x1L);
+          }
+
+          if(read_card_sector(port, 0x10, _a000be48.offset(s1 * 0x80L).getAddress()) != 0x1L) {
+            FUN_bfc0bff0(s1, EvSpERROR);
+          }
+
+          //LAB_bfc0bebc
+          _a0009f28.offset(s1 * 0x4L).setu(0x3L);
+          _a0009f30.offset(s1 * 0x4L).setu(0);
+          return;
+        }
+
+        if(v1 != 0x3L) {
+          break;
+        }
+
+        //LAB_bfc0bedc
+        if(FUN_bfc08720(_a000be48.offset(s1 * 0x80L).getAddress()) != 0) {
+          memcpy_Impl_A2a(_a000b9e8.offset(s1 * 0x50L).offset(_a0009f30.offset(s1 * 0x4L).get() * 0x4L).getAddress(), _a000be48.offset(s1 * 0x80L).getAddress(), 0x4);
+        }
+
+        //LAB_bfc0bf38
+        _a0009f30.offset(s1 * 0x4L).addu(0x1L);
+        if(_a0009f30.offset(s1 * 0x4L).get() < 0x14L) {
+          if(read_card_sector(port, (int)(_a0009f30.offset(s1 * 0x4L).get() + 0x10), _a000be48.offset(s1 * 0x80L).getAddress()) == 0x1L) {
+            return;
+          }
+
+          _a000b9d0.setu(0);
+          _a000b9d4.setu(0x1L);
+          FUN_bfc0bff0(s1, EvSpERROR);
+          return;
+        }
+
+        //LAB_bfc0bfa4
+        FUN_bfc0bff0(s1, EvSpIOE);
+        return;
+    }
+
+    _a000b9d0.setu(0);
+    _a000b9d4.setu(0x1L);
+    FUN_bfc0bff0(s1, EvSpERROR);
+
+    //LAB_bfc0bfe0
+    //LAB_bfc0bfe4
+  }
+
   @Method(0xbfc0bff0L)
   public static void FUN_bfc0bff0(final long a0, final int spec) {
     _a0009f20.offset(a0 * 4L).setu(0);
@@ -2841,6 +3161,12 @@ public final class Bios {
   @Method(0xbfc0c1fcL)
   public static void AddMemCardDevice_Impl_A97() {
     AddDevice(MemCardDeviceInfo_bfc0e3e4.getAddress());
+  }
+
+  @Method(0xbfc0c220L)
+  public static void bu_callback_okay_Impl_Aa7() {
+    _a000b9d0.setu(0x1L);
+    FUN_bfc0b648();
   }
 
   @Method(0xbfc0c248L)
@@ -3012,8 +3338,8 @@ public final class Bios {
   }
 
   @Method(0xbfc0da20L)
-  public static void write_card_sector(final int port, final int sector, final long source) {
-    functionVectorB_000000b0.run(0x4eL, new Object[] {port, sector, source});
+  public static boolean write_card_sector(final int port, final int sector, final long source) {
+    return (boolean)functionVectorB_000000b0.run(0x4eL, new Object[] {port, sector, source});
   }
 
   @Method(0xbfc0da30L)

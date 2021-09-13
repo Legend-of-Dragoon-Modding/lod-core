@@ -1,5 +1,6 @@
 package legend.core.input;
 
+import legend.core.DebugHelper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -18,6 +19,8 @@ public class DigitalController extends Controller {
 
   @Nullable
   private Responder responder;
+
+  private boolean inConfig;
 
   @Override
   public byte process(final byte b) {
@@ -58,9 +61,9 @@ public class DigitalController extends Controller {
             this.ack = true;
             return this.responder.get(b);
           case 0x45:
-            LOGGER.error("[Controller] Get controller state 0x45");
+            LOGGER.error("[Controller] Get analog state 0x45");
             this.mode = Mode.TRANSFERRING;
-            this.respondToCommand45GetControllerState();
+            this.respondToCommand45GetAnalogState();
             this.ack = true;
             return this.responder.get(b);
           case 0x46:
@@ -104,7 +107,8 @@ public class DigitalController extends Controller {
           this.mode = Mode.IDLE;
           this.responder = null;
         }
-        LOGGER.error("[Controller] Transfer Process value: %02x response: %02x ack: %b", b, data, this.ack);
+        DebugHelper.sleep(5);
+        LOGGER.debug("[Controller] Transfer Process value: %02x response: %02x ack: %b", b, data, this.ack);
         return data;
       default:
         LOGGER.error("[Controller] This should be unreachable");
@@ -113,10 +117,10 @@ public class DigitalController extends Controller {
     }
   }
 
-  //TODO support digital
+  //TODO support analog
   private void respondToCommand42Init() {
     this.simpleResponse(
-      0x41, // Digital
+      this.inConfig ? 0xf3 : 0x41, // Digital
       0x5a,
       this.buttons & 0xff,
       this.buttons >>> 8 & 0xff,
@@ -127,31 +131,25 @@ public class DigitalController extends Controller {
     );
   }
 
-  //TODO support digital
+  //TODO support analog
   private void respondToCommand43Config() {
-    this.simpleResponse(
-      0xf3,
-      0x5a,
-      this.buttons & 0xff,
-      this.buttons >>> 8 & 0xff,
-      0x00,
-      0x00,
-      0x00,
-      0x00
-    );
+    this.responder = new Command43Responder();
   }
 
   private void respondToCommand44SetAnalogState() {
+    assert this.inConfig : "Can't use this command when not in config mode";
     this.responder = new Command44Responder();
   }
 
-  private void respondToCommand45GetControllerState() {
+  private void respondToCommand45GetAnalogState() {
+    assert this.inConfig : "Can't use this command when not in config mode";
+
     this.simpleResponse(
       0xf3,
       0x5a,
       0x01,
       0x02,
-      0x01, // LED on (dunno if this should be on or off or if it even matters)
+      0x00, // TODO analog state
       0x02,
       0x01,
       0x00
@@ -159,27 +157,23 @@ public class DigitalController extends Controller {
   }
 
   private void respondToCommand46Unknown() {
+    assert this.inConfig : "Can't use this command when not in config mode";
     this.responder = new Command46Responder();
   }
 
   private void respondToCommand47Unknown() {
-    this.simpleResponse(
-      0xf3,
-      0x5a,
-      0x00,
-      0x00,
-      0x02,
-      0x00,
-      0x01,
-      0x00
-    );
+    assert this.inConfig : "Can't use this command when not in config mode";
+    this.responder = new Command47Responder();
   }
 
   private void respondToCommand4cUnknown() {
+    assert this.inConfig : "Can't use this command when not in config mode";
     this.responder = new Command4cResponder();
   }
 
   private void respondToCommand4dConfigureRumbleMotors() {
+    assert this.inConfig : "Can't use this command when not in config mode";
+
     this.simpleResponse(
       0xf3,
       0x5a,
@@ -225,9 +219,37 @@ public class DigitalController extends Controller {
     }
   }
 
-  private static class Command44Responder extends SimpleResponder {
-    private boolean analog;
+  private class Command43Responder extends SimpleResponder {
+    public Command43Responder() {
+      super(
+        DigitalController.this.inConfig ? 0xf3 : 0x41, // Digital
+        0x5a,
+        DigitalController.this.inConfig ? 0x00 : DigitalController.this.buttons & 0xff,
+        DigitalController.this.inConfig ? 0x00 : DigitalController.this.buttons >>> 8 & 0xff,
+        0x00,
+        0x00,
+        0x00,
+        0x00
+      );
+    }
 
+    @Override
+    public byte get(final byte input) {
+      if(this.index == 2) {
+        if(input == 0) {
+          LOGGER.error("Exiting config mode");
+          DigitalController.this.inConfig = false;
+        } else {
+          LOGGER.error("Entering config mode");
+          DigitalController.this.inConfig = true;
+        }
+      }
+
+      return super.get(input);
+    }
+  }
+
+  private static class Command44Responder extends SimpleResponder {
     public Command44Responder() {
       super(
         0xf3,
@@ -244,11 +266,13 @@ public class DigitalController extends Controller {
     @Override
     public byte get(final byte input) {
       if(this.index == 2) {
-        this.analog = input != 0;
+        //TODO
+        LOGGER.info("[CONTROLLER] Analog mode %b", input == 1);
       }
 
-      if(this.index == 3) {
-        LOGGER.info("[CONTROLLER] Analog mode %b", this.analog);
+      if(this.index == 3 && (input == 2 || input == 3)) {
+        //TODO
+        LOGGER.info("[CONTROLLER] Analog locked %b", input == 3);
       }
 
       return super.get(input);
@@ -256,11 +280,6 @@ public class DigitalController extends Controller {
   }
 
   private static class Command46Responder extends SimpleResponder {
-    private int response4;
-    private int response5;
-    private int response6;
-    private int response7;
-
     public Command46Responder() {
       super(
         0xf3,
@@ -278,36 +297,45 @@ public class DigitalController extends Controller {
     public byte get(final byte input) {
       if(this.index == 2) {
         if(input == 0) {
-          this.response4 = 0x01;
-          this.response5 = 0x02;
-          this.response6 = 0x00;
-          this.response7 = 0x0a;
+          this.responses[4] = 0x01;
+          this.responses[5] = 0x02;
+          this.responses[6] = 0x00;
+          this.responses[7] = 0x0a;
         } else {
-          this.response4 = 0x01;
-          this.response5 = 0x01;
-          this.response6 = 0x01;
-          this.response7 = 0x14;
+          this.responses[4] = 0x01;
+          this.responses[5] = 0x01;
+          this.responses[6] = 0x01;
+          this.responses[7] = 0x14;
         }
       }
 
-      if(this.index == 4) {
-        this.index++;
-        return (byte)this.response4;
-      }
+      return super.get(input);
+    }
+  }
 
-      if(this.index == 5) {
-        this.index++;
-        return (byte)this.response5;
-      }
+  private static class Command47Responder extends SimpleResponder {
+    public Command47Responder() {
+      super(
+        0xf3,
+        0x5a,
+        0x00,
+        0x00,
+        0x02, // Variable
+        0x00, // Variable
+        0x01, // Variable
+        0x00  // Variable
+      );
+    }
 
-      if(this.index == 6) {
-        this.index++;
-        return (byte)this.response6;
-      }
-
-      if(this.index == 7) {
-        this.index++;
-        return (byte)this.response7;
+    @Override
+    public byte get(final byte input) {
+      if(this.index == 2) {
+        if(input != 0) {
+          this.responses[4] = 0x00;
+          this.responses[5] = 0x00;
+          this.responses[6] = 0x00;
+          this.responses[7] = 0x00;
+        }
       }
 
       return super.get(input);
@@ -315,8 +343,6 @@ public class DigitalController extends Controller {
   }
 
   private static class Command4cResponder extends SimpleResponder {
-    private int response5;
-
     public Command4cResponder() {
       super(
         0xf3,
@@ -333,12 +359,7 @@ public class DigitalController extends Controller {
     @Override
     public byte get(final byte input) {
       if(this.index == 2) {
-        this.response5 = input == 0 ? 0x4 : 0x7;
-      }
-
-      if(this.index == 5) {
-        this.index++;
-        return (byte)this.response5;
+        this.responses[5] = input == 0 ? 0x4 : 0x7;
       }
 
       return super.get(input);
