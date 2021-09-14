@@ -1,6 +1,5 @@
 package legend.core.input;
 
-import legend.core.DebugHelper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -28,7 +27,7 @@ public class DigitalController extends Controller {
       case IDLE:
         switch(b) {
           case 0x01:
-            LOGGER.error("[Controller] Idle Process 0x01");
+            LOGGER.debug("[Controller] Idle Process 0x01");
             this.mode = Mode.CONNECTED;
             this.ack = true;
             return (byte)0xff;
@@ -43,49 +42,49 @@ public class DigitalController extends Controller {
       case CONNECTED:
         switch(b) {
           case 0x42:
-            LOGGER.error("[Controller] Connected Init Transfer Process 0x42");
+            LOGGER.debug("[Controller] Connected Init Transfer Process 0x42");
             this.mode = Mode.TRANSFERRING;
             this.respondToCommand42Init();
             this.ack = true;
             return this.responder.get(b);
           case 0x43:
-            LOGGER.error("[Controller] Entering config mode 0x43");
+            LOGGER.debug("[Controller] Entering config mode 0x43");
             this.mode = Mode.TRANSFERRING;
             this.respondToCommand43Config();
             this.ack = true;
             return this.responder.get(b);
           case 0x44: //TODO this doesn't actually do anything
-            LOGGER.error("[Controller] Set analog state 0x44");
+            LOGGER.debug("[Controller] Set analog state 0x44");
             this.mode = Mode.TRANSFERRING;
             this.respondToCommand44SetAnalogState();
             this.ack = true;
             return this.responder.get(b);
           case 0x45:
-            LOGGER.error("[Controller] Get analog state 0x45");
+            LOGGER.debug("[Controller] Get analog state 0x45");
             this.mode = Mode.TRANSFERRING;
             this.respondToCommand45GetAnalogState();
             this.ack = true;
             return this.responder.get(b);
           case 0x46:
-            LOGGER.error("[Controller] Get controller state 0x46");
+            LOGGER.debug("[Controller] Get controller state 0x46");
             this.mode = Mode.TRANSFERRING;
             this.respondToCommand46Unknown();
             this.ack = true;
             return this.responder.get(b);
           case 0x47:
-            LOGGER.error("[Controller] Unknown 0x47");
+            LOGGER.debug("[Controller] Unknown 0x47");
             this.mode = Mode.TRANSFERRING;
             this.respondToCommand47Unknown();
             this.ack = true;
             return this.responder.get(b);
           case 0x4c:
-            LOGGER.error("[Controller] Unknown 0x4c");
+            LOGGER.debug("[Controller] Unknown 0x4c");
             this.mode = Mode.TRANSFERRING;
             this.respondToCommand4cUnknown();
             this.ack = true;
             return this.responder.get(b);
           case 0x4d: //TODO this doesn't actually do anything
-            LOGGER.error("[Controller] Configuring rumble motors");
+            LOGGER.debug("[Controller] Configuring rumble motors");
             this.mode = Mode.TRANSFERRING;
             this.respondToCommand4dConfigureRumbleMotors();
             this.ack = true;
@@ -103,11 +102,10 @@ public class DigitalController extends Controller {
         final byte data = this.responder.get(b);
         this.ack = this.responder.hasMore();
         if(!this.ack) {
-          LOGGER.error("[Controller] Changing to idle");
+          LOGGER.debug("[Controller] Changing to idle");
           this.mode = Mode.IDLE;
           this.responder = null;
         }
-        DebugHelper.sleep(5);
         LOGGER.debug("[Controller] Transfer Process value: %02x response: %02x ack: %b", b, data, this.ack);
         return data;
       default:
@@ -237,10 +235,10 @@ public class DigitalController extends Controller {
     public byte get(final byte input) {
       if(this.index == 2) {
         if(input == 0) {
-          LOGGER.error("Exiting config mode");
+          LOGGER.debug("Exiting config mode");
           DigitalController.this.inConfig = false;
         } else {
-          LOGGER.error("Entering config mode");
+          LOGGER.debug("Entering config mode");
           DigitalController.this.inConfig = true;
         }
       }

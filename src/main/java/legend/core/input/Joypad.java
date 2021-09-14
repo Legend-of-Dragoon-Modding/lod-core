@@ -17,6 +17,8 @@ public class Joypad implements Runnable {
   private byte JOY_RX_DATA; //1F801040h JOY_RX_DATA(R) FIFO
   private boolean fifoFull;
 
+  private boolean edgeTrigger;
+
   //1F801044 JOY_STAT(R)
   boolean txReadyFlag1 = true;
   boolean txReadyFlag2 = true;
@@ -86,11 +88,13 @@ public class Joypad implements Runnable {
             LOGGER.debug("[IRQ] TICK Triggering JOYPAD");
             this.ackInputLevel = false;
             this.interruptRequest = true;
+            this.edgeTrigger = true;
           }
         }
 
-        if(this.interruptRequest) {
+        if(this.interruptRequest && this.edgeTrigger) {
           INTERRUPTS.set(InterruptType.CONTROLLER);
+          this.edgeTrigger = false;
         }
       }
 
