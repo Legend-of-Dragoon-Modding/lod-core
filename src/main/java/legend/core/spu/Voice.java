@@ -1,10 +1,23 @@
 package legend.core.spu;
 
 import legend.core.MathHelper;
+import legend.core.memory.Memory;
+import legend.core.memory.MisalignedAccessException;
+import legend.core.memory.Segment;
+import legend.core.memory.Value;
 
 public class Voice {
   private static final int[] positiveXaAdpcmTable = {0, 60, 115, 98, 122};
   private static final int[] negativeXaAdpcmTable = {0, 0, -52, -55, -60};
+
+  public final Value LEFT;
+  public final Value RIGHT;
+  public final Value ADPCM_SAMPLE_RATE;
+  public final Value ADPCM_START_ADDR;
+  public final Value ADSR;
+  public final Value REG_5;
+  public final Value ADSR_CURR_VOL;
+  public final Value ADPCM_REPEAT_ADDR;
 
   public Volume volumeLeft = new Volume();           //0
   public Volume volumeRight = new Volume();          //2
@@ -35,7 +48,18 @@ public class Voice {
 
   public boolean readRamIrq;
 
-  public Voice() {
+  public Voice(final Memory memory, final int voiceIndex) {
+    memory.addSegment(new VoiceSegment(0x1f801c00L + voiceIndex * 0x10L));
+
+    this.LEFT = memory.ref(2, 0x1f801c00L).offset(voiceIndex * 0x10L);
+    this.RIGHT = memory.ref(2, 0x1f801c02L).offset(voiceIndex * 0x10L);
+    this.ADPCM_SAMPLE_RATE = memory.ref(2, 0x1f801c04L).offset(voiceIndex * 0x10L);
+    this.ADPCM_START_ADDR = memory.ref(2, 0x1f801c06L).offset(voiceIndex * 0x10L);
+    this.ADSR = memory.ref(2, 0x1f801c08L).offset(voiceIndex * 0x10L);
+    this.REG_5 = memory.ref(2, 0x1f801c0aL).offset(voiceIndex * 0x10L);
+    this.ADSR_CURR_VOL = memory.ref(2, 0x1f801c0cL).offset(voiceIndex * 0x10L);
+    this.ADPCM_REPEAT_ADDR = memory.ref(2, 0x1f801c0eL).offset(voiceIndex * 0x10L);
+
     this.adsrPhase = Phase.Off;
   }
 
@@ -219,6 +243,60 @@ public class Voice {
     if(nextPhase && this.adsrPhase != Phase.Sustain) {
       this.adsrPhase = this.adsrPhase.next();
       this.adsrCounter = 0;
+    }
+  }
+
+  public class VoiceSegment extends Segment {
+    public VoiceSegment(final long address) {
+      super(address, 0x10);
+    }
+
+    @Override
+    public byte get(final int offset) {
+      throw new MisalignedAccessException("SPU registers may only be accessed via 16-bit reads or writes");
+    }
+
+    @Override
+    public long get(final int offset, final int size) {
+      if(size != 2) {
+        throw new MisalignedAccessException("SPU registers may only be accessed via 16-bit reads or writes");
+      }
+
+      return switch(offset & 0xe) {
+        case 0x0 -> Voice.this.volumeLeft.get();
+        case 0x2 -> Voice.this.volumeRight.get();
+        case 0x4 -> Voice.this.pitch & 0xffffL;
+        case 0x6 -> Voice.this.startAddress & 0xffffL;
+        case 0x8 -> Voice.this.adsr.lo & 0xffffL;
+        case 0xa -> Voice.this.adsr.hi & 0xffffL;
+        case 0xc -> Voice.this.adsrVolume & 0xffffL;
+        case 0xe -> Voice.this.adpcmRepeatAddress & 0xffffL;
+        default -> throw new MisalignedAccessException("SPU voice port " + Long.toHexString(offset) + " does not exist");
+      };
+    }
+
+    @Override
+    public void set(final int offset, final byte value) {
+      throw new MisalignedAccessException("SPU registers may only be accessed via 16-bit reads or writes");
+    }
+
+    @Override
+    public void set(final int offset, final int size, final long value) {
+      if(size != 2) {
+        throw new MisalignedAccessException("SPU registers may only be accessed via 16-bit reads or writes");
+      }
+
+      switch(offset & 0xe) {
+        case 0x0 -> Voice.this.volumeLeft.set(value);
+        case 0x2 -> Voice.this.volumeRight.set(value);
+        case 0x4 -> Voice.this.pitch = (short)value;
+        case 0x6 -> Voice.this.startAddress = (short)value;
+        case 0x8 -> Voice.this.adsr.lo = (short)value;
+        case 0xa -> Voice.this.adsr.hi = (short)value;
+        case 0xc -> Voice.this.adsrVolume = (short)value;
+        case 0xe -> Voice.this.adpcmRepeatAddress = (short)value;
+        default -> throw new MisalignedAccessException("SPU voice port " + Long.toHexString(offset) + " does not exist");
+      };
     }
   }
 }

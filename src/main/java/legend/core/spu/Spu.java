@@ -104,7 +104,7 @@ public class Spu {
     }
 
     for(int i = 0; i < this.voices.length; i++) {
-      this.voices[i] = new Voice();
+      this.voices[i] = new Voice(memory, i);
     }
 
     DMA.spu.setDmaInterface(new DmaInterface() {
