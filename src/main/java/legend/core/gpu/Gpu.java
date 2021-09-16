@@ -168,7 +168,7 @@ public class Gpu implements Runnable {
     assert rect.y.get() + rect.h.get() <= this.vramTexture.height : "Rect bottom (" + (rect.y.get() + rect.h.get()) + ") overflows VRAM height (" + this.vramTexture.height + ')';
 
     this.commandQueue.add(() -> {
-      LOGGER.info("Copying %s from CPU to VRAM (address: %08x)", rect, address);
+      LOGGER.debug("Copying %s from CPU to VRAM (address: %08x)", rect, address);
 
       final int offset = rect.y.get() * VRAM_WIDTH + rect.x.get();
 
@@ -194,7 +194,7 @@ public class Gpu implements Runnable {
     assert rect.y.get() + rect.h.get() <= this.vramTexture.height : "Rect bottom (" + (rect.y.get() + rect.h.get()) + ") overflows VRAM height (" + this.vramTexture.height + ')';
 
     this.commandQueue.add(() -> {
-      LOGGER.info("Copying %s from VRAM to CPU (address: %08x)", rect, address);
+      LOGGER.debug("Copying %s from VRAM to CPU (address: %08x)", rect, address);
 
       final int offset = rect.y.get() * VRAM_WIDTH + rect.x.get();
 
