@@ -12,7 +12,6 @@ import static legend.core.Hardware.GATE;
 import static legend.core.Hardware.INTERRUPTS;
 import static legend.core.Hardware.MEMORY;
 import static legend.core.Hardware.codeThread;
-import static legend.core.Hardware.hardwareThread;
 
 public class Cpu {
   public final Register R3_BPC = new Register();
@@ -259,8 +258,6 @@ public class Cpu {
 
     @Override
     public long get() {
-      assert Thread.currentThread() == hardwareThread : "Wrong thread";
-
       return
         (this.IEc ? 0x1 : 0) |
         (this.KUc ? 0x2 : 0) |
@@ -283,8 +280,6 @@ public class Cpu {
 
     @Override
     public void set(final long value) {
-      assert Thread.currentThread() == hardwareThread : "Wrong thread";
-
       if((value & 0b1101_1000_0000_0000_0000_1100_0000) != 0) {
         throw new RuntimeException("Attempted to set reserved bits of status register");
       }
