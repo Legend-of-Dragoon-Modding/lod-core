@@ -41,17 +41,19 @@ public class MATRIX implements MemoryRef {
     return this.data2[index];
   }
 
-  public void set(final int x, final int y, final short val) {
+  public MATRIX set(final int x, final int y, final short val) {
     this.set(x * 3 + y, val);
+    return this;
   }
 
-  public void set(final int index, final short val) {
+  public MATRIX set(final int index, final short val) {
     if(this.data != null) {
       this.data.get(index).set(val);
-      return;
+      return this;
     }
 
     this.data2[index] = val;
+    return this;
   }
 
   public int getTransferVector(final int index) {
@@ -62,16 +64,17 @@ public class MATRIX implements MemoryRef {
     return this.transferVector2[index];
   }
 
-  public void setTransferVector(final int index, final int val) {
+  public MATRIX setTransferVector(final int index, final int val) {
     if(this.transferVector != null) {
       this.transferVector.get(index).set(val);
-      return;
+      return this;
     }
 
     this.transferVector2[index] = val;
+    return this;
   }
 
-  public void set(final MATRIX other) {
+  public MATRIX set(final MATRIX other) {
     for(int x = 0; x < 3; x++) {
       for(int y = 0; y < 3; y++) {
         this.set(x, y, other.get(x, y));
@@ -81,9 +84,11 @@ public class MATRIX implements MemoryRef {
     for(int i = 0; i < 3; i++) {
       this.setTransferVector(i, other.getTransferVector(i));
     }
+
+    return this;
   }
 
-  public void clear() {
+  public MATRIX clear() {
     for(int x = 0; x < 3; x++) {
       for(int y = 0; y < 3; y++) {
         this.set(x, y, (short)0);
@@ -93,6 +98,8 @@ public class MATRIX implements MemoryRef {
     for(int i = 0; i < 3; i++) {
       this.setTransferVector(i, 0);
     }
+
+    return this;
   }
 
   @Override
