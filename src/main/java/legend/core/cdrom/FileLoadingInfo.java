@@ -55,7 +55,7 @@ public class FileLoadingInfo implements MemoryRef {
     this.size = ref.offset(4, 0x4L).cast(IntRef::new);
     this.callback = ref.offset(4, 0x8L).cast(Pointer.of(4, TriConsumerRef::new));
     this.transferDest = ref.offset(4, 0xcL);
-    this.namePtr = ref.offset(4, 0x10L).cast(Pointer.of(16, CString.maxLength(16)));
+    this.namePtr = ref.offset(4, 0x10L).cast(Pointer.of(20, CString.maxLength(20)));
     this.unknown1 = ref.offset(4, 0x14L).cast(IntRef::new);
     this.unknown2 = ref.offset(2, 0x18L).cast(ShortRef::new);
     this.unknown3 = ref.offset(2, 0x1aL).cast(ShortRef::new);
@@ -65,7 +65,7 @@ public class FileLoadingInfo implements MemoryRef {
   public void set(final FileLoadingInfo other) {
     this.pos.set(other.pos);
     this.size.set(other.size);
-    this.callback.set(other.callback.deref());
+    this.callback.setNullable(other.callback.derefNullable());
     this.transferDest.setu(other.transferDest);
     this.namePtr.set(other.namePtr.deref());
     this.unknown1.set(other.unknown1);
@@ -89,6 +89,6 @@ public class FileLoadingInfo implements MemoryRef {
       return "FileLoadingInfo: no name";
     }
 
-    return "FileLoadingInfo {name: " + this.namePtr.deref().get() + ", pos: " + this.pos + ", size: " + this.size.get() + ", transfer dest: " + Long.toString(this.transferDest.get(), 16) + ", callback: " + Long.toString(this.callback.getAddress(), 16) + '}';
+    return "FileLoadingInfo {name: " + this.namePtr.deref().get() + ", pos: " + this.pos + ", size: " + this.size.get() + ", transfer dest: " + Long.toString(this.transferDest.get(), 16) + ", callback: " + Long.toString(this.callback.getPointer(), 16) + '}';
   }
 }
