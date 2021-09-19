@@ -35,7 +35,7 @@ public class Memory {
   private static final long TEMP_FLAG = 0xffff_0000L;
   private static final long TEMP_MASK = 0x0000_ffffL;
 
-  private long[] temp = new long[0x1000];
+  private byte[] temp = new byte[0x1000];
   private BitSet tempUsage = new BitSet(0x1000);
 
   public void waitForLock(final Runnable callback) {
@@ -95,7 +95,12 @@ public class Memory {
           throw new IllegalAddressException("There's no temp value reserved at " + Integer.toHexString(tempIndex));
         }
 
-        return this.temp[tempIndex];
+        long value = 0;
+        for(int i = 0; i < size; i++) {
+          value |= (this.temp[tempIndex + i] & 0xffL) << i;
+        }
+
+        return value;
       }
 
       final Segment segment = this.getSegment(address);
@@ -120,7 +125,10 @@ public class Memory {
           throw new IllegalAddressException("There's no temp value reserved at " + Integer.toHexString(tempIndex));
         }
 
-        this.temp[tempIndex] = data;
+        for(int i = 0; i < size; i++) {
+          this.temp[tempIndex + i] = (byte)(data >> i * 8 & 0xff);
+        }
+
         return;
       }
 
@@ -153,7 +161,7 @@ public class Memory {
   }
 
   public TemporaryReservation temp() {
-    return this.temp(1);
+    return this.temp(4);
   }
 
   public TemporaryReservation temp(final int length) {
