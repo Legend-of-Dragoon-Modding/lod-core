@@ -1116,6 +1116,8 @@ public class Gpu implements Runnable {
   public enum GP0_COMMAND {
     NOOP(0x00, 1, (buffer, gpu) -> () -> LOGGER.trace("GPU NOOP")),
 
+    CLEAR_CACHE(0x01, 1, (buffer, gpu) -> () -> LOGGER.trace("GPU clear cache")),
+
     FILL_RECTANGLE_IN_VRAM(0x02, 3, (buffer, gpu) -> {
       final long colour = buffer.getLong(0) & 0xff_ffffL;
 
