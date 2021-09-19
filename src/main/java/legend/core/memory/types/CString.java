@@ -20,7 +20,7 @@ public class CString implements MemoryRef {
 
     for(int offset = 0; ; offset++) {
       if(offset > this.ref.getSize()) {
-        throw new IndexOutOfBoundsException("String buffer overrun - didn't find null terminator before reaching max length (" + this.ref.getSize() + ')');
+        throw new IndexOutOfBoundsException("String buffer overrun - didn't find null terminator before reaching max length (" + this.ref.getSize() + "). Data was " + sb);
       }
 
       final char ascii = (char)this.ref.offset(1, offset).get();
