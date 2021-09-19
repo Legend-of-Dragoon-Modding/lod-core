@@ -98,6 +98,8 @@ public final class Bios {
   public static final Value kernelStart_a0000500 = MEMORY.ref(4, 0xa0000500L);
   public static final Value abcFunctionVectorsStart_a0000510 = MEMORY.ref(4, 0xa0000510L);
 
+  public static final Value randSeed_a0009010 = MEMORY.ref(4, 0xa0009010L);
+
   public static final Value _a0009150 = MEMORY.ref(4, 0xa0009150L);
   public static final Value _a0009154 = MEMORY.ref(4, 0xa0009154L);
   public static final Value _a0009158 = MEMORY.ref(4, 0xa0009158L);
@@ -517,6 +519,11 @@ public final class Bios {
     }
 
     return dst;
+  }
+
+  @Method(0xbfc02230L)
+  public static void srand_Impl_A30(final long seed) {
+    randSeed_a0009010.setu(seed);
   }
 
   @Method(0xbfc02240L)
