@@ -35,8 +35,8 @@ public class Memory {
   private static final long TEMP_FLAG = 0xffff_0000L;
   private static final long TEMP_MASK = 0x0000_ffffL;
 
-  private byte[] temp = new byte[0x1000];
-  private BitSet tempUsage = new BitSet(0x1000);
+  private final byte[] temp = new byte[0x1000];
+  private final BitSet tempUsage = new BitSet(0x1000);
 
   public void waitForLock(final Runnable callback) {
     synchronized(this.lock) {

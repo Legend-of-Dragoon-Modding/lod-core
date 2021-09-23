@@ -1830,7 +1830,7 @@ public final class Bios {
     setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop389"), RunnableRef::new));
 
     //LAB_bfc06bb4
-    clearUserRam();
+    //Don't need to clearUserRam();
     if(!LoadExeFile_Impl_A42(_a000b8b0.getString(), _a000b870.getAddress())) {
       stop(0x38a);
     }
