@@ -155,6 +155,8 @@ public class Gte {
     }
 
     if((this.FLAG & 0x7f87_e000) != 0) {
+      LOGGER.error("GTE error during command %02x (flags: %08x)", command, this.FLAG);
+      LOGGER.error("Stack trace:", new Throwable());
       this.FLAG |= 0x8000_0000;
     }
   }
@@ -171,9 +173,9 @@ public class Gte {
     this.IR[3] = this.setIR(3, this.MAC3, this.lm);
 
     // [MAC1, MAC2, MAC3] = [R * IR1, G * IR2, B * IR3] SHL 4;
-    this.MAC1 = (int)(this.setMAC(1, (long)this.RGBC.r * this.IR[1]) << 4);
-    this.MAC2 = (int)(this.setMAC(2, (long)this.RGBC.g * this.IR[2]) << 4);
-    this.MAC3 = (int)(this.setMAC(3, (long)this.RGBC.b * this.IR[3]) << 4);
+    this.MAC1 = (int)(this.setMAC(1, (long)(this.RGBC.r & 0xff) * this.IR[1]) << 4);
+    this.MAC2 = (int)(this.setMAC(2, (long)(this.RGBC.g & 0xff) * this.IR[2]) << 4);
+    this.MAC3 = (int)(this.setMAC(3, (long)(this.RGBC.b & 0xff) * this.IR[3]) << 4);
 
     this.interpolateColor(this.MAC1, this.MAC2, this.MAC3);
 
@@ -199,9 +201,9 @@ public class Gte {
     this.IR[3] = this.setIR(3, this.MAC3, this.lm);
 
     // [MAC1, MAC2, MAC3] = [R * IR1, G * IR2, B * IR3] SHL 4;
-    this.MAC1 = (int)(this.setMAC(1, (long)this.RGBC.r * this.IR[1]) << 4);
-    this.MAC2 = (int)(this.setMAC(2, (long)this.RGBC.g * this.IR[2]) << 4);
-    this.MAC3 = (int)(this.setMAC(3, (long)this.RGBC.b * this.IR[3]) << 4);
+    this.MAC1 = (int)(this.setMAC(1, (long)(this.RGBC.r & 0xff) * this.IR[1]) << 4);
+    this.MAC2 = (int)(this.setMAC(2, (long)(this.RGBC.g & 0xff) * this.IR[2]) << 4);
+    this.MAC3 = (int)(this.setMAC(3, (long)(this.RGBC.b & 0xff) * this.IR[3]) << 4);
 
     // [MAC1, MAC2, MAC3] = [MAC1, MAC2, MAC3] SAR(sf * 12);< --- for NCDx / NCCx
     this.MAC1 = (int)(this.setMAC(1, this.MAC1) >> this.sf);
@@ -267,9 +269,9 @@ public class Gte {
     this.IR[3] = this.setIR(3, this.MAC3, this.lm);
 
     // [MAC1, MAC2, MAC3] = [R * IR1, G * IR2, B * IR3] SHL 4;< --- for NCDx / NCCx
-    this.MAC1 = (int)this.setMAC(1, this.RGBC.r * this.IR[1] << 4);
-    this.MAC2 = (int)this.setMAC(2, this.RGBC.g * this.IR[2] << 4);
-    this.MAC3 = (int)this.setMAC(3, this.RGBC.b * this.IR[3] << 4);
+    this.MAC1 = (int)this.setMAC(1, (this.RGBC.r & 0xff) * this.IR[1] << 4);
+    this.MAC2 = (int)this.setMAC(2, (this.RGBC.g & 0xff) * this.IR[2] << 4);
+    this.MAC3 = (int)this.setMAC(3, (this.RGBC.b & 0xff) * this.IR[3] << 4);
 
     // [MAC1, MAC2, MAC3] = [MAC1, MAC2, MAC3] SAR(sf * 12);< --- for NCDx / NCCx
     this.MAC1 = (int)this.setMAC(1, this.MAC1 >> this.sf);
@@ -488,9 +490,9 @@ public class Gte {
     final long mac2 = (long)this.MAC2 << this.sf;
     final long mac3 = (long)this.MAC3 << this.sf;
 
-    this.MAC1 = (int)(this.setMAC(1, this.IR[1] * this.IR[0] + mac1) >> this.sf); //this is a good example of why setMac cant return int directly
-    this.MAC2 = (int)(this.setMAC(2, this.IR[2] * this.IR[0] + mac2) >> this.sf); //as you cant >>> before cause it dosnt triggers the flags and if
-    this.MAC3 = (int)(this.setMAC(3, this.IR[3] * this.IR[0] + mac3) >> this.sf); //you do it after you get wrong values
+    this.MAC1 = (int)(this.setMAC(1, this.IR[1] * this.IR[0] + mac1) >> this.sf); // This is a good example of why setMac can't return int directly
+    this.MAC2 = (int)(this.setMAC(2, this.IR[2] * this.IR[0] + mac2) >> this.sf); // as you can't >>> before cause it doesn't trigger the flags and if
+    this.MAC3 = (int)(this.setMAC(3, this.IR[3] * this.IR[0] + mac3) >> this.sf); // you do it after you get wrong values
 
     this.IR[1] = this.setIR(1, this.MAC1, this.lm);
     this.IR[2] = this.setIR(2, this.MAC2, this.lm);
@@ -603,9 +605,9 @@ public class Gte {
     this.IR[3] = this.setIR(3, this.MAC3, this.lm);
 
     // [MAC1, MAC2, MAC3] = [R * IR1, G * IR2, B * IR3] SHL 4;< --- for NCDx / NCCx
-    this.MAC1 = (int)this.setMAC(1, (long)this.RGBC.r * this.IR[1] << 4);
-    this.MAC2 = (int)this.setMAC(2, (long)this.RGBC.g * this.IR[2] << 4);
-    this.MAC3 = (int)this.setMAC(3, (long)this.RGBC.b * this.IR[3] << 4);
+    this.MAC1 = (int)this.setMAC(1, (long)(this.RGBC.r & 0xff) * this.IR[1] << 4);
+    this.MAC2 = (int)this.setMAC(2, (long)(this.RGBC.g & 0xff) * this.IR[2] << 4);
+    this.MAC3 = (int)this.setMAC(3, (long)(this.RGBC.b & 0xff) * this.IR[3] << 4);
 
     this.interpolateColor(this.MAC1, this.MAC2, this.MAC3);
 
@@ -756,12 +758,12 @@ public class Gte {
 
   private short setSZ3(final long value) {
     if(value < 0) {
-      this.FLAG |= 0x4_0000;
+      this.FLAG |= 0x4_0000; // SZ3 or OTZ saturated to +0000h..+FFFFh
       return 0;
     }
 
     if(value > 0xffff) {
-      this.FLAG |= 0x4_0000;
+      this.FLAG |= 0x4_0000; // SZ3 or OTZ saturated to +0000h..+FFFFh
       return (short)0xffff;
     }
 

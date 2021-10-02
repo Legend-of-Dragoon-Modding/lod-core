@@ -199,6 +199,18 @@ public class Cpu {
     return this.gte.loadControl((int)register);
   }
 
+  /** Use {@link Cpu#MTC2} */
+  @Deprecated
+  public void LWC2() {
+    assert false;
+  }
+
+  /** Use {@link Cpu#MFC2} */
+  @Deprecated
+  public void SWC2() {
+    assert false;
+  }
+
   public long COP2(final long cmd) {
     //TODO I'm not sure why this part here is wrong... it thinks GTE commands are register reads/writes
 //    final long rs = cmd >>> 21 & 0x1F;

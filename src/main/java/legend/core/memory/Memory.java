@@ -113,6 +113,10 @@ public class Memory {
       final Segment segment = this.getSegment(address);
       segment.set((int)(this.maskAddress(address) - segment.getAddress()), data);
     }
+
+//    if((address & 0xffffff) == 0x1ac8d0L) {
+//      LOGGER.error(Long.toHexString(address) + " set to " + Long.toHexString(data), new Throwable());
+//    }
   }
 
   public void set(final long address, final int size, final long data) {
@@ -135,6 +139,10 @@ public class Memory {
       final Segment segment = this.getSegment(address);
       segment.set((int)(this.maskAddress(address) - segment.getAddress()), size, data);
     }
+
+//    if((address & 0xffffff) == 0x1ac8d0L) {
+//      LOGGER.error(Long.toHexString(address) + " set to " + Long.toHexString(data), new Throwable());
+//    }
   }
 
   public byte[] getBytes(final long address, final int size) {
@@ -149,6 +157,10 @@ public class Memory {
       final Segment segment = this.getSegment(address);
       segment.setBytes((int)(this.maskAddress(address) - segment.getAddress()), data);
     }
+
+//    if((address & 0xffffff) == 0x1ac8d0L) {
+//      LOGGER.error(Long.toHexString(address) + " set to " + Long.toHexString(MathHelper.get(data, 0, 4)), new Throwable());
+//    }
   }
 
   public Value ref(final int byteSize, final long address) {

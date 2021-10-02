@@ -49,7 +49,7 @@ public class ShortRef implements MemoryRef {
   }
 
   public ShortRef add(final ShortRef val) {
-    return this.set(val.get());
+    return this.add(val.get());
   }
 
   public ShortRef sub(final short val) {
@@ -57,7 +57,7 @@ public class ShortRef implements MemoryRef {
   }
 
   public ShortRef sub(final ShortRef val) {
-    return this.set(val.get());
+    return this.sub(val.get());
   }
 
   public ShortRef incr() {

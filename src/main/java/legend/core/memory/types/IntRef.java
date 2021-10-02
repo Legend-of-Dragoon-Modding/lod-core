@@ -49,7 +49,7 @@ public class IntRef implements MemoryRef {
   }
 
   public IntRef add(final IntRef amount) {
-    return this.set(amount.get());
+    return this.add(amount.get());
   }
 
   public IntRef sub(final int amount) {
@@ -57,7 +57,7 @@ public class IntRef implements MemoryRef {
   }
 
   public IntRef sub(final IntRef amount) {
-    return this.set(amount.get());
+    return this.sub(amount.get());
   }
 
   public IntRef incr() {

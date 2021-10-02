@@ -31,11 +31,11 @@ public class VECTOR implements MemoryRef {
     this.pad = new IntRef(ref.offset(4, 0xcL));
   }
 
+  /** NOTE: does NOT set pad */
   public VECTOR set(final VECTOR other) {
     this.setX(other.getX());
     this.setY(other.getY());
     this.setZ(other.getZ());
-    this.setPad(other.getPad());
     return this;
   }
 
@@ -69,6 +69,34 @@ public class VECTOR implements MemoryRef {
 
   public void setPad(final int pad) {
     this.pad.set(pad);
+  }
+
+  public VECTOR add(final VECTOR other) {
+    this.x.add(other.x);
+    this.y.add(other.y);
+    this.z.add(other.z);
+    return this;
+  }
+
+  public VECTOR sub(final VECTOR other) {
+    this.x.sub(other.x);
+    this.y.sub(other.y);
+    this.z.sub(other.z);
+    return this;
+  }
+
+  public VECTOR div(final int divisor) {
+    this.x.set(this.x.get() / divisor);
+    this.y.set(this.y.get() / divisor);
+    this.z.set(this.z.get() / divisor);
+    return this;
+  }
+
+  public VECTOR negate() {
+    this.x.set(-this.x.get());
+    this.y.set(-this.y.get());
+    this.z.set(-this.z.get());
+    return this;
   }
 
   @Override

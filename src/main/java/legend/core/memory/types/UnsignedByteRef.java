@@ -2,8 +2,17 @@ package legend.core.memory.types;
 
 import legend.core.memory.Value;
 
+import javax.annotation.Nullable;
+
 public class UnsignedByteRef implements MemoryRef {
+  @Nullable
   private final Value ref;
+
+  private byte val;
+
+  public UnsignedByteRef() {
+    this.ref = null;
+  }
 
   public UnsignedByteRef(final Value ref) {
     this.ref = ref;
@@ -14,7 +23,11 @@ public class UnsignedByteRef implements MemoryRef {
   }
 
   public int get() {
-    return (int)this.ref.get();
+    if(this.ref != null) {
+      return (int)this.ref.get();
+    }
+
+    return this.val & 0xff;
   }
 
   public UnsignedByteRef set(final int val) {
@@ -22,7 +35,11 @@ public class UnsignedByteRef implements MemoryRef {
       throw new IllegalArgumentException("Overflow: " + val);
     }
 
-    this.ref.setu(val);
+    if(this.ref != null) {
+      this.ref.setu(val);
+    }
+
+    this.val = (byte)val;
     return this;
   }
 
@@ -36,7 +53,7 @@ public class UnsignedByteRef implements MemoryRef {
   }
 
   public UnsignedByteRef add(final UnsignedByteRef amount) {
-    return this.set(amount.get());
+    return this.add(amount.get());
   }
 
   public UnsignedByteRef sub(final int amount) {
@@ -44,7 +61,7 @@ public class UnsignedByteRef implements MemoryRef {
   }
 
   public UnsignedByteRef sub(final UnsignedByteRef amount) {
-    return this.set(amount.get());
+    return this.sub(amount.get());
   }
 
   public UnsignedByteRef incr() {
@@ -61,7 +78,7 @@ public class UnsignedByteRef implements MemoryRef {
 
   @Override
   public long getAddress() {
-    return this.ref.getAddress();
+    return this.ref != null ? this.ref.getAddress() : 0;
   }
 
   @Override

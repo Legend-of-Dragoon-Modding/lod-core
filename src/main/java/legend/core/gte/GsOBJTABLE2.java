@@ -16,7 +16,7 @@ public class GsOBJTABLE2 implements MemoryRef {
   public GsOBJTABLE2(final Value ref) {
     this.ref = ref;
 
-    this.top = ref.offset(4, 0x0L).cast(Pointer.of(4, UnboundedArrayRef.of(0x10, GsDOBJ2::new)));
+    this.top = ref.offset(4, 0x0L).cast(Pointer.deferred(4, UnboundedArrayRef.of(0x10, GsDOBJ2::new)));
     this.nobj = ref.offset(4, 0x4L).cast(UnsignedIntRef::new);
     this.maxobj = ref.offset(4, 0x8L).cast(UnsignedIntRef::new);
   }

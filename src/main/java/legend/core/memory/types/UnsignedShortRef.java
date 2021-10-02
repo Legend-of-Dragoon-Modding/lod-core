@@ -53,7 +53,7 @@ public class UnsignedShortRef implements MemoryRef {
   }
 
   public UnsignedShortRef add(final UnsignedShortRef val) {
-    return this.set(val.get());
+    return this.add(val.get());
   }
 
   public UnsignedShortRef sub(final int val) {
@@ -61,7 +61,7 @@ public class UnsignedShortRef implements MemoryRef {
   }
 
   public UnsignedShortRef sub(final UnsignedShortRef val) {
-    return this.set(val.get());
+    return this.sub(val.get());
   }
 
   public UnsignedShortRef incr() {

@@ -33,9 +33,9 @@ public class FileLoadingInfo implements MemoryRef {
    */
   public final Pointer<CString> namePtr;
   /**
-   * 0x14 - 4 bytes
+   * 0x14 - 4 bytes - passed as the third param to the callback
    */
-  public final IntRef unknown1;
+  public final IntRef callbackParam;
   /**
    * 0x18 - 2 bytes
    */
@@ -56,7 +56,7 @@ public class FileLoadingInfo implements MemoryRef {
     this.callback = ref.offset(4, 0x8L).cast(Pointer.of(4, TriConsumerRef::new));
     this.transferDest = ref.offset(4, 0xcL);
     this.namePtr = ref.offset(4, 0x10L).cast(Pointer.of(20, CString.maxLength(20)));
-    this.unknown1 = ref.offset(4, 0x14L).cast(IntRef::new);
+    this.callbackParam = ref.offset(4, 0x14L).cast(IntRef::new);
     this.unknown2 = ref.offset(2, 0x18L).cast(ShortRef::new);
     this.unknown3 = ref.offset(2, 0x1aL).cast(ShortRef::new);
     this.used = ref.offset(1, 0x1cL).cast(BoolRef::new);
@@ -68,7 +68,7 @@ public class FileLoadingInfo implements MemoryRef {
     this.callback.setNullable(other.callback.derefNullable());
     this.transferDest.setu(other.transferDest);
     this.namePtr.set(other.namePtr.deref());
-    this.unknown1.set(other.unknown1);
+    this.callbackParam.set(other.callbackParam);
     this.unknown2.set(other.unknown2);
     this.unknown3.set(other.unknown3);
     this.used.set(other.used);

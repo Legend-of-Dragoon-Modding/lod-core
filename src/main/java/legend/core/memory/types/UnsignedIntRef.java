@@ -61,7 +61,7 @@ public class UnsignedIntRef implements MemoryRef {
   }
 
   public UnsignedIntRef sub(final UnsignedIntRef val) {
-    return this.set(val.get());
+    return this.sub(val.get());
   }
 
   public UnsignedIntRef incr() {
@@ -98,6 +98,22 @@ public class UnsignedIntRef implements MemoryRef {
 
   public UnsignedIntRef xor(final UnsignedIntRef val) {
     return this.xor(val.get());
+  }
+
+  public UnsignedIntRef shl(final long bits) {
+    return this.set(this.get() << bits);
+  }
+
+  public UnsignedIntRef shl(final UnsignedIntRef bits) {
+    return this.shl(bits.get());
+  }
+
+  public UnsignedIntRef shr(final long bits) {
+    return this.set(this.get() >>> bits);
+  }
+
+  public UnsignedIntRef shr(final UnsignedIntRef bits) {
+    return this.shr(bits.get());
   }
 
   @Override

@@ -17,6 +17,11 @@ public class Pointer<T extends MemoryRef> implements MemoryRef {
     return ref -> new Pointer<>(ref, constructor, size, false);
   }
 
+  public static <T extends MemoryRef> Class<Pointer<T>> classFor(final Class<T> t) {
+    //noinspection unchecked
+    return (Class<Pointer<T>>)(Class<?>)Pointer.class;
+  }
+
   private final Value ref;
   private final Function<Value, T> constructor;
   private final int size;
@@ -77,26 +82,58 @@ public class Pointer<T extends MemoryRef> implements MemoryRef {
     return this.cache;
   }
 
-  public void set(final T ref) {
-    this.ref.setu(ref.getAddress());
-    this.cache = ref;
+  public <U> U derefAs(final Class<U> cls) {
+    return cls.cast(this.deref());
   }
 
-  public void setNullable(@Nullable final T ref) {
+  public Pointer<T> set(final T ref) {
+    this.ref.setu(ref.getAddress());
+    this.cache = ref;
+    return this;
+  }
+
+  public Pointer<T> setNullable(@Nullable final T ref) {
     if(ref == null) {
       this.clear();
     } else {
       this.set(ref);
     }
+
+    return this;
+  }
+
+  public Pointer<T> add(final long amount) {
+    this.ref.addu(amount);
+    this.cache = null;
+    return this;
+  }
+
+  public Pointer<T> sub(final long amount) {
+    this.ref.subu(amount);
+    this.cache = null;
+    return this;
+  }
+
+  public Pointer<T> incr() {
+    this.add(this.size);
+    this.cache = null;
+    return this;
+  }
+
+  public Pointer<T> decr() {
+    this.sub(this.size);
+    this.cache = null;
+    return this;
   }
 
   public long getPointer() {
     return this.ref.get();
   }
 
-  public void clear() {
+  public Pointer<T> clear() {
     this.ref.setu(0);
     this.cache = null;
+    return this;
   }
 
   @Override

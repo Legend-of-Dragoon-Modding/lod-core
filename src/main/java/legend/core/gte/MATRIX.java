@@ -2,31 +2,30 @@ package legend.core.gte;
 
 import legend.core.memory.Value;
 import legend.core.memory.types.ArrayRef;
-import legend.core.memory.types.IntRef;
 import legend.core.memory.types.MemoryRef;
 import legend.core.memory.types.ShortRef;
 
 public class MATRIX implements MemoryRef {
   private final Value ref;
+
   // 0h-11h
   private final ArrayRef<ShortRef> data;
   // 12h-13h skipped to align
   // 14h-1fh
-  private final ArrayRef<IntRef> transferVector;
+  public final VECTOR transfer;
 
   private final short[] data2 = new short[9];
-  private final int[] transferVector2 = new int[3];
 
   public MATRIX() {
     this.ref = null;
     this.data = null;
-    this.transferVector = null;
+    this.transfer = new VECTOR();
   }
 
   public MATRIX(final Value ref) {
     this.ref = ref;
     this.data = ref.cast(ArrayRef.of(ShortRef.class, 9, 2, ShortRef::new));
-    this.transferVector = ref.offset(0x14L).cast(ArrayRef.of(IntRef.class, 3, 4, IntRef::new));
+    this.transfer = ref.offset(0x14L).cast(VECTOR::new);
   }
 
   public short get(final int x, final int y) {
@@ -56,24 +55,6 @@ public class MATRIX implements MemoryRef {
     return this;
   }
 
-  public int getTransferVector(final int index) {
-    if(this.transferVector != null) {
-      return this.transferVector.get(index).get();
-    }
-
-    return this.transferVector2[index];
-  }
-
-  public MATRIX setTransferVector(final int index, final int val) {
-    if(this.transferVector != null) {
-      this.transferVector.get(index).set(val);
-      return this;
-    }
-
-    this.transferVector2[index] = val;
-    return this;
-  }
-
   public MATRIX set(final MATRIX other) {
     for(int x = 0; x < 3; x++) {
       for(int y = 0; y < 3; y++) {
@@ -82,7 +63,7 @@ public class MATRIX implements MemoryRef {
     }
 
     for(int i = 0; i < 3; i++) {
-      this.setTransferVector(i, other.getTransferVector(i));
+      this.transfer.set(other.transfer);
     }
 
     return this;
@@ -95,9 +76,9 @@ public class MATRIX implements MemoryRef {
       }
     }
 
-    for(int i = 0; i < 3; i++) {
-      this.setTransferVector(i, 0);
-    }
+    this.transfer.x.set(0);
+    this.transfer.y.set(0);
+    this.transfer.z.set(0);
 
     return this;
   }
