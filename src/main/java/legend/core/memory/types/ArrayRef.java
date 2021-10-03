@@ -15,6 +15,11 @@ public class ArrayRef<T extends MemoryRef> implements MemoryRef, Iterable<T> {
     return ref -> new ArrayRef<>(ref, cls, length, stride, constructor);
   }
 
+  public static <T extends MemoryRef> Class<ArrayRef<T>> classFor(final Class<T> t) {
+    //noinspection unchecked
+    return (Class<ArrayRef<T>>)(Class<?>)ArrayRef.class;
+  }
+
   private final Value ref;
   private final T[] elements;
 
