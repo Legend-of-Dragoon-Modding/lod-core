@@ -1115,6 +1115,7 @@ public class Gpu implements Runnable {
 
   public enum GP0_COMMAND {
     NOOP(0x00, 1, (buffer, gpu) -> () -> LOGGER.trace("GPU NOOP")),
+    NOOP_4(0x04, 1, (buffer, gpu) -> () -> LOGGER.trace("GPU NOOP 4")), //TODO I'm not sure if this command is actually supposed to be executing, or if it's a bug in the game code
 
     CLEAR_CACHE(0x01, 1, (buffer, gpu) -> () -> LOGGER.trace("GPU clear cache")),
 
