@@ -110,7 +110,7 @@ public class Gte {
   private int OFX, OFY, DQB;          //R56 57 60
   private short H;                   //R58
   private short ZSF3, ZSF4, DQA;      //R61 62 59
-  private int FLAG;                  //R63
+  private long FLAG;                  //R63
 
   //Command decode
   private int sf;                     //Shift fraction (0 or 12)
@@ -154,10 +154,10 @@ public class Gte {
       }
     }
 
-    if((this.FLAG & 0x7f87_e000) != 0) {
+    if((this.FLAG & 0x7f87_e000L) != 0) {
       LOGGER.error("GTE error during command %02x (flags: %08x)", command, this.FLAG);
       LOGGER.error("Stack trace:", new Throwable());
-      this.FLAG |= 0x8000_0000;
+      this.FLAG |= 0x8000_0000L;
     }
   }
 
@@ -706,7 +706,7 @@ public class Gte {
       d = (int)(0x0000080 + (d & 0xffffffffL) * (u & 0xffff) >>> 8);
       n = (int)Math.min(0x1ffff, n * (d & 0xffffffffL) + 0x8000 >>> 16);
     } else {
-      this.FLAG |= 1 << 17;
+      this.FLAG |= 1L << 17;
       n = 0x1ffff;
     }
 
@@ -730,12 +730,12 @@ public class Gte {
 
   private short setIR0(final long value) {
     if(value < 0) {
-      this.FLAG |= 0x1000;
+      this.FLAG |= 0x1000L;
       return 0;
     }
 
     if(value > 0x1000) {
-      this.FLAG |= 0x1000;
+      this.FLAG |= 0x1000L;
       return 0x1000;
     }
 
@@ -744,12 +744,12 @@ public class Gte {
 
   private short setSXY(final int i, final int value) {
     if(value < -0x400) {
-      this.FLAG |= 0x4000 >>> i - 1;
+      this.FLAG |= 0x4000L >>> i - 1;
       return -0x400;
     }
 
     if(value > 0x3ff) {
-      this.FLAG |= 0x4000 >>> i - 1;
+      this.FLAG |= 0x4000L >>> i - 1;
       return 0x3ff;
     }
 
@@ -758,12 +758,12 @@ public class Gte {
 
   private short setSZ3(final long value) {
     if(value < 0) {
-      this.FLAG |= 0x4_0000; // SZ3 or OTZ saturated to +0000h..+FFFFh
+      this.FLAG |= 0x4_0000L; // SZ3 or OTZ saturated to +0000h..+FFFFh
       return 0;
     }
 
     if(value > 0xffff) {
-      this.FLAG |= 0x4_0000; // SZ3 or OTZ saturated to +0000h..+FFFFh
+      this.FLAG |= 0x4_0000L; // SZ3 or OTZ saturated to +0000h..+FFFFh
       return (short)0xffff;
     }
 
@@ -772,12 +772,12 @@ public class Gte {
 
   private byte setRGB(final int i, final int value) {
     if(value < 0) {
-      this.FLAG |= 0x20_0000 >>> i - 1;
+      this.FLAG |= 0x20_0000L >>> i - 1;
       return 0;
     }
 
     if(value > 0xff) {
-      this.FLAG |= 0x20_0000 >>> i - 1;
+      this.FLAG |= 0x20_0000L >>> i - 1;
       return (byte)0xff;
     }
 
@@ -786,17 +786,17 @@ public class Gte {
 
   private short setIR(final int i, final int value, final boolean lm) {
     if(lm && value < 0) {
-      this.FLAG |= 0x100_0000 >>> i - 1;
+      this.FLAG |= 0x100_0000L >>> i - 1;
       return 0;
     }
 
     if(!lm && value < -0x8000) {
-      this.FLAG |= 0x100_0000 >>> i - 1;
+      this.FLAG |= 0x100_0000L >>> i - 1;
       return -0x8000;
     }
 
     if(value > 0x7fff) {
-      this.FLAG |= 0x100_0000 >>> i - 1;
+      this.FLAG |= 0x100_0000L >>> i - 1;
       return 0x7fff;
     }
 
@@ -805,9 +805,9 @@ public class Gte {
 
   private long setMAC0(final long value) {
     if(value < -0x8000_0000) {
-      this.FLAG |= 0x8000;
+      this.FLAG |= 0x8000L;
     } else if(value > 0x7fff_ffff) {
-      this.FLAG |= 0x1_0000;
+      this.FLAG |= 0x1_0000L;
     }
 
     return value;
@@ -815,9 +815,9 @@ public class Gte {
 
   private long setMAC(final int i, final long value) {
     if(value < -0x800_0000_0000L) {
-      this.FLAG |= 0x800_0000 >>> i - 1;
+      this.FLAG |= 0x800_0000L >>> i - 1;
     } else if(value > 0x7ff_ffff_ffffL) {
-      this.FLAG |= 0x4000_0000 >>> i - 1;
+      this.FLAG |= 0x4000_0000L >>> i - 1;
     }
 
     return value << 20 >> 20;
@@ -992,7 +992,7 @@ public class Gte {
     }
   }
 
-  public int loadControl(final int fs) {
+  public long loadControl(final int fs) {
     return switch(fs) {
       case 0 -> this.RT.v1.getXY();
       case 1 -> this.RT.v1.z | this.RT.v2.x << 16;
@@ -1082,9 +1082,9 @@ public class Gte {
       case 29 -> this.ZSF3 = (short)v;
       case 30 -> this.ZSF4 = (short)v;
       case 31 -> { //flag is u20 with 31 Error Flag (Bit30..23, and 18..13 ORed together)
-        this.FLAG = v & 0x7fff_f000;
-        if((this.FLAG & 0x7f87_e000) != 0) {
-          this.FLAG |= 0x8000_0000;
+        this.FLAG = v & 0x7fff_f000L;
+        if((this.FLAG & 0x7f87_e000L) != 0) {
+          this.FLAG |= 0x8000_0000L;
         }
       }
     }
