@@ -59,6 +59,11 @@ public class Gte {
       this.x = (short)(val & 0xffff);
       this.y = (short)(val >> 16 & 0xffff);
     }
+
+    public void set(final Vector2 other) {
+      this.x = other.x;
+      this.y = other.y;
+    }
   }
 
   private static class Color {
@@ -612,8 +617,8 @@ public class Gte {
     this.interpolateColor(this.MAC1, this.MAC2, this.MAC3);
 
     // Color FIFO = [MAC1 / 16, MAC2 / 16, MAC3 / 16, CODE]
-    this.RGB[0] = this.RGB[1];
-    this.RGB[1] = this.RGB[2];
+    this.RGB[0].set(this.RGB[1]);
+    this.RGB[1].set(this.RGB[2]);
 
     this.RGB[2].r = this.setRGB(1, this.MAC1 >> 4);
     this.RGB[2].g = this.setRGB(2, this.MAC2 >> 4);
@@ -716,8 +721,8 @@ public class Gte {
     final int x = (int)(this.setMAC0(n * this.IR[1] + this.OFX) >> 16);
     final int y = (int)(this.setMAC0(n * this.IR[2] + this.OFY) >> 16);
 
-    this.SXY[0] = this.SXY[1];
-    this.SXY[1] = this.SXY[2];
+    this.SXY[0].set(this.SXY[1]);
+    this.SXY[1].set(this.SXY[2]);
     this.SXY[2].x = this.setSXY(1, x);
     this.SXY[2].y = this.setSXY(2, y);
 
@@ -935,8 +940,8 @@ public class Gte {
         this.SXY[2].val(v);
         break;
       case 15:
-        this.SXY[0] = this.SXY[1];
-        this.SXY[1] = this.SXY[2];
+        this.SXY[0].set(this.SXY[1]);
+        this.SXY[1].set(this.SXY[2]);
         this.SXY[2].val(v);
         break; //On load mirrors 0x14 on write cycles the fifo
       case 16:
