@@ -64,6 +64,22 @@ public class UnsignedIntRef implements MemoryRef {
     return this.sub(val.get());
   }
 
+  public UnsignedIntRef mul(final long val) {
+    return this.set(this.get() * val);
+  }
+
+  public UnsignedIntRef mul(final UnsignedIntRef val) {
+    return this.mul(val.get());
+  }
+
+  public UnsignedIntRef div(final long val) {
+    return this.set(this.get() / val);
+  }
+
+  public UnsignedIntRef div(final UnsignedIntRef val) {
+    return this.div(val.get());
+  }
+
   public UnsignedIntRef incr() {
     return this.add(1);
   }
