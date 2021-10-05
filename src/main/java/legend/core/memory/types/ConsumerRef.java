@@ -7,6 +7,11 @@ import java.util.function.Consumer;
 public class ConsumerRef<T> implements MemoryRef {
   private final Value ref;
 
+  public static <T> Class<ConsumerRef<T>> classFor(final Class<T> t) {
+    //noinspection unchecked
+    return (Class<ConsumerRef<T>>)(Class<?>)ConsumerRef.class;
+  }
+
   public ConsumerRef(final Value ref) {
     this.ref = ref;
 
