@@ -33,6 +33,7 @@ import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.BiFunction;
@@ -696,50 +697,71 @@ public class Gpu implements Runnable {
    * Note: only handles textured
    */
   private static Runnable texturedPolygonRenderer(final LongList buffer, final Gpu gpu) {
-    final long cmd = buffer.getLong(0);
+    int bufferIndex = 0;
+    final long cmd = buffer.getLong(bufferIndex++);
     final int colour = (int)(cmd & 0xff_ffff);
     final long command = cmd >>> 24;
+    final boolean isShaded = (command & 0b1_0000) != 0;
     final boolean isQuad = (command & 0b1000) != 0;
     final boolean isTranslucent = (command & 0b0010) != 0;
     final boolean isRaw = (command & 0b0001) != 0;
+
+    final int vertices = isQuad ? 4 : 3;
 
     final int[] x = new int[4];
     final int[] y = new int[4];
     final int[] tx = new int[4];
     final int[] ty = new int[4];
+    final int[] c = new int[4];
 
-    final long vertex0 = buffer.getLong(1);
+    if(!isShaded) {
+      Arrays.fill(c, colour);
+    }
+
+    final long vertex0 = buffer.getLong(bufferIndex++);
     y[0] = (short)(vertex0 >>> 16 & 0xffff);
     x[0] = (short)(vertex0        & 0xffff);
 
-    final long tex0 = buffer.getLong(2);
+    final long tex0 = buffer.getLong(bufferIndex++);
     final int clut = (int)(tex0 >>> 16 & 0xffff);
     ty[0] = (int)(tex0 >>> 8 & 0xff);
     tx[0] = (int)(tex0       & 0xff);
 
-    final long vertex1 = buffer.getLong(3);
+    if(isShaded) {
+      c[1] = (int)buffer.getLong(bufferIndex++);
+    }
+
+    final long vertex1 = buffer.getLong(bufferIndex++);
     y[1] = (short)(vertex1 >>> 16 & 0xffff);
     x[1] = (short)(vertex1        & 0xffff);
 
-    final long tex1 = buffer.getLong(4);
+    final long tex1 = buffer.getLong(bufferIndex++);
     final int page = (int)(tex1 >>> 16 & 0xffff);
     ty[1] = (int)(tex1 >>> 8 & 0xff);
     tx[1] = (int)(tex1       & 0xff);
 
-    final long vertex2 = buffer.getLong(5);
+    if(isShaded) {
+      c[2] = (int)buffer.getLong(bufferIndex++);
+    }
+
+    final long vertex2 = buffer.getLong(bufferIndex++);
     y[2] = (short)(vertex2 >>> 16 & 0xffff);
     x[2] = (short)(vertex2        & 0xffff);
 
-    final long tex2 = buffer.getLong(6);
+    final long tex2 = buffer.getLong(bufferIndex++);
     ty[2] = (int)(tex2 >>> 8 & 0xff);
     tx[2] = (int)(tex2       & 0xff);
 
     if(isQuad) {
-      final long vertex3 = buffer.getLong(7);
+      if(isShaded) {
+        c[3] = (int)buffer.getLong(bufferIndex++);
+      }
+
+      final long vertex3 = buffer.getLong(bufferIndex++);
       y[3] = (short)(vertex3 >>> 16 & 0xffff);
       x[3] = (short)(vertex3        & 0xffff);
 
-      final long tex3 = buffer.getLong(8);
+      final long tex3 = buffer.getLong(bufferIndex);
       ty[3] = (int)(tex3 >>> 8 & 0xff);
       tx[3] = (int)(tex3       & 0xff);
     }
@@ -748,14 +770,14 @@ public class Gpu implements Runnable {
     final int clutY = (short)(clut >>> 6 & 0x1ff);
 
     return () -> {
-      LOGGER.trace("[GP0.%02x] Drawing textured four-point poly (opaque, blended) offset %d %d, XYUV0 %d %d %d %d, XYUV1 %d %d %d %d, XYUV2 %d %d %d %d, XYUV3 %d %d %d %d, Clut(XY) %04x (%d %d), Page %04x, RGB %06x", command, gpu.offsetX, gpu.offsetY, x[0], y[0], tx[0], ty[0], x[1], y[1], tx[1], ty[1], x[2], y[2], tx[2], ty[2], x[3], y[3], tx[3], ty[3], clut, clutX, clutY, page, colour);
+      LOGGER.trace("[GP0.%02x] Drawing textured %d-point poly offset %d %d, XYUV0 %d %d %d %d, XYUV1 %d %d %d %d, XYUV2 %d %d %d %d, XYUV3 %d %d %d %d, Clut(XY) %04x (%d %d), Page %04x, RGB %06x", command, vertices, gpu.offsetX, gpu.offsetY, x[0], y[0], tx[0], ty[0], x[1], y[1], tx[1], ty[1], x[2], y[2], tx[2], ty[2], x[3], y[3], tx[3], ty[3], clut, clutX, clutY, page, colour);
 
       final int texturePageXBase = (page       & 0b1111) *  64;
       final int texturePageYBase = (page >>> 4 & 0b0001) * 256;
       final SEMI_TRANSPARENCY translucency = SEMI_TRANSPARENCY.values()[page >>> 5 & 0b11];
       final Bpp texturePageColours = Bpp.values()[page >>> 7 & 0b11];
 
-      for(int i = 0; i < 4; i++) {
+      for(int i = 0; i < vertices; i++) {
         final int vx = gpu.offsetX + x[i];
         final int vy = gpu.offsetY + y[i];
 
@@ -768,8 +790,11 @@ public class Gpu implements Runnable {
         ty[i] += clipYOffset;
       }
 
-      gpu.rasterizeTriangle(x[0], y[0], x[1], y[1], x[2], y[2], tx[0], ty[0], tx[1], ty[1], tx[2], ty[2], colour, colour, colour, clutX, clutY, texturePageXBase, texturePageYBase, texturePageColours, isTranslucent, isRaw, translucency);
-      gpu.rasterizeTriangle(x[1], y[1], x[2], y[2], x[3], y[3], tx[1], ty[1], tx[2], ty[2], tx[3], ty[3], colour, colour, colour, clutX, clutY, texturePageXBase, texturePageYBase, texturePageColours, isTranslucent, isRaw, translucency);
+      gpu.rasterizeTriangle(x[0], y[0], x[1], y[1], x[2], y[2], tx[0], ty[0], tx[1], ty[1], tx[2], ty[2], c[0], c[1], c[2], clutX, clutY, texturePageXBase, texturePageYBase, texturePageColours, isTranslucent, isRaw, translucency);
+
+      if(isQuad) {
+        gpu.rasterizeTriangle(x[1], y[1], x[2], y[2], x[3], y[3], tx[1], ty[1], tx[2], ty[2], tx[3], ty[3], c[1], c[2], c[3], clutX, clutY, texturePageXBase, texturePageYBase, texturePageColours, isTranslucent, isRaw, translucency);
+      }
     };
   }
 
@@ -1143,6 +1168,8 @@ public class Gpu implements Runnable {
 
     TEXTURED_FOUR_POINT_POLYGON_OPAQUE_BLENDED(0x2c, 9, Gpu::texturedPolygonRenderer),
     TEXTURED_FOUR_POINT_POLYGON_TRANSLUCENT_BLENDED(0x2e, 9, Gpu::texturedPolygonRenderer),
+    SHADED_TEXTURED_THREE_POINT_POLYGON_TRANSLUCENT_BLENDED(0x36, 9, Gpu::texturedPolygonRenderer),
+    SHADED_TEXTURED_FOUR_POINT_POLYGON_TRANSLUCENT_BLENDED(0x3e, 12, Gpu::texturedPolygonRenderer),
 
     MONO_RECT_VAR_SIZE_OPAQUE(0x60, 3, (buffer, gpu) -> {
       final long command = buffer.getLong(0);
