@@ -14,7 +14,11 @@ public class Tmd implements MemoryRef {
     this.ref = ref;
 
     this.header = ref.offset(4, 0x0L).cast(TmdHeader::new);
-    this.objTable = ref.offset(4, 0x8L).cast(UnboundedArrayRef.of(0x1c, TmdObjTable::new));
+    this.objTable = ref.offset(4, 0x8L).cast(UnboundedArrayRef.of(0x1c, TmdObjTable::new, this::getLength));
+  }
+
+  private int getLength() {
+    return (int)this.header.nobj.get();
   }
 
   @Override
