@@ -714,9 +714,7 @@ public class Gpu implements Runnable {
     final int[] ty = new int[4];
     final int[] c = new int[4];
 
-    if(!isShaded) {
-      Arrays.fill(c, colour);
-    }
+    Arrays.fill(c, colour);
 
     final long vertex0 = buffer.getLong(bufferIndex++);
     y[0] = (short)(vertex0 >>> 16 & 0xffff);
@@ -790,10 +788,10 @@ public class Gpu implements Runnable {
         ty[i] += clipYOffset;
       }
 
-      gpu.rasterizeTriangle(x[0], y[0], x[1], y[1], x[2], y[2], tx[0], ty[0], tx[1], ty[1], tx[2], ty[2], c[0], c[1], c[2], clutX, clutY, texturePageXBase, texturePageYBase, texturePageColours, isTranslucent, isRaw, translucency);
+      gpu.rasterizeTriangle(x[0], y[0], x[1], y[1], x[2], y[2], tx[0], ty[0], tx[1], ty[1], tx[2], ty[2], c[0], c[1], c[2], clutX, clutY, texturePageXBase, texturePageYBase, texturePageColours, isShaded, isTranslucent, isRaw, translucency);
 
       if(isQuad) {
-        gpu.rasterizeTriangle(x[1], y[1], x[2], y[2], x[3], y[3], tx[1], ty[1], tx[2], ty[2], tx[3], ty[3], c[1], c[2], c[3], clutX, clutY, texturePageXBase, texturePageYBase, texturePageColours, isTranslucent, isRaw, translucency);
+        gpu.rasterizeTriangle(x[1], y[1], x[2], y[2], x[3], y[3], tx[1], ty[1], tx[2], ty[2], tx[3], ty[3], c[1], c[2], c[3], clutX, clutY, texturePageXBase, texturePageYBase, texturePageColours, isShaded, isTranslucent, isRaw, translucency);
       }
     };
   }
@@ -899,7 +897,7 @@ public class Gpu implements Runnable {
     };
   }
 
-  private void rasterizeTriangle(final int vx0, final int vy0, int vx1, int vy1, int vx2, int vy2, final int tu0, final int tv0, int tu1, int tv1, int tu2, int tv2, final int c0, int c1, int c2, final int clutX, final int clutY, final int textureBaseX, final int textureBaseY, final Bpp bpp, final boolean isTranslucent, final boolean isRaw, final SEMI_TRANSPARENCY translucencyMode) {
+  private void rasterizeTriangle(final int vx0, final int vy0, int vx1, int vy1, int vx2, int vy2, final int tu0, final int tv0, int tu1, int tv1, int tu2, int tv2, final int c0, int c1, int c2, final int clutX, final int clutY, final int textureBaseX, final int textureBaseY, final Bpp bpp, final boolean isShaded, final boolean isTranslucent, final boolean isRaw, final SEMI_TRANSPARENCY translucencyMode) {
     int area = orient2d(vx0, vy0, vx1, vy1, vx2, vy2);
     if(area == 0) {
       return;
@@ -933,7 +931,9 @@ public class Gpu implements Runnable {
     int maxX = Math.max(vx0, Math.max(vx1, vx2));
     int maxY = Math.max(vy0, Math.max(vy1, vy2));
 
-    if(maxX - minX > 1024 || maxY - minY > 512) return;
+    if(maxX - minX > 1024 || maxY - minY > 512) {
+      return;
+    }
 
     /*clip*/
     minX = (short)Math.max(minX, this.drawingArea.x.get());
@@ -955,6 +955,8 @@ public class Gpu implements Runnable {
     int w0_row = orient2d(vx1, vy1, vx2, vy2, minX, minY);
     int w1_row = orient2d(vx2, vy2, vx0, vy0, minX, minY);
     int w2_row = orient2d(vx0, vy0, vx1, vy1, minX, minY);
+
+    final long baseColour = c0;
 
     // Rasterize
     for(int y = minY; y < maxY; y++) {
@@ -981,7 +983,11 @@ public class Gpu implements Runnable {
           }
 
           // reset default color of the triangle calculated outside the for as it gets overwritten as follows...
-          long colour = c0;
+          long colour = baseColour;
+
+          if(isShaded) {
+            colour = this.getShadedColor(w0, w1, w2, c0, c1, c2, area);
+          }
 
           final int texelX = interpolateCoords(w0, w1, w2, tu0, tu1, tu2, area);
           final int texelY = interpolateCoords(w0, w1, w2, tv0, tv1, tv2, area);
@@ -1021,12 +1027,20 @@ public class Gpu implements Runnable {
     }
   }
 
+  private long rgbToBgr(final long colour) {
+    final int m = (int)(colour >>> 24) & 0xff;
+    final int b = (int)(colour >>> 16) & 0xff;
+    final int g = (int)(colour >>>  8) & 0xff;
+    final int r = (int) colour         & 0xff;
+    return m << 24 | r << 16 | g << 8 | b;
+  }
+
   private long applyBlending(final long colour, final long texel) {
     return
       texel & 0xff00_0000 |
-      (colour >>> 16 & 0xff) * (texel >>> 16 & 0xff) / 128 << 16 |
-      (colour >>>  8 & 0xff) * (texel >>>  8 & 0xff) / 128 <<  8 |
-      (colour        & 0xff) * (texel        & 0xff) / 128;
+      Math.min((colour >>> 16 & 0xff) * (texel >>> 16 & 0xff) >>> 7, 0xff) << 16 |
+      Math.min((colour >>>  8 & 0xff) * (texel >>>  8 & 0xff) >>> 7, 0xff) <<  8 |
+      Math.min((colour        & 0xff) * (texel        & 0xff) >>> 7, 0xff);
   }
 
   private long getPixel(final int x, final int y) {
@@ -1068,13 +1082,13 @@ public class Gpu implements Runnable {
 
   private long get4bppTexel(final int x, final int y, final int clutX, final int clutY, final int textureBaseX, final int textureBaseY) {
     final long index = this.getPixel15(x / 4 + textureBaseX, y + textureBaseY);
-    final int p = (int)(index >> (x & 3) * 4 & 0xF);
+    final int p = (int)(index >> (x & 3) * 4 & 0xf);
     return this.getPixel(clutX + p, clutY);
   }
 
   private long get8bppTexel(final int x, final int y, final int clutX, final int clutY, final int textureBaseX, final int textureBaseY) {
     final long index = this.getPixel15(x / 2 + textureBaseX, y + textureBaseY);
-    final int p = (int)(index >> (x & 1) * 8 & 0xFF);
+    final int p = (int)(index >> (x & 1) * 8 & 0xff);
     return this.getPixel(clutX + p, clutY);
   }
 
@@ -1135,7 +1149,7 @@ public class Gpu implements Runnable {
     final int g = ((c0 >>>  8 & 0xff) * w0 + (c1 >>>  8 & 0xff) * w1 + (c2 >>>  8 & 0xff) * w2) / area;
     final int b = ((c0 >>> 16 & 0xff) * w0 + (c1 >>> 16 & 0xff) * w1 + (c2 >>> 16 & 0xff) * w2) / area;
 
-    return r << 16 | g << 8 | b;
+    return b << 16 | g << 8 | r;
   }
 
   public enum GP0_COMMAND {
@@ -1168,8 +1182,12 @@ public class Gpu implements Runnable {
 
     TEXTURED_FOUR_POINT_POLYGON_OPAQUE_BLENDED(0x2c, 9, Gpu::texturedPolygonRenderer),
     TEXTURED_FOUR_POINT_POLYGON_TRANSLUCENT_BLENDED(0x2e, 9, Gpu::texturedPolygonRenderer),
-    SHADED_TEXTURED_THREE_POINT_POLYGON_TRANSLUCENT_BLENDED(0x36, 9, Gpu::texturedPolygonRenderer),
-    SHADED_TEXTURED_FOUR_POINT_POLYGON_TRANSLUCENT_BLENDED(0x3e, 12, Gpu::texturedPolygonRenderer),
+    SHADED_TEXTURED_THREE_POINT_POLYGON_TRANSLUCENT_BLENDED(0x36, 9, (buffer, gpu) -> {
+      return texturedPolygonRenderer(buffer, gpu);
+    }),
+    SHADED_TEXTURED_FOUR_POINT_POLYGON_TRANSLUCENT_BLENDED(0x3e, 12, (buffer, gpu) -> {
+      return texturedPolygonRenderer(buffer, gpu);
+    }),
 
     MONO_RECT_VAR_SIZE_OPAQUE(0x60, 3, (buffer, gpu) -> {
       final long command = buffer.getLong(0);
