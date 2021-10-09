@@ -46,6 +46,10 @@ public class UnboundedArrayRef<T extends MemoryRef> implements MemoryRef {
     return this.elements.computeIfAbsent(index, key -> this.constructor.apply(this.ref.offset(this.stride, (long)key * this.stride)));
   }
 
+  public UnboundedArrayRef<T> slice(final int offset) {
+    return this.ref.offset(offset * this.stride).cast(UnboundedArrayRef.of(this.stride, this.constructor, this.length));
+  }
+
   @Override
   public long getAddress() {
     return this.ref.getAddress();
