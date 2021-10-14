@@ -1,5 +1,6 @@
 package legend.core.memory.types;
 
+import legend.core.Hardware;
 import legend.core.memory.Value;
 
 import javax.annotation.Nullable;
@@ -7,14 +8,25 @@ import java.util.function.Function;
 
 public class RelativePointer<T extends MemoryRef> implements MemoryRef {
   public static <T extends MemoryRef> Function<Value, RelativePointer<T>> of(final int size, final Function<Value, T> constructor) {
-    return ref -> new RelativePointer<>(ref, constructor, size, true);
+    return ref -> new RelativePointer<>(ref, constructor, ref.getAddress(), size, true);
+  }
+
+  public static <T extends MemoryRef> Function<Value, RelativePointer<T>> of(final int size, final long baseAddress, final Function<Value, T> constructor) {
+    return ref -> new RelativePointer<>(ref, constructor, baseAddress, size, true);
   }
 
   /**
    * Lazy mode - don't resolve pointer until used
    */
   public static <T extends MemoryRef> Function<Value, RelativePointer<T>> deferred(final int size, final Function<Value, T> constructor) {
-    return ref -> new RelativePointer<>(ref, constructor, size, false);
+    return ref -> new RelativePointer<>(ref, constructor, ref.getAddress(), size, false);
+  }
+
+  /**
+   * Lazy mode - don't resolve pointer until used
+   */
+  public static <T extends MemoryRef> Function<Value, RelativePointer<T>> deferred(final int size, final long baseAddress, final Function<Value, T> constructor) {
+    return ref -> new RelativePointer<>(ref, constructor, baseAddress, size, false);
   }
 
   public static <T extends MemoryRef> Class<RelativePointer<T>> classFor(final Class<T> t) {
@@ -24,11 +36,12 @@ public class RelativePointer<T extends MemoryRef> implements MemoryRef {
 
   private final Value ref;
   private final Function<Value, T> constructor;
+  private final long baseAddress;
   private final int size;
   @Nullable
   private T cache;
 
-  public RelativePointer(final Value ref, final Function<Value, T> constructor, final int size, final boolean precache) {
+  public RelativePointer(final Value ref, final Function<Value, T> constructor, final long baseAddress, final int size, final boolean precache) {
     this.ref = ref;
 
     if(ref.getSize() != 4) {
@@ -36,6 +49,7 @@ public class RelativePointer<T extends MemoryRef> implements MemoryRef {
     }
 
     this.constructor = constructor;
+    this.baseAddress = baseAddress;
     this.size = size;
 
     if(precache) {
@@ -46,11 +60,36 @@ public class RelativePointer<T extends MemoryRef> implements MemoryRef {
   }
 
   private void updateCache() {
-    this.cache = this.constructor.apply(this.ref.offset(this.size, this.ref.get()));
+    if(this.ref.get() == 0) {
+      this.cache = null;
+      return;
+    }
+
+    this.cache = this.constructor.apply(Hardware.MEMORY.ref(this.size, this.baseAddress + this.ref.get()));
+  }
+
+  public boolean isNull() {
+    return this.ref.get() == 0;
   }
 
   public T deref() {
-    if(this.cache == null || this.ref.offset(this.ref.get()).getAddress() != this.cache.getAddress()) {
+    final T value = this.derefNullable();
+
+    if(value == null) {
+      throw new NullPointerException("Relative pointer " + Long.toHexString(this.getAddress()) + " is null");
+    }
+
+    return value;
+  }
+
+  @Nullable
+  public T derefNullable() {
+    if(this.isNull()) {
+      this.cache = null;
+      return null;
+    }
+
+    if(this.cache == null || this.baseAddress + this.ref.get() != this.cache.getAddress()) {
       this.updateCache();
     }
 
@@ -62,7 +101,7 @@ public class RelativePointer<T extends MemoryRef> implements MemoryRef {
   }
 
   public RelativePointer<T> set(final T ref) {
-    this.ref.setu(ref.getAddress() - this.ref.getAddress());
+    this.ref.setu(ref.getAddress() - this.baseAddress);
     this.cache = ref;
     return this;
   }
