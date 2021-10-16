@@ -56,6 +56,14 @@ public class UnsignedIntRef implements MemoryRef {
     return this.add(val.get());
   }
 
+  public UnsignedIntRef addOverflow(final long val) {
+    return this.set(this.get() + val & 0xffff_ffffL);
+  }
+
+  public UnsignedIntRef addOverflow(final UnsignedIntRef val) {
+    return this.addOverflow(val.get());
+  }
+
   public UnsignedIntRef sub(final long val) {
     return this.set(this.get() - val);
   }
@@ -64,12 +72,28 @@ public class UnsignedIntRef implements MemoryRef {
     return this.sub(val.get());
   }
 
+  public UnsignedIntRef subOverflow(final long val) {
+    return this.set(this.get() - val & 0xffff_ffffL);
+  }
+
+  public UnsignedIntRef subOverflow(final UnsignedIntRef val) {
+    return this.subOverflow(val.get());
+  }
+
   public UnsignedIntRef mul(final long val) {
     return this.set(this.get() * val);
   }
 
   public UnsignedIntRef mul(final UnsignedIntRef val) {
     return this.mul(val.get());
+  }
+
+  public UnsignedIntRef mulOverflow(final long val) {
+    return this.set(this.get() * val & 0xffff_ffffL);
+  }
+
+  public UnsignedIntRef mulOverflow(final UnsignedIntRef val) {
+    return this.mulOverflow(val.get());
   }
 
   public UnsignedIntRef div(final long val) {
