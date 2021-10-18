@@ -72,6 +72,46 @@ public class IntRef implements MemoryRef {
     return this.set(~this.get());
   }
 
+  public IntRef and(final int val) {
+    return this.set(this.get() & val);
+  }
+
+  public IntRef and(final IntRef val) {
+    return this.and(val.get());
+  }
+
+  public IntRef or(final int val) {
+    return this.set(this.get() | val);
+  }
+
+  public IntRef or(final IntRef val) {
+    return this.or(val.get());
+  }
+
+  public IntRef xor(final int val) {
+    return this.set(this.get() ^ val);
+  }
+
+  public IntRef xor(final IntRef val) {
+    return this.xor(val.get());
+  }
+
+  public IntRef shl(final int bits) {
+    return this.set(this.get() << bits);
+  }
+
+  public IntRef shl(final IntRef bits) {
+    return this.shl(bits.get());
+  }
+
+  public IntRef shr(final int bits) {
+    return this.set(this.get() >>> bits);
+  }
+
+  public IntRef shr(final IntRef bits) {
+    return this.shr(bits.get());
+  }
+
   @Override
   public long getAddress() {
     if(this.ref == null) {
