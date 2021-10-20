@@ -1240,7 +1240,25 @@ public class Gpu implements Runnable {
       final int height = (short)((size & 0xffff0000) >>> 16);
       final int width = (short)(size & 0xffff);
 
-      return () -> LOGGER.debug("COPY VRAM VRAM from (not implemented) %d %d to %d %d size %d %d", sourceX, sourceY, destX, destY, width, height); //TODO
+      return () -> {
+        LOGGER.debug("COPY VRAM VRAM from %d %d to %d %d size %d %d", sourceX, sourceY, destX, destY, width, height);
+
+        for(int y = 0; y < height; y++) {
+          for(int x = 0; x < width; x++) {
+            long colour = gpu.getPixel(sourceX + x & 0x3FF, sourceY + y & 0x1FF);
+
+            if(gpu.status.drawPixels == DRAW_PIXELS.NOT_TO_MASKED_AREAS) {
+              if((gpu.getPixel(destX + x & 0x3FF, destY + y & 0x1FF) & 0xff00_0000L) != 0) {
+                continue;
+              }
+            }
+
+            colour |= (gpu.status.setMaskBit ? 1 : 0) << 24;
+
+            gpu.setPixel(destX + x & 0x3FF, destY + y & 0x1FF, colour);
+          }
+        }
+      };
     }),
 
     DRAW_MODE_SETTINGS(0xe1, 1, (buffer, gpu) -> {
