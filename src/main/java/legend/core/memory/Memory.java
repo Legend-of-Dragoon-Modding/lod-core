@@ -169,6 +169,10 @@ public class Memory {
   }
 
   public <T> T ref(final int byteSize, final long address, final Function<Value, T> constructor) {
+    if(address == 0) {
+      return null;
+    }
+
     return constructor.apply(this.ref(byteSize, address));
   }
 
