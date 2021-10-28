@@ -999,25 +999,25 @@ public class Gte {
 
   public long loadControl(final int fs) {
     return switch(fs) {
-      case 0 -> this.RT.v1.getXY();
-      case 1 -> this.RT.v1.z | this.RT.v2.x << 16;
-      case 2 -> this.RT.v2.y | this.RT.v2.z << 16;
-      case 3 -> this.RT.v3.getXY();
-      case 4 -> this.RT.v3.z;
-      case 5 -> this.TRX;
-      case 6 -> this.TRY;
-      case 7 -> this.TRZ;
-      case 8 -> this.LM.v1.getXY();
-      case 9 -> this.LM.v1.z | this.LM.v2.x << 16;
-      case 10 -> this.LM.v2.y | this.LM.v2.z << 16;
+      case  0 -> this.RT.v1.getXY();
+      case  1 -> (this.RT.v2.x & 0xffffL) << 16 | this.RT.v1.z & 0xffffL;
+      case  2 -> (this.RT.v2.z & 0xffffL) << 16 | this.RT.v2.y & 0xffffL;
+      case  3 -> this.RT.v3.getXY();
+      case  4 -> this.RT.v3.z;
+      case  5 -> this.TRX;
+      case  6 -> this.TRY;
+      case  7 -> this.TRZ;
+      case  8 -> this.LM.v1.getXY();
+      case  9 -> (this.LM.v2.x & 0xffffL) << 16 | this.LM.v1.z & 0xffffL;
+      case 10 -> (this.LM.v2.z & 0xffffL) << 16 | this.LM.v2.y & 0xffffL;
       case 11 -> this.LM.v3.getXY();
       case 12 -> this.LM.v3.z;
       case 13 -> this.RBK;
       case 14 -> this.GBK;
       case 15 -> this.BBK;
       case 16 -> this.LRGB.v1.getXY();
-      case 17 -> this.LRGB.v1.z | this.LRGB.v2.x << 16;
-      case 18 -> this.LRGB.v2.y | this.LRGB.v2.z << 16;
+      case 17 -> (this.LRGB.v2.x & 0xffffL) << 16 | this.LRGB.v1.z & 0xffffL;
+      case 18 -> (this.LRGB.v2.z & 0xffffL) << 16 | this.LRGB.v2.y & 0xffffL;
       case 19 -> this.LRGB.v3.getXY();
       case 20 -> this.LRGB.v3.z;
       case 21 -> this.RFC;
@@ -1031,7 +1031,7 @@ public class Gte {
       case 29 -> this.ZSF3;
       case 30 -> this.ZSF4;
       case 31 -> this.FLAG;
-      default -> 0xffff_ffff;
+      default -> 0xffff_ffffL;
     };
   }
 
