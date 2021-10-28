@@ -880,11 +880,12 @@ public class Gpu implements Runnable {
           }
 
           long texel = this.getTexel(this.maskTexelAxis(u, this.preMaskX, this.postMaskX), this.maskTexelAxis(v, this.preMaskY, this.postMaskY), clutX, clutY, this.status.texturePageXBase, this.status.texturePageYBase.value, this.status.texturePageColours);
+          if(texel == 0) {
+            continue;
+          }
 
-          if(texel != 0) {
-            if(!isRaw) {
-              texel = this.applyBlending(colour, texel);
-            }
+          if(!isRaw) {
+            texel = this.applyBlending(colour, texel);
           }
 
           if(isTranslucent && (texel & 0xff00_0000L) != 0) {
