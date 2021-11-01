@@ -1,10 +1,14 @@
 package legend.core.memory.types;
 
 import legend.core.memory.Value;
-import legend.core.memory.types.MemoryRef;
 
 public class QuadFunctionRef<T, U, V, W, R> implements MemoryRef {
   private final Value ref;
+
+  public static <T, U, V, W, R> Class<QuadFunctionRef<T, U, V, W, R>> classFor(final Class<T> t, final Class<U> u, final Class<V> v, final Class<W> w, final Class<R> r) {
+    //noinspection unchecked
+    return (Class<QuadFunctionRef<T, U, V, W, R>>)(Class<?>)QuadFunctionRef.class;
+  }
 
   public QuadFunctionRef(final Value ref) {
     this.ref = ref;

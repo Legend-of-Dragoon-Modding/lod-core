@@ -1,12 +1,16 @@
 package legend.core.memory.types;
 
 import legend.core.memory.Value;
-import legend.core.memory.types.MemoryRef;
 
 import java.util.function.Function;
 
 public class VariadicFunctionRef<R> implements MemoryRef {
   private final Value ref;
+
+  public static <T> Class<VariadicFunctionRef<T>> classFor(final Class<T> t) {
+    //noinspection unchecked
+    return (Class<VariadicFunctionRef<T>>)(Class<?>)VariadicFunctionRef.class;
+  }
 
   public VariadicFunctionRef(final Value ref) {
     this.ref = ref;

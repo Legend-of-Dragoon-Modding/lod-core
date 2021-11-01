@@ -1,11 +1,15 @@
 package legend.core.memory.types;
 
 import legend.core.memory.Value;
-import legend.core.memory.types.MemoryRef;
 import org.apache.logging.log4j.util.TriConsumer;
 
 public class TriConsumerRef<T, U, V> implements MemoryRef {
   private final Value ref;
+
+  public static <T, U, V> Class<TriConsumerRef<T, U, V>> classFor(final Class<T> t, final Class<U> u, final Class<V> v) {
+    //noinspection unchecked
+    return (Class<TriConsumerRef<T, U, V>>)(Class<?>)TriConsumerRef.class;
+  }
 
   public TriConsumerRef(final Value ref) {
     this.ref = ref;

@@ -1,12 +1,16 @@
 package legend.core.memory.types;
 
 import legend.core.memory.Value;
-import legend.core.memory.types.MemoryRef;
 
 import java.util.function.Supplier;
 
 public class SupplierRef<T> implements MemoryRef {
   private final Value ref;
+
+  public static <T> Class<SupplierRef<T>> classFor(final Class<T> t) {
+    //noinspection unchecked
+    return (Class<SupplierRef<T>>)(Class<?>)SupplierRef.class;
+  }
 
   public SupplierRef(final Value ref) {
     this.ref = ref;

@@ -1,10 +1,14 @@
 package legend.core.memory.types;
 
 import legend.core.memory.Value;
-import legend.core.memory.types.MemoryRef;
 
 public class TriFunctionRef<T, U, V, R> implements MemoryRef {
   private final Value ref;
+
+  public static <T, U, V, R> Class<TriFunctionRef<T, U, V, R>> classFor(final Class<T> t, final Class<U> u, final Class<V> v, final Class<R> r) {
+    //noinspection unchecked
+    return (Class<TriFunctionRef<T, U, V, R>>)(Class<?>)TriFunctionRef.class;
+  }
 
   public TriFunctionRef(final Value ref) {
     this.ref = ref;

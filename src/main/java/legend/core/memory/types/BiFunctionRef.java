@@ -7,6 +7,11 @@ import java.util.function.BiFunction;
 public class BiFunctionRef<T, U, R> implements MemoryRef {
   private final Value ref;
 
+  public static <T, U, R> Class<BiFunctionRef<T, U, R>> classFor(final Class<T> t, final Class<U> u, final Class<R> r) {
+    //noinspection unchecked
+    return (Class<BiFunctionRef<T, U, R>>)(Class<?>)BiFunctionRef.class;
+  }
+
   public BiFunctionRef(final Value ref) {
     this.ref = ref;
 

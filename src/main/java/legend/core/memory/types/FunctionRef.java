@@ -7,6 +7,11 @@ import java.util.function.Function;
 public class FunctionRef<T, R> implements MemoryRef {
   private final Value ref;
 
+  public static <T, R> Class<FunctionRef<T, R>> classFor(final Class<T> t, final Class<R> r) {
+    //noinspection unchecked
+    return (Class<FunctionRef<T, R>>)(Class<?>)FunctionRef.class;
+  }
+
   public FunctionRef(final Value ref) {
     this.ref = ref;
 
