@@ -1019,7 +1019,6 @@ public final class Bios {
 //      for(int i = 0; i < 4; i++) {
 //        MEMORY.ref(4, 0).setu(i);
 //      }
-      DebugHelper.sleep(15);
     }
 
     //LAB_bfc04ebc
@@ -1031,7 +1030,6 @@ public final class Bios {
 //      for(int i = 0; i < 4; i++) {
 //        MEMORY.ref(4, 0).setu(i);
 //      }
-      DebugHelper.sleep(15);
     }
 
     //LAB_bfc04f1c
