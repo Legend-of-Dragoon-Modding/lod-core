@@ -2,6 +2,7 @@ package legend.core.spu;
 
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 import it.unimi.dsi.fastutil.bytes.ByteList;
+import legend.core.DebugHelper;
 import legend.core.InterruptType;
 import legend.core.MathHelper;
 import legend.core.dma.DmaChannel;
@@ -11,6 +12,7 @@ import legend.core.memory.Memory;
 import legend.core.memory.MisalignedAccessException;
 import legend.core.memory.Segment;
 import legend.core.memory.Value;
+import legend.core.memory.segments.RamSegment;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -25,7 +27,7 @@ import static legend.core.Hardware.DMA;
 import static legend.core.Hardware.INTERRUPTS;
 import static legend.core.Hardware.MEMORY;
 
-public class Spu {
+public class Spu implements Runnable {
   private static final Logger LOGGER = LogManager.getFormatterLogger(Spu.class);
 
   public static final Value SPU_MAIN_VOL = MEMORY.ref(4, 0x1f801d80L);
@@ -64,7 +66,6 @@ public class Spu {
 
   private final byte[] ram = new byte[512 * 1024];
   public final Voice[] voices = new Voice[24];
-  public final short[] reverb = new short[0x20]; //TODO reverb not implemented
 
   private int ramDataTransferAddressInternal;
 
@@ -93,6 +94,10 @@ public class Spu {
   private long externalVolumeR;
   private long currentMainVolumeL;
   private long currentMainVolumeR;
+
+  private static final int CYCLES_PER_SAMPLE = 0x300; //33868800 / 44100hz
+  private int counter;
+  private boolean running;
 
   public Spu(final Memory memory) {
     try {
@@ -129,12 +134,27 @@ public class Spu {
     });
 
     memory.addSegment(new SpuSegment(0x1f80_1d80L));
+    memory.addSegment(new RamSegment(0x1f80_1dc0L, 0x40)); //TODO GH#1
   }
 
-  private static final int CYCLES_PER_SAMPLE = 0x300; //33868800 / 44100hz
-  private int counter;
+  @Override
+  public void run() {
+    this.running = true;
 
-  public boolean tick(final int cycles) {
+    while(this.running) {
+      if(this.tick(100)) {
+        INTERRUPTS.set(InterruptType.SPU);
+      }
+
+      DebugHelper.sleep(0);
+    }
+  }
+
+  public void stop() {
+    this.running = false;
+  }
+
+  private boolean tick(final int cycles) {
     this.counter += cycles;
 
     if(this.counter < CYCLES_PER_SAMPLE) {

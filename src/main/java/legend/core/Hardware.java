@@ -55,6 +55,7 @@ public final class Hardware {
   public static final Thread hardwareThread;
   public static final Thread gpuThread;
   public static final Thread timerThread;
+  public static final Thread spuThread;
   public static final Thread joyThread;
 
   @Nullable
@@ -161,6 +162,8 @@ public final class Hardware {
     gpuThread.setName("GPU");
     timerThread = new Thread(TIMERS);
     timerThread.setName("Timers");
+    spuThread = new Thread(SPU);
+    spuThread.setName("SPU");
     joyThread = new Thread(JOYPAD);
     joyThread.setName("Joypad");
 
@@ -184,6 +187,7 @@ public final class Hardware {
     codeThread.start();
     gpuThread.start();
     timerThread.start();
+    spuThread.start();
     joyThread.start();
 
     boolean running = true;
@@ -198,15 +202,14 @@ public final class Hardware {
 
       TIMERS.syncGPU(GPU.getBlanksAndDot());
 
-      if(SPU.tick(100)) {
-        INTERRUPTS.set(InterruptType.SPU);
-      }
-
       CPU.tick();
 
       DebugHelper.sleep(0);
-      if(!codeThread.isAlive()) {
+      if(!codeThread.isAlive() || !gpuThread.isAlive() || !timerThread.isAlive() || !spuThread.isAlive() || !joyThread.isAlive()) {
         running = false;
+        TIMERS.stop();
+        SPU.stop();
+        JOYPAD.stop();
       }
     }
   }

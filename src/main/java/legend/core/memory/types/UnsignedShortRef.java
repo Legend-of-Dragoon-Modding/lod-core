@@ -76,6 +76,46 @@ public class UnsignedShortRef implements MemoryRef {
     return this.set(~this.get() & 0xffff);
   }
 
+  public UnsignedShortRef and(final int val) {
+    return this.set(this.get() & val);
+  }
+
+  public UnsignedShortRef and(final UnsignedShortRef val) {
+    return this.and(val.get());
+  }
+
+  public UnsignedShortRef or(final int val) {
+    return this.set(this.get() | val);
+  }
+
+  public UnsignedShortRef or(final UnsignedShortRef val) {
+    return this.or(val.get());
+  }
+
+  public UnsignedShortRef xor(final int val) {
+    return this.set(this.get() ^ val);
+  }
+
+  public UnsignedShortRef xor(final UnsignedShortRef val) {
+    return this.xor(val.get());
+  }
+
+  public UnsignedShortRef shl(final int bits) {
+    return this.set(this.get() << bits);
+  }
+
+  public UnsignedShortRef shl(final UnsignedShortRef bits) {
+    return this.shl(bits.get());
+  }
+
+  public UnsignedShortRef shr(final int bits) {
+    return this.set(this.get() >>> bits);
+  }
+
+  public UnsignedShortRef shr(final UnsignedShortRef bits) {
+    return this.shr(bits.get());
+  }
+
   @Override
   public long getAddress() {
     if(this.ref == null) {

@@ -55,6 +55,10 @@ public class Timers implements Runnable {
     }
   }
 
+  public void stop() {
+    this.running = false;
+  }
+
   public boolean tick(final int index, final int cycles) {
     return this.timers[index].tick(cycles);
   }

@@ -106,6 +106,10 @@ public class Joypad implements Runnable {
     }
   }
 
+  public void stop() {
+    this.running = false;
+  }
+
   private void reloadTimer() {
     LOGGER.debug("[JOYPAD] RELOAD TIMER");
     this.baudrateTimer = this.JOY_BAUD * this.baudrateReloadFactor & ~0x1;

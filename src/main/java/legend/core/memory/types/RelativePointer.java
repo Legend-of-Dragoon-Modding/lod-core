@@ -8,25 +8,47 @@ import java.util.function.Function;
 
 public class RelativePointer<T extends MemoryRef> implements MemoryRef {
   public static <T extends MemoryRef> Function<Value, RelativePointer<T>> of(final int size, final Function<Value, T> constructor) {
-    return ref -> new RelativePointer<>(ref, constructor, ref.getAddress(), size, true);
+    return ref -> new RelativePointer<>(ref, constructor, ref.getAddress(), size, 0, true);
+  }
+
+  public static <T extends MemoryRef> Function<Value, RelativePointer<T>> of(final int size, final Function<Value, T> constructor, final long nullValue) {
+    return ref -> new RelativePointer<>(ref, constructor, ref.getAddress(), size, nullValue, true);
   }
 
   public static <T extends MemoryRef> Function<Value, RelativePointer<T>> of(final int size, final long baseAddress, final Function<Value, T> constructor) {
-    return ref -> new RelativePointer<>(ref, constructor, baseAddress, size, true);
+    return ref -> new RelativePointer<>(ref, constructor, baseAddress, size, 0, true);
+  }
+
+  public static <T extends MemoryRef> Function<Value, RelativePointer<T>> of(final int size, final long baseAddress, final Function<Value, T> constructor, final long nullValue) {
+    return ref -> new RelativePointer<>(ref, constructor, baseAddress, size, nullValue, true);
   }
 
   /**
    * Lazy mode - don't resolve pointer until used
    */
   public static <T extends MemoryRef> Function<Value, RelativePointer<T>> deferred(final int size, final Function<Value, T> constructor) {
-    return ref -> new RelativePointer<>(ref, constructor, ref.getAddress(), size, false);
+    return ref -> new RelativePointer<>(ref, constructor, ref.getAddress(), size, 0, false);
+  }
+
+  /**
+   * Lazy mode - don't resolve pointer until used
+   */
+  public static <T extends MemoryRef> Function<Value, RelativePointer<T>> deferred(final int size, final Function<Value, T> constructor, final long nullValue) {
+    return ref -> new RelativePointer<>(ref, constructor, ref.getAddress(), size, nullValue, false);
   }
 
   /**
    * Lazy mode - don't resolve pointer until used
    */
   public static <T extends MemoryRef> Function<Value, RelativePointer<T>> deferred(final int size, final long baseAddress, final Function<Value, T> constructor) {
-    return ref -> new RelativePointer<>(ref, constructor, baseAddress, size, false);
+    return ref -> new RelativePointer<>(ref, constructor, baseAddress, size, 0, false);
+  }
+
+  /**
+   * Lazy mode - don't resolve pointer until used
+   */
+  public static <T extends MemoryRef> Function<Value, RelativePointer<T>> deferred(final int size, final long baseAddress, final Function<Value, T> constructor, final long nullValue) {
+    return ref -> new RelativePointer<>(ref, constructor, baseAddress, size, nullValue, false);
   }
 
   public static <T extends MemoryRef> Class<RelativePointer<T>> classFor(final Class<T> t) {
@@ -38,19 +60,17 @@ public class RelativePointer<T extends MemoryRef> implements MemoryRef {
   private final Function<Value, T> constructor;
   private final long baseAddress;
   private final int size;
+  private final long nullValue;
   @Nullable
   private T cache;
 
-  public RelativePointer(final Value ref, final Function<Value, T> constructor, final long baseAddress, final int size, final boolean precache) {
+  public RelativePointer(final Value ref, final Function<Value, T> constructor, final long baseAddress, final int size, final long nullValue, final boolean precache) {
     this.ref = ref;
-
-    if(ref.getSize() != 4) {
-      throw new IllegalArgumentException("Pointers must be 4 bytes");
-    }
 
     this.constructor = constructor;
     this.baseAddress = baseAddress;
     this.size = size;
+    this.nullValue = nullValue;
 
     if(precache) {
       try {
@@ -60,7 +80,7 @@ public class RelativePointer<T extends MemoryRef> implements MemoryRef {
   }
 
   private void updateCache() {
-    if(this.ref.get() == 0) {
+    if(this.isNull()) {
       this.cache = null;
       return;
     }
@@ -69,7 +89,7 @@ public class RelativePointer<T extends MemoryRef> implements MemoryRef {
   }
 
   public boolean isNull() {
-    return this.ref.get() == 0;
+    return this.ref.get() == this.nullValue;
   }
 
   public T deref() {

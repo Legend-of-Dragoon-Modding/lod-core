@@ -905,7 +905,7 @@ public final class Kernel {
   }
 
   @Method(0x1d8cL)
-  public static int OpenEvent_Impl_B08(final long cls, final int spec, final int mode, final long func) {
+  public static long OpenEvent_Impl_B08(final long cls, final int spec, final int mode, final long func) {
     final int id = get_free_EvCB_slot_Impl_C04();
     if(id == -0x1L) {
       return -1;
@@ -920,7 +920,7 @@ public final class Kernel {
     addr.offset(0x10L).setu(func);
 
     //LAB_00001e0c
-    return 0xf100_0000 | id;
+    return 0xf100_0000L | id;
   }
 
   @Method(0x1e1cL)
@@ -930,7 +930,7 @@ public final class Kernel {
   }
 
   @Method(0x1ec8L)
-  public static int TestEvent_Impl_B0b(final int event) {
+  public static int TestEvent_Impl_B0b(final long event) {
     final Value addr = EventControlBlockAddr_a0000120.deref(4).offset((event & 0xffff) * 28L).offset(0x4L);
 
     if(addr.get() == 0x4000L) {
@@ -943,7 +943,7 @@ public final class Kernel {
   }
 
   @Method(0x1f10L)
-  public static boolean EnableEvent_Impl_B0c(final int event) {
+  public static boolean EnableEvent_Impl_B0c(final long event) {
     final Value addr = EventControlBlockAddr_a0000120.deref(4).offset((event & 0xffff) * 28L).offset(0x4L);
 
     if(addr.get() != 0) {

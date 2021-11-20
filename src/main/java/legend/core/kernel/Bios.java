@@ -1955,11 +1955,11 @@ public final class Bios {
     EventId_HwCdRom_EvSpDE_a000b9c4.setu(OpenEvent(HwCdRom, EvSpDE, EvMdNOINTR, 0));
     EventId_HwCdRom_EvSpERROR_a000b9c8.setu(OpenEvent(HwCdRom, EvSpERROR, EvMdNOINTR, 0));
 
-    EnableEvent((int)EventId_HwCdRom_EvSpACK_a000b9b8.get());
-    EnableEvent((int)EventId_HwCdRom_EvSpCOMP_a000b9bc.get());
-    EnableEvent((int)EventId_HwCdRom_EvSpDR_a000b9c0.get());
-    EnableEvent((int)EventId_HwCdRom_EvSpDE_a000b9c4.get());
-    EnableEvent((int)EventId_HwCdRom_EvSpERROR_a000b9c8.get());
+    EnableEvent(EventId_HwCdRom_EvSpACK_a000b9b8.get());
+    EnableEvent(EventId_HwCdRom_EvSpCOMP_a000b9bc.get());
+    EnableEvent(EventId_HwCdRom_EvSpDR_a000b9c0.get());
+    EnableEvent(EventId_HwCdRom_EvSpDE_a000b9c4.get());
+    EnableEvent(EventId_HwCdRom_EvSpERROR_a000b9c8.get());
 
     ExitCriticalSection();
 
@@ -2295,9 +2295,9 @@ public final class Bios {
       }
 
       //LAB_bfc07dcc
-      while(TestEvent((int)EventId_HwCdRom_EvSpCOMP_a000b9bc.get()) != 1) {
+      while(TestEvent(EventId_HwCdRom_EvSpCOMP_a000b9bc.get()) != 1) {
         //LAB_bfc07df0
-        if(TestEvent((int)EventId_HwCdRom_EvSpERROR_a000b9c8.get()) == 1) {
+        if(TestEvent(EventId_HwCdRom_EvSpERROR_a000b9c8.get()) == 1) {
           SystemErrorBootOrDiskFailure_Impl_Aa1('D', 0xc);
           continue LAB_bfc07c5c;
         }
@@ -2322,18 +2322,18 @@ public final class Bios {
       //LAB_bfc07e74
       //LAB_bfc07e7c
       while((int)s0 > 0) {
-        if(TestEvent((int)EventId_HwCdRom_EvSpCOMP_a000b9bc.get()) == 1) {
+        if(TestEvent(EventId_HwCdRom_EvSpCOMP_a000b9bc.get()) == 1) {
           return count;
         }
 
         //LAB_bfc07e9c
-        if(TestEvent((int)EventId_HwCdRom_EvSpERROR_a000b9c8.get()) == 1) {
+        if(TestEvent(EventId_HwCdRom_EvSpERROR_a000b9c8.get()) == 1) {
           SystemErrorBootOrDiskFailure_Impl_Aa1('D', 0x16);
           continue LAB_bfc07c5c;
         }
 
         //LAB_bfc07ec8
-        if(TestEvent((int)EventId_HwCdRom_EvSpDE_a000b9c4.get()) == 1) {
+        if(TestEvent(EventId_HwCdRom_EvSpDE_a000b9c4.get()) == 1) {
           SystemErrorBootOrDiskFailure_Impl_Aa1('D', 0x17);
           return -1;
         }
@@ -2364,12 +2364,12 @@ public final class Bios {
 
     //LAB_bfc07f9c
     do {
-      if((TestEvent((int)EventId_HwCdRom_EvSpCOMP_a000b9bc.get()) & 0xffL) == 0x1L) {
+      if((TestEvent(EventId_HwCdRom_EvSpCOMP_a000b9bc.get()) & 0xffL) == 0x1L) {
         return (int)sp34.get();
       }
 
       //LAB_bfc07fc4
-      if((TestEvent((int)EventId_HwCdRom_EvSpERROR_a000b9c8.get()) & 0xffL) == 0x1L) {
+      if((TestEvent(EventId_HwCdRom_EvSpERROR_a000b9c8.get()) & 0xffL) == 0x1L) {
         SystemErrorBootOrDiskFailure_Impl_Aa1('D', 0x20);
         return -1;
       }
@@ -3308,12 +3308,12 @@ public final class Bios {
   }
 
   @Method(0xbfc0d9b0L)
-  public static int OpenEvent(final long cls, final int spec, final int mode, final long func) {
-    return (int)functionVectorB_000000b0.run(0x8L, new Object[] {cls, spec, mode, func});
+  public static long OpenEvent(final long cls, final int spec, final int mode, final long func) {
+    return (long)functionVectorB_000000b0.run(0x8L, new Object[] {cls, spec, mode, func});
   }
 
   @Method(0xbfc0d9c0L)
-  public static void EnableEvent(final int event) {
+  public static void EnableEvent(final long event) {
     functionVectorB_000000b0.run(0xcL, new Object[] {event});
   }
 
@@ -3323,7 +3323,7 @@ public final class Bios {
   }
 
   @Method(0xbfc0d9e0L)
-  public static int TestEvent(final int event) {
+  public static int TestEvent(final long event) {
     return (int)functionVectorB_000000b0.run(0xbL, new Object[] {event & 0xffff});
   }
 
