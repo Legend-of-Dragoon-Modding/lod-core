@@ -1,15 +1,15 @@
 package legend.core.spu;
 
 public class ADSR {
-  public short lo;               //8
-  public short hi;               //A
+  public int lo;               //8
+  public int hi;               //A
 
   public boolean isAttackModeExponential() {
     return (this.lo >> 15 & 0x1) != 0;
   }
 
   public int attackShift() {
-    return this.lo >> 10 & 0x1F;
+    return this.lo >> 10 & 0x1f;
   }
 
   public int attackStep() {
@@ -17,11 +17,11 @@ public class ADSR {
   }
 
   public int decayShift() {
-    return this.lo >> 4 & 0xF;
+    return this.lo >> 4 & 0xf;
   }
 
   public int sustainLevel() {
-    return this.lo & 0xF; //Level=(N+1)*800h
+    return this.lo & 0xf; //Level=(N+1)*800h
   }
 
   public boolean isSustainModeExponential() {
@@ -33,7 +33,7 @@ public class ADSR {
   }
 
   public int sustainShift() {
-    return this.hi >> 8 & 0x1F;
+    return this.hi >> 8 & 0x1f;
   }
 
   public int sustainStep() {
@@ -45,6 +45,6 @@ public class ADSR {
   }
 
   public int releaseShift() {
-    return this.hi & 0x1F;
+    return this.hi & 0x1f;
   }
 }

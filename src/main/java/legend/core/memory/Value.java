@@ -232,6 +232,22 @@ public class Value {
     return this.subu(amount.get());
   }
 
+  public Value mul(final long amount) {
+    return this.set(this.getSigned() * amount);
+  }
+
+  public Value mul(final Value amount) {
+    return this.mul(amount.get());
+  }
+
+  public Value mulu(final long amount) {
+    return this.setu(this.get() * amount);
+  }
+
+  public Value mulu(final Value amount) {
+    return this.mulu(amount.get());
+  }
+
   public Value div(final long amount) {
     return this.set(this.getSigned() / amount);
   }

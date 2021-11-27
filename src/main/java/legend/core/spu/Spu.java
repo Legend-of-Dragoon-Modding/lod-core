@@ -13,6 +13,9 @@ import legend.core.memory.MisalignedAccessException;
 import legend.core.memory.Segment;
 import legend.core.memory.Value;
 import legend.core.memory.segments.RamSegment;
+import legend.core.memory.types.MemoryRef;
+import legend.core.memory.types.UnsignedIntRef;
+import legend.core.memory.types.UnsignedShortRef;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -27,37 +30,37 @@ import static legend.core.Hardware.DMA;
 import static legend.core.Hardware.INTERRUPTS;
 import static legend.core.Hardware.MEMORY;
 
-public class Spu implements Runnable {
+public class Spu implements Runnable, MemoryRef {
   private static final Logger LOGGER = LogManager.getFormatterLogger(Spu.class);
 
-  public static final Value SPU_MAIN_VOL = MEMORY.ref(4, 0x1f801d80L);
-  public static final Value SPU_MAIN_VOL_L = MEMORY.ref(2, 0x1f801d80L);
-  public static final Value SPU_MAIN_VOL_R = MEMORY.ref(2, 0x1f801d82L);
-  public static final Value SPU_REVERB_OUT = MEMORY.ref(4, 0x1f801d84L);
-  public static final Value SPU_REVERB_OUT_L = MEMORY.ref(2, 0x1f801d84L);
-  public static final Value SPU_REVERB_OUT_R = MEMORY.ref(2, 0x1f801d86L);
-  public static final Value SPU_VOICE_KEY_ON = MEMORY.ref(4, 0x1f801d88L);
-  public static final Value SPU_VOICE_KEY_OFF = MEMORY.ref(4, 0x1f801d8cL);
-  public static final Value SPU_VOICE_CHN_FM_MODE = MEMORY.ref(4, 0x1f801d90L);
-  public static final Value SPU_VOICE_CHN_NOISE_MODE = MEMORY.ref(4, 0x1f801d94L);
-  public static final Value SPU_VOICE_CHN_REVERB_MODE = MEMORY.ref(4, 0x1f801d98L);
-  public static final Value SPU_VOICE_CHN_ON_OFF_STATUS = MEMORY.ref(4, 0x1f801d9cL);
-  public static final Value SOUND_RAM_REVERB_WORK_ADDR = MEMORY.ref(2, 0x1f801da2L);
-  public static final Value SOUND_RAM_IRQ_ADDR = MEMORY.ref(2, 0x1f801da4L);
-  public static final Value SOUND_RAM_DATA_TRANSFER_ADDR = MEMORY.ref(2, 0x1f801da6L);
-  public static final Value SOUND_RAM_DATA_TRANSFER_FIFO = MEMORY.ref(2, 0x1f801da8L);
-  public static final Value SPU_CTRL_REG_CPUCNT = MEMORY.ref(2, 0x1f801daaL);
-  public static final Value SOUND_RAM_DATA_TRANSFER_CTRL = MEMORY.ref(2, 0x1f801dacL);
-  public static final Value SPU_STATUS_REG_SPUSTAT = MEMORY.ref(2, 0x1f801daeL);
-  public static final Value CD_VOL = MEMORY.ref(4, 0x1f801db0L);
-  public static final Value CD_VOL_L = MEMORY.ref(2, 0x1f801db0L);
-  public static final Value CD_VOL_R = MEMORY.ref(2, 0x1f801db2L);
-  public static final Value EXT_VOL = MEMORY.ref(4, 0x1f801db4L);
-  public static final Value EXT_VOL_L = MEMORY.ref(2, 0x1f801db4L);
-  public static final Value EXT_VOL_R = MEMORY.ref(2, 0x1f801db6L);
-  public static final Value CURR_MAIN_VOL = MEMORY.ref(4, 0x1f801db8L);
-  public static final Value CURR_MAIN_VOL_L = MEMORY.ref(2, 0x1f801db8L);
-  public static final Value CURR_MAIN_VOL_R = MEMORY.ref(2, 0x1f801dbaL);
+  public final UnsignedIntRef MAIN_VOL = MEMORY.ref(4, 0x1f801d80L, UnsignedIntRef::new);
+  public final UnsignedShortRef MAIN_VOL_L = MEMORY.ref(2, 0x1f801d80L, UnsignedShortRef::new);
+  public final UnsignedShortRef MAIN_VOL_R = MEMORY.ref(2, 0x1f801d82L, UnsignedShortRef::new);
+  public final Value REVERB_OUT = MEMORY.ref(4, 0x1f801d84L);
+  public final UnsignedShortRef REVERB_OUT_L = MEMORY.ref(2, 0x1f801d84L, UnsignedShortRef::new);
+  public final UnsignedShortRef REVERB_OUT_R = MEMORY.ref(2, 0x1f801d86L, UnsignedShortRef::new);
+  public final UnsignedIntRef VOICE_KEY_ON = MEMORY.ref(4, 0x1f801d88L, UnsignedIntRef::new);
+  public final UnsignedIntRef VOICE_KEY_OFF = MEMORY.ref(4, 0x1f801d8cL, UnsignedIntRef::new);
+  public final UnsignedIntRef VOICE_CHN_FM_MODE = MEMORY.ref(4, 0x1f801d90L, UnsignedIntRef::new);
+  public final UnsignedIntRef VOICE_CHN_NOISE_MODE = MEMORY.ref(4, 0x1f801d94L, UnsignedIntRef::new);
+  public final UnsignedIntRef VOICE_CHN_REVERB_MODE = MEMORY.ref(4, 0x1f801d98L, UnsignedIntRef::new);
+  public final UnsignedIntRef VOICE_CHN_ON_OFF_STATUS = MEMORY.ref(4, 0x1f801d9cL, UnsignedIntRef::new);
+  public final UnsignedShortRef SOUND_RAM_REVERB_WORK_ADDR = MEMORY.ref(2, 0x1f801da2L, UnsignedShortRef::new);
+  public final UnsignedShortRef SOUND_RAM_IRQ_ADDR = MEMORY.ref(2, 0x1f801da4L, UnsignedShortRef::new);
+  public final UnsignedShortRef SOUND_RAM_DATA_TRANSFER_ADDR = MEMORY.ref(2, 0x1f801da6L, UnsignedShortRef::new);
+  public final UnsignedShortRef SOUND_RAM_DATA_TRANSFER_FIFO = MEMORY.ref(2, 0x1f801da8L, UnsignedShortRef::new);
+  public final UnsignedShortRef SPUCNT = MEMORY.ref(2, 0x1f801daaL, UnsignedShortRef::new);
+  public final UnsignedShortRef SOUND_RAM_DATA_TRANSFER_CTRL = MEMORY.ref(2, 0x1f801dacL, UnsignedShortRef::new);
+  public final UnsignedShortRef SPUSTAT = MEMORY.ref(2, 0x1f801daeL, UnsignedShortRef::new);
+  public final UnsignedIntRef CD_VOL = MEMORY.ref(4, 0x1f801db0L, UnsignedIntRef::new);
+  public final UnsignedShortRef CD_VOL_L = MEMORY.ref(2, 0x1f801db0L, UnsignedShortRef::new);
+  public final UnsignedShortRef CD_VOL_R = MEMORY.ref(2, 0x1f801db2L, UnsignedShortRef::new);
+  public final UnsignedIntRef EXT_VOL = MEMORY.ref(4, 0x1f801db4L, UnsignedIntRef::new);
+  public final UnsignedShortRef EXT_VOL_L = MEMORY.ref(2, 0x1f801db4L, UnsignedShortRef::new);
+  public final UnsignedShortRef EXT_VOL_R = MEMORY.ref(2, 0x1f801db6L, UnsignedShortRef::new);
+  public final UnsignedIntRef CURR_MAIN_VOL = MEMORY.ref(4, 0x1f801db8L, UnsignedIntRef::new);
+  public final UnsignedShortRef CURR_MAIN_VOL_L = MEMORY.ref(2, 0x1f801db8L, UnsignedShortRef::new);
+  public final UnsignedShortRef CURR_MAIN_VOL_R = MEMORY.ref(2, 0x1f801dbaL, UnsignedShortRef::new);
 
   private final SourceDataLine sound;
 
@@ -312,13 +315,14 @@ public class Spu implements Runnable {
 
     //Decode samples if its empty / next block
     if(!voice.hasSamples) {
-      voice.decodeSamples(this.ram, (short)this.irqAddress);
+      voice.decodeSamples(this.ram, (int)this.irqAddress);
       voice.hasSamples = true;
 
       final byte flags = this.voices[v].spuAdpcm[1];
       final boolean loopStart = (flags & 0x4) != 0;
 
       if(loopStart) {
+        assert voice.currentAddress >= 0 : "Negative address";
         voice.adpcmRepeatAddress = voice.currentAddress;
       }
     }
@@ -373,6 +377,8 @@ public class Spu implements Runnable {
         voice.adsrVolume = 0;
       }
       if(loopEnd && loopRepeat) {
+        assert voice.adpcmRepeatAddress >= 0 : "Negative address";
+        assert voice.adpcmRepeatAddress < this.ram.length : "Address overflow";
         voice.currentAddress = voice.adpcmRepeatAddress;
       }
     }
@@ -515,6 +521,11 @@ public class Spu implements Runnable {
     0x593A, 0x5949, 0x5958, 0x5965, 0x5971, 0x597C, 0x5986, 0x598F,
     0x5997, 0x599E, 0x59A4, 0x59A9, 0x59AD, 0x59B0, 0x59B2, 0x59B3,
   };
+
+  @Override
+  public long getAddress() {
+    return 0x1f80_1c00L;
+  }
 
   public class SpuSegment extends Segment {
     public SpuSegment(final long address) {

@@ -4,32 +4,33 @@ import legend.core.MathHelper;
 import legend.core.memory.Memory;
 import legend.core.memory.MisalignedAccessException;
 import legend.core.memory.Segment;
-import legend.core.memory.Value;
+import legend.core.memory.types.MemoryRef;
+import legend.core.memory.types.UnsignedShortRef;
 
-public class Voice {
+public class Voice implements MemoryRef {
   private static final int[] positiveXaAdpcmTable = {0, 60, 115, 98, 122};
   private static final int[] negativeXaAdpcmTable = {0, 0, -52, -55, -60};
 
-  public final Value LEFT;
-  public final Value RIGHT;
-  public final Value ADPCM_SAMPLE_RATE;
-  public final Value ADPCM_START_ADDR;
-  public final Value ADSR;
-  public final Value REG_5;
-  public final Value ADSR_CURR_VOL;
-  public final Value ADPCM_REPEAT_ADDR;
+  public final UnsignedShortRef LEFT;
+  public final UnsignedShortRef RIGHT;
+  public final UnsignedShortRef ADPCM_SAMPLE_RATE;
+  public final UnsignedShortRef ADPCM_START_ADDR;
+  public final UnsignedShortRef ADSR_LO;
+  public final UnsignedShortRef ADSR_HI;
+  public final UnsignedShortRef ADSR_CURR_VOL;
+  public final UnsignedShortRef ADPCM_REPEAT_ADDR;
 
   public Volume volumeLeft = new Volume();           //0
   public Volume volumeRight = new Volume();          //2
 
-  public short pitch;                //4
-  public short startAddress;         //6
-  public short currentAddress;       //6 Internal
+  public int pitch;                //4
+  public int startAddress;         //6
+  public int currentAddress;       //6 Internal
 
   public ADSR adsr = new ADSR();
 
-  public short adsrVolume;           //C
-  public short adpcmRepeatAddress;   //E
+  public int adsrVolume;           //C
+  public int adpcmRepeatAddress;   //E
 
   public final Counter counter = new Counter();
 
@@ -51,14 +52,14 @@ public class Voice {
   public Voice(final Memory memory, final int voiceIndex) {
     memory.addSegment(new VoiceSegment(0x1f801c00L + voiceIndex * 0x10L));
 
-    this.LEFT = memory.ref(2, 0x1f801c00L).offset(voiceIndex * 0x10L);
-    this.RIGHT = memory.ref(2, 0x1f801c02L).offset(voiceIndex * 0x10L);
-    this.ADPCM_SAMPLE_RATE = memory.ref(2, 0x1f801c04L).offset(voiceIndex * 0x10L);
-    this.ADPCM_START_ADDR = memory.ref(2, 0x1f801c06L).offset(voiceIndex * 0x10L);
-    this.ADSR = memory.ref(2, 0x1f801c08L).offset(voiceIndex * 0x10L);
-    this.REG_5 = memory.ref(2, 0x1f801c0aL).offset(voiceIndex * 0x10L);
-    this.ADSR_CURR_VOL = memory.ref(2, 0x1f801c0cL).offset(voiceIndex * 0x10L);
-    this.ADPCM_REPEAT_ADDR = memory.ref(2, 0x1f801c0eL).offset(voiceIndex * 0x10L);
+    this.LEFT = memory.ref(2, 0x1f801c00L).offset(voiceIndex * 0x10L).cast(UnsignedShortRef::new);
+    this.RIGHT = memory.ref(2, 0x1f801c02L).offset(voiceIndex * 0x10L).cast(UnsignedShortRef::new);
+    this.ADPCM_SAMPLE_RATE = memory.ref(2, 0x1f801c04L).offset(voiceIndex * 0x10L).cast(UnsignedShortRef::new);
+    this.ADPCM_START_ADDR = memory.ref(2, 0x1f801c06L).offset(voiceIndex * 0x10L).cast(UnsignedShortRef::new);
+    this.ADSR_LO = memory.ref(2, 0x1f801c08L).offset(voiceIndex * 0x10L).cast(UnsignedShortRef::new);
+    this.ADSR_HI = memory.ref(2, 0x1f801c0aL).offset(voiceIndex * 0x10L).cast(UnsignedShortRef::new);
+    this.ADSR_CURR_VOL = memory.ref(2, 0x1f801c0cL).offset(voiceIndex * 0x10L).cast(UnsignedShortRef::new);
+    this.ADPCM_REPEAT_ADDR = memory.ref(2, 0x1f801c0eL).offset(voiceIndex * 0x10L).cast(UnsignedShortRef::new);
 
     this.adsrPhase = Phase.Off;
   }
@@ -79,6 +80,7 @@ public class Voice {
     this.hasSamples = false;
     this.old = 0;
     this.older = 0;
+    assert this.startAddress >= 0 : "Negative address";
     this.currentAddress = this.startAddress;
     this.adsrCounter = 0;
     this.adsrVolume = 0;
@@ -93,7 +95,7 @@ public class Voice {
   public byte[] spuAdpcm = new byte[16];
   public short[] decodedSamples = new short[28];
 
-  public void decodeSamples(final byte[] ram, final short ramIrqAddress) {
+  public void decodeSamples(final byte[] ram, final int ramIrqAddress) {
     //save the last 3 samples from the last decoded block
     //this are needed for interpolation in case the index is 0 1 or 2
     this.lastBlockSample28 = this.decodedSamples[this.decodedSamples.length - 1];
@@ -105,7 +107,7 @@ public class Voice {
     //ramIrqAddress is >> 8 so we only need to check for currentAddress and + 1
     this.readRamIrq |= this.currentAddress == ramIrqAddress || this.currentAddress + 1 == ramIrqAddress;
 
-    final int shift = 12 - (this.spuAdpcm[0] & 0x0F);
+    final int shift = 12 - (this.spuAdpcm[0] & 0x0f);
     int filter = (this.spuAdpcm[0] & 0x70) >> 4; //filter on SPU adpcm is 0-4 vs XA which is 0-3
     if(filter > 4) {
       filter = 4; //Crash Bandicoot sets this to 7 at the end of the first level and overflows the filter
@@ -120,9 +122,9 @@ public class Voice {
     for(int i = 0; i < 28; i++) {
       nibble = nibble + 1 & 0x1;
 
-      final int t = signed4bit((byte)(this.spuAdpcm[position] >> nibble * 4 & 0x0F));
+      final int t = signed4bit((byte)(this.spuAdpcm[position] >> nibble * 4 & 0x0f));
       final int s = (t << shift) + (this.old * f0 + this.older * f1 + 32) / 64;
-      final short sample = (short)MathHelper.clamp(s, -0x8000, 0x7FFF);
+      final short sample = (short)MathHelper.clamp(s, -0x8000, 0x7fff);
 
       this.decodedSamples[i] = sample;
 
@@ -178,10 +180,10 @@ public class Voice {
     //Todo move out of tick the actual change of phase
     switch(this.adsrPhase) {
       case Attack -> {
-        adsrTarget = 0x7FFF;
+        adsrTarget = 0x7fff;
         adsrShift = this.adsr.attackShift();
         adsrStep = 7 - this.adsr.attackStep(); // reg is 0-3 but values are "+7,+6,+5,+4"
-        isDecreasing = false; // Always increase till 0x7FFF
+        isDecreasing = false; // Always increase till 0x7fff
         isExponential = this.adsr.isAttackModeExponential();
       }
       case Decay -> {
@@ -236,7 +238,7 @@ public class Voice {
       envelopeStep = envelopeStep * this.adsrVolume >> 15;
     }
 
-    this.adsrVolume = (short)MathHelper.clamp(this.adsrVolume + envelopeStep, 0, 0x7FFF);
+    this.adsrVolume = MathHelper.clamp(this.adsrVolume + envelopeStep, 0, 0x7fff);
     this.adsrCounter = envelopeCycles;
 
     final boolean nextPhase = isDecreasing ? this.adsrVolume <= adsrTarget : this.adsrVolume >= adsrTarget;
@@ -244,6 +246,11 @@ public class Voice {
       this.adsrPhase = this.adsrPhase.next();
       this.adsrCounter = 0;
     }
+  }
+
+  @Override
+  public long getAddress() {
+    return this.LEFT.getAddress();
   }
 
   public class VoiceSegment extends Segment {
@@ -289,12 +296,12 @@ public class Voice {
       switch(offset & 0xe) {
         case 0x0 -> Voice.this.volumeLeft.set(value);
         case 0x2 -> Voice.this.volumeRight.set(value);
-        case 0x4 -> Voice.this.pitch = (short)value;
-        case 0x6 -> Voice.this.startAddress = (short)value;
-        case 0x8 -> Voice.this.adsr.lo = (short)value;
-        case 0xa -> Voice.this.adsr.hi = (short)value;
-        case 0xc -> Voice.this.adsrVolume = (short)value;
-        case 0xe -> Voice.this.adpcmRepeatAddress = (short)value;
+        case 0x4 -> Voice.this.pitch = (int)(value & 0xffff);
+        case 0x6 -> Voice.this.startAddress = (int)(value & 0xffff);
+        case 0x8 -> Voice.this.adsr.lo = (int)(value & 0xffff);
+        case 0xa -> Voice.this.adsr.hi = (int)(value & 0xffff);
+        case 0xc -> Voice.this.adsrVolume = (int)(value & 0xffff);
+        case 0xe -> Voice.this.adpcmRepeatAddress = (int)(value & 0xffff);
         default -> throw new MisalignedAccessException("SPU voice port " + Long.toHexString(offset) + " does not exist");
       };
     }

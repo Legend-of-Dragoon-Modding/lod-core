@@ -28,6 +28,7 @@ import static legend.core.Hardware.DMA;
 import static legend.core.Hardware.ENTRY_POINT;
 import static legend.core.Hardware.GATE;
 import static legend.core.Hardware.MEMORY;
+import static legend.core.Hardware.SPU;
 import static legend.core.InterruptController.I_MASK;
 import static legend.core.InterruptController.I_STAT;
 import static legend.core.MathHelper.toBcd;
@@ -65,10 +66,6 @@ import static legend.core.memory.segments.MemoryControl1Segment.EXP2_DELAY_SIZE;
 import static legend.core.memory.segments.MemoryControl1Segment.EXP3_DELAY_SIZE;
 import static legend.core.memory.segments.MemoryControl1Segment.SPU_DELAY;
 import static legend.core.memory.segments.MemoryControl2Segment.RAM_SIZE;
-import static legend.core.spu.Spu.SPU_MAIN_VOL_L;
-import static legend.core.spu.Spu.SPU_MAIN_VOL_R;
-import static legend.core.spu.Spu.SPU_REVERB_OUT_L;
-import static legend.core.spu.Spu.SPU_REVERB_OUT_R;
 
 public final class Bios {
   private Bios() { }
@@ -276,10 +273,10 @@ public final class Bios {
     MEMORY.set(0x64L, 4, 0x00L);
     MEMORY.set(0x68L, 4, 0xffL);
 
-    SPU_MAIN_VOL_L.setu(0);
-    SPU_MAIN_VOL_R.setu(0);
-    SPU_REVERB_OUT_L.setu(0);
-    SPU_REVERB_OUT_R.setu(0);
+    SPU.MAIN_VOL_L.set(0);
+    SPU.MAIN_VOL_R.set(0);
+    SPU.REVERB_OUT_L.set(0);
+    SPU.REVERB_OUT_R.set(0);
 
     FUN_bfc06ec4();
   }
@@ -1717,10 +1714,10 @@ public final class Bios {
     CPU.R12_SR.resetIEc();
     CPU.R12_SR.setIm(CPU.R12_SR.getIm() & 0xffff_fbfeL);
 
-    SPU_REVERB_OUT_L.setu(0);
-    SPU_REVERB_OUT_R.setu(0);
-    SPU_MAIN_VOL_L.setu(0);
-    SPU_MAIN_VOL_R.setu(0);
+    SPU.REVERB_OUT_L.set(0);
+    SPU.REVERB_OUT_R.set(0);
+    SPU.MAIN_VOL_L.set(0);
+    SPU.MAIN_VOL_R.set(0);
 
     setBootStatus(0x2L);
     copyKernelSegment2();
@@ -1733,10 +1730,10 @@ public final class Bios {
     SetDefaultExitFromException();
 
     setBootStatus(0x4L);
-    SPU_REVERB_OUT_L.setu(0);
-    SPU_REVERB_OUT_R.setu(0);
-    SPU_MAIN_VOL_L.setu(0);
-    SPU_MAIN_VOL_R.setu(0);
+    SPU.REVERB_OUT_L.set(0);
+    SPU.REVERB_OUT_R.set(0);
+    SPU.MAIN_VOL_L.set(0);
+    SPU.MAIN_VOL_R.set(0);
 
     I_MASK.setu(0);
     I_STAT.setu(0);
@@ -1749,10 +1746,10 @@ public final class Bios {
     LOGGER.info("Copyright 1993,1994 (C) Sony Computer Entertainment Inc.");
 
     setBootStatus(0x6L);
-    SPU_REVERB_OUT_L.setu(0);
-    SPU_REVERB_OUT_R.setu(0);
-    SPU_MAIN_VOL_L.setu(0);
-    SPU_MAIN_VOL_R.setu(0);
+    SPU.REVERB_OUT_L.set(0);
+    SPU.REVERB_OUT_R.set(0);
+    SPU.MAIN_VOL_L.set(0);
+    SPU.MAIN_VOL_R.set(0);
     memcpy_Impl_A2a(_a000b940.getAddress(), _bfc0e14c.getAddress(), 0xc);
 
     LOGGER.info("KERNEL SETUP!");
@@ -1764,10 +1761,10 @@ public final class Bios {
     allocateThreadControlBlock(1, (int)_a000b940.get());
     EnqueueTimerAndVblankIrqs(1);
 
-    SPU_REVERB_OUT_L.setu(0);
-    SPU_REVERB_OUT_R.setu(0);
-    SPU_MAIN_VOL_L.setu(0);
-    SPU_MAIN_VOL_R.setu(0);
+    SPU.REVERB_OUT_L.set(0);
+    SPU.REVERB_OUT_R.set(0);
+    SPU.MAIN_VOL_L.set(0);
+    SPU.MAIN_VOL_R.set(0);
     setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop385"), RunnableRef::new));
 
     setBootStatus(0x7L);
@@ -1903,10 +1900,10 @@ public final class Bios {
   @Method(0xbfc06ec4L)
   public static void FUN_bfc06ec4() {
     setBootStatus(0xfL);
-    SPU_REVERB_OUT_L.setu(0);
-    SPU_REVERB_OUT_R.setu(0);
-    SPU_MAIN_VOL_L.setu(0);
-    SPU_MAIN_VOL_R.setu(0);
+    SPU.REVERB_OUT_L.set(0);
+    SPU.REVERB_OUT_R.set(0);
+    SPU.MAIN_VOL_L.set(0);
+    SPU.MAIN_VOL_R.set(0);
 
     // There's a check here that looks like it's just to prevent tampering
 
