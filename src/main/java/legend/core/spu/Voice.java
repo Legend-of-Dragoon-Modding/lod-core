@@ -6,10 +6,16 @@ import legend.core.memory.MisalignedAccessException;
 import legend.core.memory.Segment;
 import legend.core.memory.types.MemoryRef;
 import legend.core.memory.types.UnsignedShortRef;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class Voice implements MemoryRef {
+  private static final Logger LOGGER = LogManager.getFormatterLogger(Voice.class);
+
   private static final int[] positiveXaAdpcmTable = {0, 60, 115, 98, 122};
   private static final int[] negativeXaAdpcmTable = {0, 0, -52, -55, -60};
+
+  private final int voiceIndex;
 
   public final UnsignedShortRef LEFT;
   public final UnsignedShortRef RIGHT;
@@ -62,6 +68,8 @@ public class Voice implements MemoryRef {
     this.ADPCM_REPEAT_ADDR = memory.ref(2, 0x1f801c0eL).offset(voiceIndex * 0x10L).cast(UnsignedShortRef::new);
 
     this.adsrPhase = Phase.Off;
+
+    this.voiceIndex = voiceIndex;
   }
 
   public void reset() {
@@ -102,7 +110,12 @@ public class Voice implements MemoryRef {
     this.lastBlockSample27 = this.decodedSamples[this.decodedSamples.length - 2];
     this.lastBlockSample26 = this.decodedSamples[this.decodedSamples.length - 3];
 
-    System.arraycopy(ram, this.currentAddress * 8, this.spuAdpcm, 0, 16);
+    try {
+      System.arraycopy(ram, this.currentAddress * 8, this.spuAdpcm, 0, 16);
+    } catch(final ArrayIndexOutOfBoundsException e) {
+      LOGGER.warn("SPU voice %d overflow", this.voiceIndex);
+      this.currentAddress = 0;
+    }
 
     //ramIrqAddress is >> 8 so we only need to check for currentAddress and + 1
     this.readRamIrq |= this.currentAddress == ramIrqAddress || this.currentAddress + 1 == ramIrqAddress;
@@ -297,11 +310,17 @@ public class Voice implements MemoryRef {
         case 0x0 -> Voice.this.volumeLeft.set(value);
         case 0x2 -> Voice.this.volumeRight.set(value);
         case 0x4 -> Voice.this.pitch = (int)(value & 0xffff);
-        case 0x6 -> Voice.this.startAddress = (int)(value & 0xffff);
+        case 0x6 -> {
+          assert value * 8 < 512 * 1024;
+          Voice.this.startAddress = (int)(value & 0xffff);
+        }
         case 0x8 -> Voice.this.adsr.lo = (int)(value & 0xffff);
         case 0xa -> Voice.this.adsr.hi = (int)(value & 0xffff);
         case 0xc -> Voice.this.adsrVolume = (int)(value & 0xffff);
-        case 0xe -> Voice.this.adpcmRepeatAddress = (int)(value & 0xffff);
+        case 0xe -> {
+          assert value * 8 < 512 * 1024;
+          Voice.this.adpcmRepeatAddress = (int)(value & 0xffff);
+        }
         default -> throw new MisalignedAccessException("SPU voice port " + Long.toHexString(offset) + " does not exist");
       };
     }

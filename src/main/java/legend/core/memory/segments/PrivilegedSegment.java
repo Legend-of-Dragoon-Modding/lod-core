@@ -21,7 +21,7 @@ public class PrivilegedSegment extends Segment {
   @Override
   public byte get(final int offset) {
     if(!this.readable) {
-      this.gate.test();
+      this.gate.test(this.getAddress() + offset);
     }
 
     return this.segment.get(offset);
@@ -30,7 +30,7 @@ public class PrivilegedSegment extends Segment {
   @Override
   public long get(final int offset, final int size) {
     if(!this.readable) {
-      this.gate.test();
+      this.gate.test(this.getAddress() + offset);
     }
 
     return this.segment.get(offset, size);
@@ -39,7 +39,7 @@ public class PrivilegedSegment extends Segment {
   @Override
   public byte[] getBytes(final int offset, final int size) {
     if(!this.readable) {
-      this.gate.test();
+      this.gate.test(this.getAddress() + offset);
     }
 
     return this.segment.getBytes(offset, size);
@@ -47,32 +47,32 @@ public class PrivilegedSegment extends Segment {
 
   @Override
   public void set(final int offset, final byte value) {
-    this.gate.test();
+    this.gate.test(this.getAddress() + offset);
     this.segment.set(offset, value);
   }
 
   @Override
   public void set(final int offset, final int size, final long value) {
-    this.gate.test();
+    this.gate.test(this.getAddress() + offset);
     this.segment.set(offset, size, value);
   }
 
   @Override
   public void setBytes(final int offset, final byte[] data) {
-    this.gate.test();
+    this.gate.test(this.getAddress() + offset);
     this.segment.setBytes(offset, data);
   }
 
   @Override
   protected void setFunction(final int offset, final Method function, @Nullable final Object instance, final boolean ignoreExtraParams) {
-    this.gate.test();
+    this.gate.test(this.getAddress() + offset);
     super.setFunction(offset, function, instance, ignoreExtraParams);
   }
 
   @Override
   protected MethodBinding getFunction(final int offset) {
     if(!this.readable) {
-      this.gate.test();
+      this.gate.test(this.getAddress() + offset);
     }
 
     return super.getFunction(offset);
@@ -81,7 +81,7 @@ public class PrivilegedSegment extends Segment {
   @Override
   protected boolean isFunction(final int offset) {
     if(!this.readable) {
-      this.gate.test();
+      this.gate.test(this.getAddress() + offset);
     }
 
     return super.isFunction(offset);

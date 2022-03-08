@@ -40,7 +40,11 @@ public class Spu implements Runnable, MemoryRef {
   public final UnsignedShortRef REVERB_OUT_L = MEMORY.ref(2, 0x1f801d84L, UnsignedShortRef::new);
   public final UnsignedShortRef REVERB_OUT_R = MEMORY.ref(2, 0x1f801d86L, UnsignedShortRef::new);
   public final UnsignedIntRef VOICE_KEY_ON = MEMORY.ref(4, 0x1f801d88L, UnsignedIntRef::new);
+  public final UnsignedShortRef VOICE_KEY_ON_LO = MEMORY.ref(2, 0x1f801d88L, UnsignedShortRef::new);
+  public final UnsignedShortRef VOICE_KEY_ON_HI = MEMORY.ref(2, 0x1f801d8aL, UnsignedShortRef::new);
   public final UnsignedIntRef VOICE_KEY_OFF = MEMORY.ref(4, 0x1f801d8cL, UnsignedIntRef::new);
+  public final UnsignedShortRef VOICE_KEY_OFF_LO = MEMORY.ref(2, 0x1f801d8cL, UnsignedShortRef::new);
+  public final UnsignedShortRef VOICE_KEY_OFF_HI = MEMORY.ref(2, 0x1f801d8eL, UnsignedShortRef::new);
   public final UnsignedIntRef VOICE_CHN_FM_MODE = MEMORY.ref(4, 0x1f801d90L, UnsignedIntRef::new);
   public final UnsignedIntRef VOICE_CHN_NOISE_MODE = MEMORY.ref(4, 0x1f801d94L, UnsignedIntRef::new);
   public final UnsignedIntRef VOICE_CHN_REVERB_MODE = MEMORY.ref(4, 0x1f801d98L, UnsignedIntRef::new);

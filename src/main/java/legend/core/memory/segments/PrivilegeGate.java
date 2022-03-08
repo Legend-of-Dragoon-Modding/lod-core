@@ -23,10 +23,10 @@ public class PrivilegeGate {
     }
   }
 
-  public void test() {
+  public void test(final long address) {
     synchronized(this.lock) {
       if(this.acquisitions == 0) {
-        throw new PrivilegeNotAcquiredException("Attempted to access privileged memory");
+        throw new PrivilegeNotAcquiredException("Attempted to access privileged memory 0x" + Long.toHexString(address));
       }
     }
   }

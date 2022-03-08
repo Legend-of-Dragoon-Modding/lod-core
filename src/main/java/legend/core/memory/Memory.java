@@ -97,7 +97,7 @@ public class Memory {
 
         long value = 0;
         for(int i = 0; i < size; i++) {
-          value |= (this.temp[tempIndex + i] & 0xffL) << i;
+          value |= (this.temp[tempIndex + i] & 0xffL) << i * 8;
         }
 
         return value;
