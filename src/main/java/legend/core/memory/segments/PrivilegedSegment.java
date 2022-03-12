@@ -46,6 +46,15 @@ public class PrivilegedSegment extends Segment {
   }
 
   @Override
+  public void getBytes(final int offset, final byte[] dest, final int dataOffset, final int dataSize) {
+    if(!this.readable) {
+      this.gate.test(this.getAddress() + offset);
+    }
+
+    this.segment.getBytes(offset, dest, dataOffset, dataSize);
+  }
+
+  @Override
   public void set(final int offset, final byte value) {
     this.gate.test(this.getAddress() + offset);
     this.segment.set(offset, value);
@@ -61,6 +70,12 @@ public class PrivilegedSegment extends Segment {
   public void setBytes(final int offset, final byte[] data) {
     this.gate.test(this.getAddress() + offset);
     this.segment.setBytes(offset, data);
+  }
+
+  @Override
+  public void setBytes(final int offset, final byte[] data, final int dataOffset, final int dataLength) {
+    this.gate.test(this.getAddress() + offset);
+    this.segment.setBytes(offset, data, dataOffset, dataLength);
   }
 
   @Override

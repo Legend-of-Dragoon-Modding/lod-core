@@ -50,7 +50,17 @@ public class RamSegment extends Segment {
   }
 
   @Override
+  public void getBytes(final int offset, final byte[] dest, final int dataOffset, final int dataSize) {
+    System.arraycopy(this.data, offset, dest, dataOffset, dataSize);
+  }
+
+  @Override
   public void setBytes(final int offset, final byte[] data) {
     System.arraycopy(data, 0, this.data, offset, data.length);
+  }
+
+  @Override
+  public void setBytes(final int offset, final byte[] data, final int dataOffset, final int dataLength) {
+    System.arraycopy(data, dataOffset, this.data, offset, dataLength);
   }
 }

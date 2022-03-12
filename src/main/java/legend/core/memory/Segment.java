@@ -38,7 +38,15 @@ public abstract class Segment {
     throw new UnsupportedOperationException("This memory segment does not support direct reads (address: " + Long.toHexString(this.getAddress() + offset) + ')');
   }
 
+  public void getBytes(final int offset, final byte[] dest, final int dataOffset, final int dataSize) {
+    throw new UnsupportedOperationException("This memory segment does not support direct reads (address: " + Long.toHexString(this.getAddress() + offset) + ')');
+  }
+
   public void setBytes(final int offset, final byte[] data) {
+    throw new UnsupportedOperationException("This memory segment does not support direct writes (address: " + Long.toHexString(this.getAddress() + offset) + ')');
+  }
+
+  public void setBytes(final int offset, final byte[] data, final int dataOffset, final int dataLength) {
     throw new UnsupportedOperationException("This memory segment does not support direct writes (address: " + Long.toHexString(this.getAddress() + offset) + ')');
   }
 

@@ -114,7 +114,7 @@ public class Memory {
       segment.set((int)(this.maskAddress(address) - segment.getAddress()), data);
     }
 
-//    if((address & 0xffffff) == 0x1ac8d0L) {
+//    if((address & 0xffffff) == 0xba88L) {
 //      LOGGER.error(Long.toHexString(address) + " set to " + Long.toHexString(data), new Throwable());
 //    }
   }
@@ -140,7 +140,7 @@ public class Memory {
       segment.set((int)(this.maskAddress(address) - segment.getAddress()), size, data);
     }
 
-//    if((address & 0xffffff) == 0x1ac8d0L) {
+//    if((address & 0xffffff) == 0xba88L) {
 //      LOGGER.error(Long.toHexString(address) + " set to " + Long.toHexString(data), new Throwable());
 //    }
   }
@@ -152,13 +152,24 @@ public class Memory {
     }
   }
 
-  public void setBytes(final long address, final byte[] data) {
+  public void getBytes(final long address, final byte[] dest, final int offset, final int size) {
     synchronized(this.lock) {
       final Segment segment = this.getSegment(address);
-      segment.setBytes((int)(this.maskAddress(address) - segment.getAddress()), data);
+      segment.getBytes((int)(this.maskAddress(address) - segment.getAddress()), dest, offset, size);
+    }
+  }
+
+  public void setBytes(final long address, final byte[] data) {
+    this.setBytes(address, data, 0, data.length);
+  }
+
+  public void setBytes(final long address, final byte[] data, final int offset, final int size) {
+    synchronized(this.lock) {
+      final Segment segment = this.getSegment(address);
+      segment.setBytes((int)(this.maskAddress(address) - segment.getAddress()), data, offset, size);
     }
 
-//    if((address & 0xffffff) == 0x1ac8d0L) {
+//    if((address & 0xffffff) == 0xba88L) {
 //      LOGGER.error(Long.toHexString(address) + " set to " + Long.toHexString(MathHelper.get(data, 0, 4)), new Throwable());
 //    }
   }
@@ -289,7 +300,7 @@ public class Memory {
         throw new UnsupportedOperationException("Can only dereference 4-byte values");
       }
 
-      if(Memory.this.isFunction(this.address)) {
+      if((this.address & TEMP_FLAG) != TEMP_FLAG && Memory.this.isFunction(this.address)) {
         throw new UnsupportedOperationException("Can't dereference callback");
       }
 
