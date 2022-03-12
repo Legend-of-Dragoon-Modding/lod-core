@@ -65,7 +65,9 @@ public class Cpu {
       this.delegatedExecutions.clear();
     }
 
-    this.handleInterrupts();
+    while(this.handleInterrupts()) {
+      DebugHelper.sleep(0);
+    }
   }
 
   public int getLastSyscall() {
@@ -76,7 +78,7 @@ public class Cpu {
     return this.exceptionHandled;
   }
 
-  private void handleInterrupts() {
+  private boolean handleInterrupts() {
     if(INTERRUPTS.interruptPending()) {
       this.R13_CAUSE.value |= 0x400L;
     } else {
@@ -89,7 +91,10 @@ public class Cpu {
 
     if(IEc && (IM & IP) > 0) {
       this.EXCEPTION(CpuException.INTERRUPT);
+      return true;
     }
+
+    return false;
   }
 
   private void EXCEPTION(final CpuException cause) {
