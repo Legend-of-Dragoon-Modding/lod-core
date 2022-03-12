@@ -8,7 +8,7 @@ plugins {
 group 'legend'
 version '0.1'
 
-sourceCompatibility = targetCompatibility = 1.16
+sourceCompatibility = targetCompatibility = 1.17
 
 project.ext.lwjglVersion = "3.2.3"
 project.ext.jomlVersion = "1.10.1"
