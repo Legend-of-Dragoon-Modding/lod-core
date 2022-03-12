@@ -45,20 +45,20 @@ public class MemoryCard {
   private final String memCardFilePath = "./memcard.mcr";
 
   private enum Mode {
-    Idle,
-    Transfer,
+    IDLE,
+    TRANSFER,
   }
 
-  private Mode mode = Mode.Idle;
+  private Mode mode = Mode.IDLE;
 
   private enum TransferMode {
-    Read,
-    Write,
-    Id,
-    Undefined,
+    READ,
+    WRITE,
+    ID,
+    UNDEFINED,
   }
 
-  private TransferMode transferMode = TransferMode.Undefined;
+  private TransferMode transferMode = TransferMode.UNDEFINED;
 
   public MemoryCard() {
     try {
@@ -71,49 +71,51 @@ public class MemoryCard {
 
   //This should be handled with some early response and post address queues but atm its easier to handle as a state machine
   public byte process(final byte value) {
-    //return 0xFF;
-    //Console.WriteLine($"[MemCard] rawProcess {value:x2} previous ack {ack}");
+    LOGGER.info("[MemCard] rawProcess %02x previous ack %b", value, this.ack);
     switch(this.transferMode) {
-      case Read:
+      case READ:
         return this.readMemory(value);
-      case Write:
+      case WRITE:
         return this.writeMemory(value);
-      case Id:
+      case ID:
         return (byte)0xff;
     }
 
     switch(this.mode) {
-      case Idle:
+      case IDLE:
         switch(value) {
           case (byte)0x81 -> {
-            //Console.WriteLine("[MemCard] Idle Process 0x81");
-            this.mode = Mode.Transfer;
+            LOGGER.info("[MemCard] Idle Process 0x81");
+            this.mode = Mode.TRANSFER;
             this.ack = true;
-            return (byte)0xFF;
+            return (byte)0xff;
           }
           default -> {
-            //Console.WriteLine("[MemCard] Idle value WARNING " + value);
+            LOGGER.warn("[MemCard] Idle value WARNING %02x", value);
             this.ack = false;
-            return (byte)0xFF;
+            return (byte)0xff;
           }
         }
 
-      case Transfer:
+      case TRANSFER:
         switch(value) {
-          case 0x52 -> //Read
-            //Console.WriteLine("[MemCard] Read Process 0x52");
-            this.transferMode = TransferMode.Read;
-          case 0x57 -> //Write
-            //Console.WriteLine("[MemCard] Write Process 0x57");
-            this.transferMode = TransferMode.Write;
-          case 0x53 -> //ID
-            //Console.WriteLine("[MemCard] ID Process 0x53");
-            this.transferMode = TransferMode.Undefined;
+          case 0x52 -> { //Read
+            LOGGER.info("[MemCard] Read Process 0x52");
+            this.transferMode = TransferMode.READ;
+          }
+          case 0x57 -> { //Write
+            LOGGER.info("[MemCard] Write Process 0x57");
+            this.transferMode = TransferMode.WRITE;
+          }
+          case 0x53 -> { //ID
+            LOGGER.info("[MemCard] ID Process 0x53");
+            this.transferMode = TransferMode.UNDEFINED;
+          }
           default -> {
-            //Console.WriteLine($"[MemCard] Unhandled Transfer Process {value:x2}");
-            this.transferMode = TransferMode.Undefined;
+            LOGGER.info("[MemCard] Unhandled Transfer Process %02x", value);
+            this.transferMode = TransferMode.UNDEFINED;
             this.ack = false;
-            return (byte)0xFF;
+            return (byte)0xff;
           }
         }
         final byte prevFlag = this.flag;
@@ -122,16 +124,24 @@ public class MemoryCard {
         return prevFlag;
 
       default:
-        //Console.WriteLine("[[MemCard]] Unreachable Mode Warning");
+        LOGGER.warn("[[MemCard]] Unreachable Mode Warning");
         this.ack = false;
-        return (byte)0xFF;
+        return (byte)0xff;
     }
   }
 
   public void resetToIdle() {
     this.readPointer = 0;
-    this.transferMode = TransferMode.Undefined;
-    this.mode = Mode.Idle;
+    this.transferMode = TransferMode.UNDEFINED;
+    this.mode = Mode.IDLE;
+  }
+
+  public void directRead(final int sector, final long dest) {
+    MEMORY.setBytes(dest, this.memory, sector * 0x80, 0x80);
+  }
+
+  public void directWrite(final int sector, final long src) {
+    MEMORY.getBytes(src, this.memory, sector * 0x80, 0x80);
   }
 
   /*  Reading Data from Memory Card
@@ -152,7 +162,7 @@ public class MemoryCard {
       00h  47h   Receive Memory End Byte (should be always 47h="G"=Good for Read)
   */
   private byte readMemory(final byte value) {
-    //Console.WriteLine($"[MemCard] readMemory pointer: {readPointer} value: {value:x2} ack {ack}");
+    LOGGER.info("[MemCard] readMemory pointer: %x value: %02x ack %b", this.readPointer, value, this.ack);
     this.ack = true;
     switch(this.readPointer++) {
       case 0:
@@ -164,8 +174,8 @@ public class MemoryCard {
         return 0;
       case 3:
         this.addressLSB = value;
-        this.address = (short)(this.addressMSB << 8 | this.addressLSB);
-        this.checksum = (byte)(this.addressMSB ^ this.addressLSB);
+        this.address = (short)((this.addressMSB & 0xff) << 8 | this.addressLSB & 0xff);
+        this.checksum = (byte)(this.addressMSB & 0xff ^ this.addressLSB & 0xff);
         return 0;
       case 4:
         return this.MEMORY_CARD_COMMAND_ACK_1;
@@ -179,26 +189,26 @@ public class MemoryCard {
       case 8 + 128:
         return this.checksum;
       case 9 + 128:
-        this.transferMode = TransferMode.Undefined;
-        this.mode = Mode.Idle;
+        this.transferMode = TransferMode.UNDEFINED;
+        this.mode = Mode.IDLE;
         this.readPointer = 0;
         this.ack = false;
         return 0x47;
       default:
         //from here handle the 128 bytes of the read sector frame
         if(this.readPointer - 1 >= 8 && this.readPointer - 1 < 8 + 128) {
-          //Console.WriteLine($"Read readPointer {readPointer - 1} index {index}");
-          final byte data = this.memory[this.address * 128 + this.readPointer - 1 - 8];
+          final byte data = this.memory[(this.address & 0xffff) * 128 + this.readPointer - 1 - 8];
+          LOGGER.info("Read readPointer %x data %x", this.readPointer - 1, data);
           this.checksum ^= data;
           return data;
         }
 
         LOGGER.info("[MemCard] Unreachable! %08x", this.readPointer - 1);
-        this.transferMode = TransferMode.Undefined;
-        this.mode = Mode.Idle;
+        this.transferMode = TransferMode.UNDEFINED;
+        this.mode = Mode.IDLE;
         this.readPointer = 0;
         this.ack = false;
-        return (byte)0xFF;
+        return (byte)0xff;
     }
   }
 
@@ -218,7 +228,7 @@ public class MemoryCard {
       00h  4xh   Receive Memory End Byte (47h=Good, 4Eh=BadChecksum, FFh=BadSector)
   */
   private byte writeMemory(final byte value) {
-    //Console.WriteLine($"[MemCard] writeMemory pointer: {readPointer} value: {value:x2} ack {ack}");
+    LOGGER.info("[MemCard] writeMemory pointer: %x value: %02x ack %b", this.readPointer, value, this.ack);
     switch(this.readPointer++) {
       case 0:
         return this.MEMORY_CARD_ID_1;
@@ -229,23 +239,23 @@ public class MemoryCard {
         return 0;
       case 3:
         this.addressLSB = value;
-        this.address = (short)(this.addressMSB << 8 | this.addressLSB);
+        this.address = (short)((this.addressMSB & 0xff) << 8 | this.addressLSB & 0xff);
         this.endTransfer = 0x47; //47h=Good
 
-        if(this.address > 0x3FF) {
+        if(this.address > 0x3ff) {
           this.flag |= FLAG_ERROR;
-          this.endTransfer = (byte)0xFF; //FFh = BadSector
-          this.address &= 0x3FF;
+          this.endTransfer = (byte)0xff; //FFh = BadSector
+          this.address &= 0x3ff;
           this.addressMSB &= 0x3;
         }
-        this.checksum = (byte)(this.addressMSB ^ this.addressLSB);
+        this.checksum = (byte)(this.addressMSB & 0xff ^ this.addressLSB & 0xff);
         return 0;
       //sector frame ended after 128 bytes, handle checksum and finish
       case 4 + 128:
         if(this.checksum == value) {
-          //Console.WriteLine($"MemCard Write CHECKSUM OK was: {checksum:x2} expected: {value:x2}");
+          LOGGER.info("MemCard Write CHECKSUM OK was: %02x expected: %02x", this.checksum, value);
         } else {
-          //Console.WriteLine($"MemCard Write CHECKSUM WRONG was: {checksum:x2} expected: {value:x2}");
+          LOGGER.info("MemCard Write CHECKSUM WRONG was: %02x expected: %02x", this.checksum, value);
           this.flag |= FLAG_ERROR;
         }
         return 0;
@@ -254,9 +264,9 @@ public class MemoryCard {
       case 6 + 128:
         return this.MEMORY_CARD_COMMAND_ACK_2;
       case 7 + 128:
-        //Console.WriteLine($"End WRITE Transfer with code {endTransfer:x2}");
-        this.transferMode = TransferMode.Undefined;
-        this.mode = Mode.Idle;
+        LOGGER.info("End WRITE Transfer with code %02x", this.endTransfer);
+        this.transferMode = TransferMode.UNDEFINED;
+        this.mode = Mode.IDLE;
         this.readPointer = 0;
         this.ack = false;
         this.flag &= ~FLAG_NOT_READ;
@@ -266,15 +276,15 @@ public class MemoryCard {
       default:
         //from here handle the 128 bytes of the read sector frame
         if(this.readPointer - 1 >= 4 && this.readPointer - 1 < 4 + 128) {
-          //Console.WriteLine($"Write readPointer {readPointer - 1} index {index} value {value:x2}");
-          this.memory[this.address * 128 + this.readPointer - 1 - 4] = value;
+          LOGGER.info("Write readPointer %x value %02x", this.readPointer - 1, value);
+          this.memory[(this.address & 0xffff) * 128 + this.readPointer - 1 - 4] = value;
           this.checksum ^= value;
           return 0;
         }
 
-        //Console.WriteLine($"WARNING DEFAULT Write Memory read pointer ws {readPointer}");
-        this.transferMode = TransferMode.Undefined;
-        this.mode = Mode.Idle;
+        LOGGER.warn("WARNING DEFAULT Write Memory read pointer ws %x", this.readPointer);
+        this.transferMode = TransferMode.UNDEFINED;
+        this.mode = Mode.IDLE;
         this.readPointer = 0;
         this.ack = false;
         return (byte)0xff;
@@ -286,7 +296,7 @@ public class MemoryCard {
       Files.write(Path.of(this.memCardFilePath), this.memory);
       LOGGER.info("[MemCard] Saved");
     } catch(final Exception e) {
-      LOGGER.info("[MemCard] Error trying to save memCard file", e);
+      LOGGER.error("[MemCard] Error trying to save memCard file", e);
     }
   }
 
@@ -305,10 +315,10 @@ public class MemoryCard {
       00h  80h   Receive 80h
   */
   private byte idMemory(final byte value) {
-    LOGGER.info("[MEMORY CARD] WARNING Id UNHANDLED COMMAND");
+    LOGGER.warn("[MEMORY CARD] WARNING Id UNHANDLED COMMAND");
     //Console.ReadLine();
-    this.transferMode = TransferMode.Undefined;
-    this.mode = Mode.Idle;
+    this.transferMode = TransferMode.UNDEFINED;
+    this.mode = Mode.IDLE;
     return (byte)0xff;
   }
 }

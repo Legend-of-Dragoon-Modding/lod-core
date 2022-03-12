@@ -8,6 +8,7 @@ import legend.core.memory.types.ArrayRef;
 import legend.core.memory.types.BiFunctionRef;
 import legend.core.memory.types.BoolRef;
 import legend.core.memory.types.ConsumerRef;
+import legend.core.memory.types.DIRENTRY;
 import legend.core.memory.types.IntRef;
 import legend.core.memory.types.Pointer;
 import legend.core.memory.types.ProcessControlBlock;
@@ -26,6 +27,7 @@ import java.util.function.Function;
 
 import static legend.core.Hardware.CPU;
 import static legend.core.Hardware.GATE;
+import static legend.core.Hardware.MEMCARD;
 import static legend.core.Hardware.MEMORY;
 import static legend.core.InterruptController.I_MASK;
 import static legend.core.InterruptController.I_STAT;
@@ -47,7 +49,9 @@ import static legend.core.input.MemoryCard.JOY_MCD_STAT;
 import static legend.core.kernel.Bios.EventControlBlockAddr_a0000120;
 import static legend.core.kernel.Bios.EventControlBlockSize_a0000124;
 import static legend.core.kernel.Bios.ExceptionChainPtr_a0000100;
+import static legend.core.kernel.Bios.FUN_bfc0bff0;
 import static legend.core.kernel.Bios.ProcessControlBlockPtr_a0000108;
+import static legend.core.kernel.Bios.memcardOkay_a000b9d0;
 import static legend.core.kernel.Bios.setBootStatus;
 
 public final class Kernel {
@@ -96,37 +100,39 @@ public final class Kernel {
 
   private static final Value _00007480 = MEMORY.ref(4, 0x00007480L);
 
-  private static final Value _000074a0 = MEMORY.ref(4, 0x000074a0L);
+  private static final Value joyNBit_000074a0 = MEMORY.ref(4, 0x000074a0L);
   private static final Value _000074a4 = MEMORY.ref(4, 0x000074a4L);
   private static final PriorityChainEntry memcardPriorityChain_000074a8 = MEMORY.ref(16, 0x000074a8L, PriorityChainEntry::new);
-  private static final Value _000074b8 = MEMORY.ref(4, 0x000074b8L);
-  private static final Value _000074bc = MEMORY.ref(4, 0x000074bcL);
-  private static final Value _000074c0 = MEMORY.ref(4, 0x000074c0L);
+  private static final Value memcardShareWithController_000074b8 = MEMORY.ref(4, 0x000074b8L);
+  private static final Value cardStarted_000074bc = MEMORY.ref(4, 0x000074bcL);
+  /** Read/write functions normally fail if the card was changed; this bypasses that */
+  private static final Value allowCardChange_000074c0 = MEMORY.ref(4, 0x000074c0L);
   private static final Value _000074c4 = MEMORY.ref(4, 0x000074c4L);
 
-  private static final ArrayRef<UnsignedIntRef> _000074f8 = MEMORY.ref(4, 0x000074f8L, ArrayRef.of(UnsignedIntRef.class, 2, 4, UnsignedIntRef::new));
+  private static final ArrayRef<UnsignedIntRef> memcardData_000074f8 = MEMORY.ref(4, 0x000074f8L, ArrayRef.of(UnsignedIntRef.class, 2, 4, UnsignedIntRef::new));
   private static final ArrayRef<IntRef> memcardIoPort_00007500 = MEMORY.ref(4, 0x00007500L, ArrayRef.of(IntRef.class, 2, 4, IntRef::new));
   private static final ArrayRef<UnsignedIntRef> memcardIoSector_00007508 = MEMORY.ref(4, 0x00007508L, ArrayRef.of(UnsignedIntRef.class, 2, 4, UnsignedIntRef::new));
 
-  private static final Value _00007514 = MEMORY.ref(4, 0x00007514L);
+  private static final Value memcardIoStep_00007514 = MEMORY.ref(4, 0x00007514L);
 
   private static final UnsignedIntRef joypadIndex_0000751c = MEMORY.ref(4, 0x0000751cL, UnsignedIntRef::new);
+  /** This seems to get set when there's an issue writing to the memcard */
   private static final Value _00007520 = MEMORY.ref(4, 0x00007520L);
 
   private static final ArrayRef<Pointer<SupplierRef<Long>>> memcardIoCallback_00007528 = (ArrayRef<Pointer<SupplierRef<Long>>>)MEMORY.ref(4, 0x00007528L, ArrayRef.of(Pointer.class, 2, 4, (Function)Pointer.of(4, SupplierRef::new)));
 
-  private static final PriorityChainEntry priorityChainEntry_00007540 = MEMORY.ref(4, 0x00007540L, PriorityChainEntry::new);
+  private static final PriorityChainEntry memcardIoPriorityChainEntry_00007540 = MEMORY.ref(4, 0x00007540L, PriorityChainEntry::new);
   private static final ArrayRef<UnsignedIntRef> memcardIoAddress_00007550 = MEMORY.ref(4, 0x00007550L, ArrayRef.of(UnsignedIntRef.class, 2, 4, UnsignedIntRef::new));
   private static final ArrayRef<UnsignedByteRef> _00007558 = MEMORY.ref(1, 0x00007558L, ArrayRef.of(UnsignedByteRef.class, 2, 1, UnsignedByteRef::new));
-  private static final Value _0000755a = MEMORY.ref(1, 0x0000755aL);
+  private static final Value memcardTransferActive_0000755a = MEMORY.ref(1, 0x0000755aL);
 
   private static final ArrayRef<UnsignedIntRef> _00007560 = MEMORY.ref(4, 0x00007560L, ArrayRef.of(UnsignedIntRef.class, 2, 4, UnsignedIntRef::new));
-  /** 1h -> reset, 2h -> read, 4h -> write, 8h -> info, 10h -> ?, 20h -> ? */
+  /** 1h -> reset, 2h -> read, 4h -> write, 8h -> info, 11h -> failed/timeout, 21h -> failed/other */
   private static final ArrayRef<UnsignedByteRef> memcardStateBitset_00007568 = MEMORY.ref(1, 0x00007568L, ArrayRef.of(UnsignedByteRef.class, 2, 1, UnsignedByteRef::new));
 
   private static final Value _0000756c = MEMORY.ref(4, 0x0000756cL);
 
-  private static final Value _000075c0 = MEMORY.ref(4, 0x000075c0L);
+  private static final Value memcardIoFinished_000075c0 = MEMORY.ref(4, 0x000075c0L);
   private static final Value memcardIoAddress_000075c4 = MEMORY.ref(4, 0x000075c4L);
   /** @see Kernel#memcardStateBitset_00007568 */
   private static final Pointer<UnsignedByteRef> memcardStateBitset_000075c8 = MEMORY.ref(4, 0x000075c8L, Pointer.of(1, UnsignedByteRef::new));
@@ -146,13 +152,13 @@ public final class Kernel {
 
   private static final Value _0000863c = MEMORY.ref(4, 0x0000863cL);
   private static final Value _00008640 = MEMORY.ref(4, 0x00008640L);
-  private static final Value _00008644 = MEMORY.ref(4, 0x00008644L);
+  private static final Value memcardFindMode_00008644 = MEMORY.ref(4, 0x00008644L);
   private static final Value FileControlBlockBaseAddr_00008648 = MEMORY.ref(1, 0x00008648L);
 
   private static final Value ttyFlag_00008908 = MEMORY.ref(4, 0x00008908L);
   private static final Value _0000890c = MEMORY.ref(4, 0x0000890cL);
   private static final Value _00008910 = MEMORY.ref(4, 0x00008910L);
-  private static final Value _00008914 = MEMORY.ref(4, 0x00008914L);
+  private static final Value memcardUseVblank_00008914 = MEMORY.ref(4, 0x00008914L);
 
   private static final Value FileControlBlockAddr_a0000140 = MEMORY.ref(4, 0xa0000140L);
   private static final Value FileControlBlockSize_a0000144 = MEMORY.ref(4, 0xa0000144L);
@@ -1049,7 +1055,7 @@ public final class Kernel {
     setBootStatus(2);
 
     _00007480.setu(0);
-    _00008644.setu(0);
+    memcardFindMode_00008644.setu(0);
 
     AddCdromDevice();
     AddMemCardDevice();
@@ -1120,9 +1126,11 @@ public final class Kernel {
     MEMORY.ref(4, fcb).offset(0x14L).setu(MEMORY.ref(4, deviceIndex.get()).offset(0x4L));
 
     if((int)MEMORY.ref(4, deviceIndex.get()).offset(0x14L).deref(4).cast(TriFunctionRef::new).run(fcb, filename.substring(pathStartIndex), mode) != 0) {
-      _00008640.setu(MEMORY.ref(4, fcb).offset(0x18L));
-      MEMORY.ref(4, fcb).setu(0);
-      return -1;
+      throw new RuntimeException("Failed to open file " + filename.substring(pathStartIndex));
+
+//      _00008640.setu(MEMORY.ref(4, fcb).offset(0x18L));
+//      MEMORY.ref(4, fcb).setu(0);
+//      return -1;
     }
 
     //LAB_00002a30
@@ -1132,6 +1140,41 @@ public final class Kernel {
 
     //LAB_00002a54
     return (int)v1;
+  }
+
+  @Method(0x2a64L)
+  public static int FileSeek_Impl_B33(final int fd, final long offset, final int seektype) {
+    final long v0 = FUN_000030c8(fd);
+    if(v0 == 0 || MEMORY.ref(4, v0).get() == 0) {
+      //LAB_2a98
+      _00008640.setu(0x9L);
+      return -1;
+    }
+
+    //LAB_2af8
+    if(seektype == 0) {
+      //LAB_2aac
+      MEMORY.ref(4, v0).offset(0x10L).setu(offset);
+      return (int)MEMORY.ref(4, v0).offset(0x10L).get();
+    }
+
+    if(seektype == 0x1L) {
+      //LAB_2ab4
+      MEMORY.ref(4, v0).offset(0x10L).addu(offset);
+      return (int)MEMORY.ref(4, v0).offset(0x10L).get();
+    }
+
+    if(seektype == 0x2L) {
+      //LAB_2b10
+      //LAB_2b18
+      return (int)MEMORY.ref(4, v0).offset(0x10L).get();
+    }
+
+    //LAB_2ac8
+    _00008640.setu(0x16L);
+    MEMORY.ref(4, v0).offset(0x18L).setu(0x16L);
+    LOGGER.error("Invalid seektype %d", seektype);
+    throw new RuntimeException("Invalid seektype " + seektype);
   }
 
   @Method(0x2b28L)
@@ -1195,7 +1238,7 @@ public final class Kernel {
     }
 
     //LAB_00002e44;
-    final long ret = (int)MEMORY.ref(4, v0).offset(0x1cL).deref(4).offset(0x1cL).deref(4).cast(SupplierRef::new).run();
+    final long ret = (int)MEMORY.ref(4, v0).offset(0x1cL).deref(4).offset(0x1cL).deref(4).call((int)v0);
     MEMORY.ref(4, v0).setu(0);
 
     if(ret == 0) {
@@ -1276,7 +1319,7 @@ public final class Kernel {
       return 0;
     }
 
-    return FileControlBlockBaseAddr_00008648.offset(fd * 44L).getAddress();
+    return FileControlBlockBaseAddr_00008648.offset(fd * 0x2cL).getAddress();
   }
 
   @Method(0x3108L)
@@ -1475,6 +1518,11 @@ public final class Kernel {
     //LAB_00003e4c
   }
 
+  @Method(0x3e5cL)
+  public static void set_card_find_mode_Impl_C1a(final int mode) {
+    memcardFindMode_00008644.setu(mode);
+  }
+
   @Method(0x3e80L)
   public static void tty_cdevscan_Impl_C16() {
     for(int fd = 0; fd < 0x10; fd++) {
@@ -1484,34 +1532,75 @@ public final class Kernel {
     }
   }
 
+  @Method(0x39a4L)
+  @Nullable
+  public static DIRENTRY firstfile(final String name, final DIRENTRY dir) {
+    if(_00007480.get() == 0) {
+      _00007480.setu(FUN_00003060());
+
+      if(_00007480.get() == 0) {
+        _00008640.setu(0x18L);
+        return null;
+      }
+    }
+
+    //LAB_39ec
+    final Ref<Long> sp0x28 = new Ref<>();
+    final Ref<Long> sp0x24 = new Ref<>();
+    final int a1 = FUN_000031e8(name, sp0x28, sp0x24);
+
+    if(a1 == -0x1L) {
+      _00008640.setu(0x13L);
+      _00007480.deref(4).setu(0);
+      return null;
+    }
+
+    //LAB_3a28
+    _00007480.deref(4).offset(0x4L).setu(sp0x24.get());
+    _00007480.deref(4).offset(0x1cL).setu(sp0x28.get());
+
+    //LAB_3a60
+    return (DIRENTRY)MEMORY.ref(4, sp0x28.get()).offset(0x34L).deref(4).call(_00007480.get(), name.substring(a1), dir);
+  }
+
+  @Method(0x3a70L)
+  public static DIRENTRY nextfile_Impl_B43(final DIRENTRY dir) {
+    return (DIRENTRY)_00007480.deref(4).offset(0x1cL).deref(4).offset(0x38L).deref(4).call(_00007480.get(), dir);
+  }
+
+  @Method(0x3e68L)
+  public static int get_card_find_mode_Impl_C1d() {
+    return (int)memcardFindMode_00008644.get();
+  }
+
   @Method(0x43d0L)
   public static boolean ChangeClearPad_Impl_B5b(final boolean val) {
-    final boolean oldValue = _00008914.get() != 0;
-    _00008914.setu(val ? 1 : 0);
+    final boolean oldValue = memcardUseVblank_00008914.get() != 0;
+    memcardUseVblank_00008914.setu(val ? 1 : 0);
     return oldValue;
   }
 
   @Method(0x43e8L)
-  public static void FUN_000043e8() {
-    JOY_MCD_CTRL.setu(0x40L);
+  public static void initCard() {
+    JOY_MCD_CTRL.setu(0b100_0000L); // Reset registers
     JOY_MCD_BAUD.setu(0x88L);
-    JOY_MCD_MODE.setu(0xdL);
+    JOY_MCD_MODE.setu(0b1101L); // Baudrate reload factor: mul1; char len: 8 bits
 
     JOY_MCD_CTRL.setu(0);
-    FUN_0000445c(10L);
+    cardWait(10L);
 
-    JOY_MCD_CTRL.setu(0x2L);
-    FUN_0000445c(10L);
+    JOY_MCD_CTRL.setu(0b10L); // JOY1 output selected
+    cardWait(10L);
 
-    JOY_MCD_CTRL.setu(0x2002L);
-    FUN_0000445c(10L);
+    JOY_MCD_CTRL.setu(0b10_0000_0000_0010L); // JOY2 output selected
+    cardWait(10L);
 
     JOY_MCD_CTRL.setu(0);
-    _000074c0.setu(0);
+    allowCardChange_000074c0.setu(0);
   }
 
   @Method(0x445cL)
-  public static void FUN_0000445c(final long a0) {
+  public static void cardWait(final long a0) {
 //    long sp00 = a0 - 1;
 //
 //    while(sp00 >= 0) {
@@ -1526,8 +1615,8 @@ public final class Kernel {
   }
 
   @Method(0x49bcL)
-  public static int FUN_000049bc(final long a0) {
-    if(_000074b8.get() != 0) {
+  public static int memcardPriorityChainSecondCallback(final long a0) {
+    if(memcardShareWithController_000074b8.get() != 0) {
       FUN_00004498(0);
       FUN_00004498(1);
 
@@ -1537,12 +1626,12 @@ public final class Kernel {
     }
 
     //LAB_000049fc
-    if(_00008914.get() != 0) {
+    if(memcardUseVblank_00008914.get() != 0) {
       I_STAT.setu(0xfffffffe);
     }
 
     //LAB_00004a20
-    if(_000074bc.get() != 0) {
+    if(cardStarted_000074bc.get() != 0) {
       FUN_00005000();
     }
 
@@ -1551,8 +1640,12 @@ public final class Kernel {
   }
 
   @Method(0x4a4cL)
-  public static int FUN_00004a4c() {
+  public static int memcardPriorityChainFirstCallback() {
     if(I_MASK.get(0x1L) == 0 || I_STAT.get(0x1L) == 0) {
+      return 0;
+    }
+
+    if(memcardTransferActive_0000755a.get() != 0) {
       return 0;
     }
 
@@ -1560,16 +1653,16 @@ public final class Kernel {
   }
 
   @Method(0x4a94L)
-  public static void FUN_00004a94() {
+  public static void initMemcardPriorityChain() {
     memcardPriorityChain_000074a8.next.clear();
-    memcardPriorityChain_000074a8.secondFunction.set(MEMORY.ref(4, getMethodAddress(Kernel.class, "FUN_000049bc", long.class), ConsumerRef::new));
-    memcardPriorityChain_000074a8.firstFunction.set(MEMORY.ref(4, getMethodAddress(Kernel.class, "FUN_00004a4c"), SupplierRef::new));
+    memcardPriorityChain_000074a8.secondFunction.set(MEMORY.ref(4, getMethodAddress(Kernel.class, "memcardPriorityChainSecondCallback", long.class), ConsumerRef::new));
+    memcardPriorityChain_000074a8.firstFunction.set(MEMORY.ref(4, getMethodAddress(Kernel.class, "memcardPriorityChainFirstCallback"), SupplierRef::new));
     memcardPriorityChain_000074a8.unknown.set(0);
   }
 
   @Method(0x4c70L)
   public static int StartCard_Impl_B4b() {
-    FUN_000043e8();
+    initCard();
     EnterCriticalSection();
 
     SysDeqIntRP_Impl_C03(2, memcardPriorityChain_000074a8);
@@ -1578,9 +1671,9 @@ public final class Kernel {
     I_MASK.oru(0x1L);
 
     ChangeClearPad_Impl_B5b(true);
-    ChangeClearRCnt_Impl_C0a(3, false);
+    ChangeClearRCnt_Impl_C0a(3, false); // Don't auto-ack vblank
 
-    _000074bc.setu(0x1L);
+    cardStarted_000074bc.setu(0x1L);
 
     ExitCriticalSection();
 
@@ -1589,7 +1682,7 @@ public final class Kernel {
 
   @Method(0x4d3cL)
   public static void allow_new_card_Impl_B50() {
-    _000074c0.setu(0x1L);
+    allowCardChange_000074c0.setu(0x1L);
   }
 
   @Method(0x4d4cL)
@@ -1601,19 +1694,19 @@ public final class Kernel {
 
   @Method(0x4d6cL)
   @Nullable
-  public static PriorityChainEntry FUN_00004d6c(final long a0) {
-    final long v0;
+  public static PriorityChainEntry memcardIoPriorityChainSecondFunction(final long a0) {
+    final long joyN;
     if(joypadIndex_00007264.get() == 0) {
-      v0 = 0;
+      joyN = 0; // JOY1
     } else {
       //LAB_00004d88
-      v0 = 0x2000L;
+      joyN = 0b10_0000_0000_0000L; // JOY2
     }
 
     //LAB_00004d8c
-    JOY_MCD_CTRL.oru(v0 | 0x12L);
-    _00007514.addu(0x1L);
-    _000074a0.setu(v0);
+    JOY_MCD_CTRL.oru(joyN | 0b1_0010L); // Enable JOYn; Acknowledge (reset JOY_STAT bits 3/9)
+    memcardIoStep_00007514.addu(0x1L);
+    joyNBit_000074a0.setu(joyN);
 
     final long ret = memcardIoCallback_00007528.get(joypadIndex_00007264.get()).deref().run();
 
@@ -1625,15 +1718,12 @@ public final class Kernel {
       return null;
     }
 
-    if(ret == 0x1L) {
-      //LAB_00004de4
-      _000074a4.setu(0);
-    } else {
+    if(ret != 0x1L) {
       //LAB_00004e34
-      _0000755a.setu(0);
+      memcardTransferActive_0000755a.setu(0);
       JOY_MCD_CTRL.setu(0);
       if(_00007520.get() == 0) {
-        _000074c0.setu(0);
+        allowCardChange_000074c0.setu(0);
         memcardStateBitset_00007568.get(joypadIndex_00007264.get()).set(0x21);
         joypadIndex_0000751c.set(joypadIndex_00007264.get());
         bu_callback_err_write();
@@ -1641,24 +1731,27 @@ public final class Kernel {
       }
 
       //LAB_00004e9c
-      _00007514.setu(0);
+      memcardIoStep_00007514.setu(0);
       _00007520.setu(0);
-      SysDeqIntRP_Impl_C03(0x1, priorityChainEntry_00007540);
+      SysDeqIntRP_Impl_C03(0x1, memcardIoPriorityChainEntry_00007540);
       I_STAT.setu(0xffffff7fL);
       I_MASK.and(0xffffff7fL);
       return null;
     }
 
+    //LAB_00004de4
+    _000074a4.setu(0);
+
     //LAB_00004ee0
-    _0000755a.setu(0);
+    memcardTransferActive_0000755a.setu(0);
     JOY_MCD_CTRL.setu(0);
-    _00007514.setu(0);
-    SysDeqIntRP_Impl_C03(0x1, priorityChainEntry_00007540);
+    memcardIoStep_00007514.setu(0);
+    SysDeqIntRP_Impl_C03(0x1, memcardIoPriorityChainEntry_00007540);
     I_STAT.setu(0xffffff7fL);
     I_MASK.and(0xffffff7fL);
 
     if(_00007520.get() == 0) {
-      _000074c0.setu(0);
+      allowCardChange_000074c0.setu(0);
       memcardStateBitset_00007568.get(joypadIndex_00007264.get()).set(0x1);
       joypadIndex_0000751c.set(joypadIndex_00007264.get());
       bu_callback_okay();
@@ -1671,12 +1764,12 @@ public final class Kernel {
   }
 
   @Method(0x4f90L)
-  public static int FUN_00004f90() {
-    if(I_MASK.get(0x80L) == 0 || I_STAT.get(0x80L) == 0) {
+  public static int memcardIoPriorityChainFirstFunction() {
+    if(I_MASK.get(0x80L) == 0 || I_STAT.get(0x80L) == 0) { // Controller and memcard interrupt
       return 0;
     }
 
-    if((FUN_000063f8() & 0x1L) != 0) {
+    if((isMemcardIoFinished() & 0x1L) != 0) {
       return 0;
     }
 
@@ -1692,22 +1785,24 @@ public final class Kernel {
     UnDeliverEvent_Impl_B20(HwCARD, EvSpUNKNOWN);
     UnDeliverEvent_Impl_B20(HwCARD, EvSpNEW);
 
-    if(_0000755a.get() != 0) {
-      _0000755a.setu(0);
+    if(memcardTransferActive_0000755a.get() != 0) {
+      LOGGER.warn("Warning: memcard transfer already active");
+
+      memcardTransferActive_0000755a.setu(0);
       _000074a4.setu(0);
-      _00007514.setu(0);
+      memcardIoStep_00007514.setu(0);
       I_STAT.setu(0xffffff7fL);
       I_MASK.and(0xffffff7fL);
       JOY_MCD_CTRL.setu(0);
-      _000074c0.setu(0);
+      allowCardChange_000074c0.setu(0);
       memcardStateBitset_00007568.get(joypadIndex_00007264.get()).set(0x11);
       joypadIndex_0000751c.set(joypadIndex_00007264.get());
       bu_callback_err_busy();
       DeliverEvent_Impl_B07(HwCARD, EvSpTIMOUT);
-      final PriorityChainEntry priorityChainEntry = SysDeqIntRP_Impl_C03(0x1, priorityChainEntry_00007540);
-      JOY_MCD_CTRL.setu(0x40L);
+      final PriorityChainEntry priorityChainEntry = SysDeqIntRP_Impl_C03(0x1, memcardIoPriorityChainEntry_00007540);
+      JOY_MCD_CTRL.setu(0b100_0000L); // Reset
       JOY_MCD_BAUD.setu(0x88L);
-      JOY_MCD_MODE.setu(0xdL);
+      JOY_MCD_MODE.setu(0b1101L); // Baudrate reload factor MUL1; Char len 8 bits
       JOY_MCD_CTRL.setu(0);
       return priorityChainEntry;
     }
@@ -1725,43 +1820,46 @@ public final class Kernel {
       _00007560.get(joypadIndex_00007264.get())
     );
 
-    SysDeqIntRP_Impl_C03(0x1, priorityChainEntry_00007540);
-    SysEnqIntRP_Impl_C02(0x1, priorityChainEntry_00007540);
-    _00007514.setu(0);
+    SysDeqIntRP_Impl_C03(0x1, memcardIoPriorityChainEntry_00007540);
+    SysEnqIntRP_Impl_C02(0x1, memcardIoPriorityChainEntry_00007540);
+    memcardIoStep_00007514.setu(0);
     _00007520.setu(0);
 
     //LAB_000051e4
-    return FUN_00004d6c(0);
+    return memcardIoPriorityChainSecondFunction(0);
   }
 
+  /**
+   * This appears to be the sequence for writing data to the memcard (81h, 57h, ...)
+   */
   @Method(0x51f4L)
-  public static long FUN_000051f4() {
+  public static long writeMemcardIoCallback() {
     final int joypadIndex = joypadIndex_00007264.get();
 
-    switch((int)_00007514.get()) {
+    switch((int)memcardIoStep_00007514.get()) {
       case 0x1 -> {
-        final long v0;
+        final long joyN;
         if(joypadIndex == 0) {
-          v0 = 0;
+          joyN = 0; // JOY1
         } else {
-          v0 = 0x2000L;
+          joyN = 0b10_0000_0000_0000L; // JOY2
         }
 
         //LAB_00005258
-        JOY_MCD_CTRL.setu(v0 | 0x1003L);
+        JOY_MCD_CTRL.setu(joyN | 0b1_0000_0000_0011L); // TX enable; JOYn output enable; ACK interrupt enable
         JOY_MCD_DATA.get(); // Intentional read to nowhere
-        _0000755a.setu(0x1L);
+        memcardTransferActive_0000755a.setu(0x1L);
         JOY_MCD_DATA.setu(0x81L + (memcardIoPort_00007500.get(joypadIndex).get() & 0xf));
-        JOY_MCD_CTRL.oru(0x10L);
+        JOY_MCD_CTRL.oru(0b1_0000L); // ACK - reset JOY_STAT bits 3/9
         I_STAT.setu(0xffff_ff7fL);
-        _000074a0.setu(v0);
+        joyNBit_000074a0.setu(joyN);
         return 0;
       }
 
       case 0x2 -> {
         JOY_MCD_DATA.get(); // Intentional read to nowhere
         JOY_MCD_DATA.setu(0x57L);
-        JOY_MCD_CTRL.oru(0x10L);
+        JOY_MCD_CTRL.oru(0b1_0000L); // ACK
         I_STAT.setu(0xffff_ff7fL);
         return 0;
       }
@@ -1769,37 +1867,42 @@ public final class Kernel {
       case 0x3 -> {
         final long data = JOY_MCD_DATA.get();
         JOY_MCD_DATA.setu(0);
-        JOY_MCD_CTRL.oru(0x10L);
+        JOY_MCD_CTRL.oru(0b1_0000L); // ACK
         I_STAT.setu(0xffff_ff7fL);
-        _000074f8.get(joypadIndex).set(data);
+        memcardData_000074f8.get(joypadIndex).set(data);
 
-        if(_000074c0.get() != 0) {
+        // If memcard changes are allowed, no need to do below checks
+        if(allowCardChange_000074c0.get() != 0) {
           return 0;
         }
 
+        // This flag must mean "memcard changed"
         if((data & 0x8L) == 0) {
           return 0;
         }
 
-        _000074c0.setu(0);
+        // Memcard changed - set flags and send events
+        allowCardChange_000074c0.setu(0);
         memcardStateBitset_00007568.get(joypadIndex).set(0x1);
         joypadIndex_0000751c.set(joypadIndex_00007264.get());
         bu_callback_err_eject();
         DeliverEvent_Impl_B07(HwCARD, EvSpNEW);
         _00007520.setu(0x1L);
+        LOGGER.error("Memcard IO error during write stage 3 data %x", data);
         return -0x1L;
       }
 
       case 0x4 -> {
         final long data = JOY_MCD_DATA.get();
         JOY_MCD_DATA.setu(0);
-        JOY_MCD_CTRL.oru(0x10L);
+        JOY_MCD_CTRL.oru(0b1_0000L); // ACK
         I_STAT.setu(0xffff_ff7fL);
 
         if(data == 0x5aL) {
           return 0;
         }
 
+        LOGGER.error("Memcard IO error during write stage 4 data %x", data);
         return -0x1L;
       }
 
@@ -1807,10 +1910,11 @@ public final class Kernel {
         final long v0 = memcardIoSector_00007508.get(joypadIndex).get() >>> 8 & 0xffL;
         final long data = JOY_MCD_DATA.get();
         JOY_MCD_DATA.setu(v0);
-        JOY_MCD_CTRL.oru(0x10L);
+        JOY_MCD_CTRL.oru(0b1_0000L); // ACK
         I_STAT.setu(0xffff_ff7fL);
 
         if(data != 0x5dL) {
+          LOGGER.error("Memcard IO error during write stage 5 data %x", data);
           return -0x1L;
         }
 
@@ -1823,10 +1927,10 @@ public final class Kernel {
         final long v1 = memcardIoSector_00007508.get(joypadIndex).get() & 0xffL;
         JOY_MCD_DATA.get(); // Intentional read to nowhere
         JOY_MCD_DATA.setu(v1);
-        JOY_MCD_CTRL.oru(0x10L);
+        JOY_MCD_CTRL.oru(0b1_0000L); // ACK
         I_STAT.setu(0xffff_ff7fL);
         _00007560.get(joypadIndex).xor(v1);
-        FUN_00006380();
+        memcardIoFinished();
         return 0;
       }
 
@@ -1857,6 +1961,7 @@ public final class Kernel {
           return 0;
         }
 
+        LOGGER.error("Memcard IO error during write stage 9 data %x", data);
         return -0x1L;
       }
 
@@ -1867,6 +1972,7 @@ public final class Kernel {
         I_STAT.setu(0xffff_ff7fL);
 
         if(v1 != 0x5dL) {
+          LOGGER.error("Memcard IO error during write stage 10.1 data %x", v1);
           return -0x1L;
         }
 
@@ -1877,9 +1983,9 @@ public final class Kernel {
         }
 
         //LAB_0000559c
-        if(_000074c0.get() == 0) {
-          if((_000074f8.get(joypadIndex).get() & 0x4L) != 0) {
-            _000074c0.setu(0);
+        if(allowCardChange_000074c0.get() == 0) {
+          if((memcardData_000074f8.get(joypadIndex).get() & 0x4L) != 0) {
+            allowCardChange_000074c0.setu(0);
             joypadIndex_0000751c.set(joypadIndex_00007264.get());
             memcardStateBitset_00007568.get(joypadIndex_00007264.get()).set(0x1);
             bu_callback_err_prev_write();
@@ -1900,19 +2006,23 @@ public final class Kernel {
 
         if(data == 0x4eL) {
           //LAB_00005654
+          LOGGER.error("Memcard IO error during write stage 10.2 data %x", data);
           return -0x1L;
         }
 
         if(data == 0xffL) {
           //LAB_0000565c
+          LOGGER.error("Memcard IO error during write stage 10.3 data %x", data);
           return -0x1L;
         }
 
         //LAB_00005664
+        LOGGER.error("Memcard IO error during write stage 10.4 data %x", data);
         return -0x1L;
       }
 
       default -> {
+        LOGGER.error("Memcard IO error during write stage %d", memcardIoStep_00007514.get());
         return -0x1L;
       }
     }
@@ -1922,12 +2032,12 @@ public final class Kernel {
   }
 
   @Method(0x5688L)
-  public static long FUN_00005688() {
+  public static long readMemcardIoCallback() {
     final int joypadIndex = joypadIndex_00007264.get();
     final long v0;
     final long a2 = memcardIoSector_00007508.get(joypadIndex).get();
 
-    switch((int)_00007514.get()) {
+    switch((int)memcardIoStep_00007514.get()) {
       case 0x1 -> {
         if(joypadIndex == 0) {
           v0 = 0;
@@ -1941,8 +2051,8 @@ public final class Kernel {
         JOY_MCD_DATA.setu(0x81L + (memcardIoPort_00007500.get(joypadIndex).get() & 0xf));
         JOY_MCD_CTRL.oru(0x10L);
         I_STAT.setu(0xffff_ff7fL);
-        _0000755a.setu(0x1L);
-        _000074a0.setu(v0);
+        memcardTransferActive_0000755a.setu(0x1L);
+        joyNBit_000074a0.setu(v0);
         return 0;
       }
 
@@ -1960,7 +2070,7 @@ public final class Kernel {
         JOY_MCD_CTRL.oru(0x10L);
         I_STAT.setu(0xffff_ff7fL);
 
-        if(_000074c0.get() != 0) {
+        if(allowCardChange_000074c0.get() != 0) {
           return 0;
         }
 
@@ -1968,7 +2078,7 @@ public final class Kernel {
           return 0;
         }
 
-        _000074c0.setu(0);
+        allowCardChange_000074c0.setu(0);
         memcardStateBitset_00007568.get(joypadIndex).set(0x1);
         joypadIndex_0000751c.set(joypadIndex_00007264.get());
 
@@ -1977,6 +2087,7 @@ public final class Kernel {
 
         _00007520.setu(0x1L);
 
+        LOGGER.error("Memcard IO error during read stage 3");
         return -0x1L;
       }
 
@@ -1987,6 +2098,7 @@ public final class Kernel {
         I_STAT.setu(0xffff_ff7fL);
 
         if(data != 0x5aL) {
+          LOGGER.error("Memcard IO error during read stage 4");
           return -0x1L;
         }
 
@@ -1995,11 +2107,12 @@ public final class Kernel {
 
       case 0x5 -> {
         final long data = JOY_MCD_DATA.get();
-        JOY_MCD_DATA.setu(a2 >> 0x8L & 0xffL);
+        JOY_MCD_DATA.setu(a2 >> 0x8L & 0xffL); // Send MSB
         JOY_MCD_CTRL.oru(0x10L);
         I_STAT.setu(0xffff_ff7fL);
 
         if(data != 0x5dL) {
+          LOGGER.error("Memcard IO error during read stage 5");
           return -0x1L;
         }
 
@@ -2008,7 +2121,7 @@ public final class Kernel {
 
       case 0x6 -> {
         JOY_MCD_DATA.get(); // Intentional read to nowhere
-        JOY_MCD_DATA.setu(a2 & 0xffL);
+        JOY_MCD_DATA.setu(a2 & 0xffL); // Send LSB
         JOY_MCD_CTRL.oru(0x10L);
         I_STAT.setu(0xffff_ff7fL);
         return 0;
@@ -2017,7 +2130,7 @@ public final class Kernel {
       case 0x7 -> {
         JOY_MCD_DATA.get(); // Intentional read to nowhere
         JOY_MCD_DATA.setu(0);
-        JOY_MCD_CTRL.oru(0xffff_ff7fL);
+        JOY_MCD_CTRL.oru(0x10L);
         I_STAT.setu(0xffff_ff7fL);
         return 0;
       }
@@ -2029,6 +2142,7 @@ public final class Kernel {
         I_STAT.setu(0xffff_ff7fL);
 
         if(data != 0x5cL) {
+          LOGGER.error("Memcard IO error during read stage 8 (got data %02x)", data);
           return -0x1L;
         }
 
@@ -2042,6 +2156,7 @@ public final class Kernel {
         I_STAT.setu(0xffff_ff7fL);
 
         if(data != 0x5dL) {
+          LOGGER.error("Memcard IO error during read stage 9");
           return -0x1L;
         }
 
@@ -2056,6 +2171,7 @@ public final class Kernel {
 
         v0 = a2 >>> 0x8L & 0xffL;
         if(data != v0) {
+          LOGGER.error("Memcard IO error during read stage 10");
           return -0x1L;
         }
 
@@ -2072,11 +2188,12 @@ public final class Kernel {
         I_STAT.setu(0xffff_ff7fL);
 
         if(data != (a2 & 0xffL)) {
+          LOGGER.error("Memcard IO error during read stage 11");
           return -0x1L;
         }
 
         //LAB_00005a48
-        FUN_00006380();
+        memcardIoFinished();
         return 0;
       }
 
@@ -2099,6 +2216,7 @@ public final class Kernel {
         I_STAT.setu(0xffff_ff7fL);
 
         if(data != _00007560.get(joypadIndex).get()) {
+          LOGGER.error("Memcard IO error during read stage 13");
           return -0x1L;
         }
 
@@ -2110,6 +2228,7 @@ public final class Kernel {
 
         //LAB_00005b28
         if(JOY_MCD_DATA.get() != 0x47L) {
+          LOGGER.error("Memcard IO error during read stage 13");
           return -0x1L;
         }
 
@@ -2118,12 +2237,13 @@ public final class Kernel {
       }
     }
 
+    LOGGER.error("Memcard IO error during read stage %d", memcardIoStep_00007514.get());
     return -0x1L;
   }
 
   @Method(0x5b64L)
-  public static long FUN_00005b64() {
-    switch((int)_00007514.get()) {
+  public static long memcardInfoIoCallback() {
+    switch((int)memcardIoStep_00007514.get()) {
       case 0x1 -> {
         final long v1;
         if(joypadIndex_00007264.get() == 0) {
@@ -2133,13 +2253,13 @@ public final class Kernel {
         }
 
         //lAB_00005bb8
-        JOY_MCD_DATA.setu(v1 | 0x1003L);
+        JOY_MCD_CTRL.setu(v1 | 0x1003L);
         JOY_MCD_DATA.get(); // intentional read to nowhere
         JOY_MCD_DATA.setu(0x81L + (memcardIoPort_00007500.get(joypadIndex_00007264.get()).get() & 0xfL));
         JOY_MCD_CTRL.oru(0x10L);
         I_STAT.setu(-0x81L);
-        _0000755a.setu(0x1L);
-        _000074a0.setu(v1);
+        memcardTransferActive_0000755a.setu(0x1L);
+        joyNBit_000074a0.setu(v1);
         return 0;
       }
 
@@ -2156,12 +2276,12 @@ public final class Kernel {
         JOY_MCD_DATA.setu(0);
         JOY_MCD_CTRL.oru(0x10L);
         I_STAT.setu(-0x81L);
-        if(_000074c0.get() != 0) {
+        if(allowCardChange_000074c0.get() != 0) {
           return 0;
         }
 
         if((data & 0x4L) != 0) {
-          _000074c0.setu(0);
+          allowCardChange_000074c0.setu(0);
           memcardStateBitset_00007568.get(joypadIndex_00007264.get()).set(0x1);
           joypadIndex_0000751c.set(joypadIndex_00007264.get());
           bu_callback_err_write();
@@ -2175,7 +2295,7 @@ public final class Kernel {
           return 0;
         }
 
-        _000074c0.setu(0);
+        allowCardChange_000074c0.setu(0);
         memcardStateBitset_00007568.get(joypadIndex_00007264.get()).set(0x1);
         joypadIndex_0000751c.set(joypadIndex_00007264.get());
         bu_callback_err_eject();
@@ -2203,21 +2323,21 @@ public final class Kernel {
 
   @Method(0x5da8L)
   public static void InitCard_Impl_B4a(final boolean pad_enable) {
-    FUN_00004a94();
+    initMemcardPriorityChain();
 
-    _0000755a.setu(0);
+    memcardTransferActive_0000755a.setu(0);
     joypadIndex_00007264.set(0);
     memcardStateBitset_00007568.get(0).set(1);
     memcardStateBitset_00007568.get(1).set(1);
-    priorityChainEntry_00007540.next.clear();
-    priorityChainEntry_00007540.secondFunction.set(MEMORY.ref(4, getMethodAddress(Kernel.class, "FUN_00004d6c", long.class), ConsumerRef::new));
-    priorityChainEntry_00007540.firstFunction.set(MEMORY.ref(4, getMethodAddress(Kernel.class, "FUN_00004f90"), SupplierRef::new));
-    priorityChainEntry_00007540.unknown.set(0);
+    memcardIoPriorityChainEntry_00007540.next.clear();
+    memcardIoPriorityChainEntry_00007540.secondFunction.set(MEMORY.ref(4, getMethodAddress(Kernel.class, "memcardIoPriorityChainSecondFunction", long.class), ConsumerRef::new));
+    memcardIoPriorityChainEntry_00007540.firstFunction.set(MEMORY.ref(4, getMethodAddress(Kernel.class, "memcardIoPriorityChainFirstFunction"), SupplierRef::new));
+    memcardIoPriorityChainEntry_00007540.unknown.set(0);
 
     installEarlyCardIrqHandler();
     FUN_00004d4c(0x1L);
 
-    _000074b8.setu(pad_enable ? 1 : 0);
+    memcardShareWithController_000074b8.setu(pad_enable ? 1 : 0);
   }
 
   @Method(0x5e30L)
@@ -2233,21 +2353,32 @@ public final class Kernel {
     }
 
     //LAB_00005e64
-    final int v1 = at >>> 4;
-    if((memcardStateBitset_00007568.get(v1).get() & 0x1) == 0 || sector < 0 || sector > 0x400L) {
+    final int joypadIndex = at >>> 4;
+    if((memcardStateBitset_00007568.get(joypadIndex).get() & 0x1) == 0 || sector < 0 || sector > 0x400L) {
       //LAB_00005e90
       return 0;
     }
 
     //LAB_00005e98
     _000074a4.setu(0);
-    _00007514.setu(0);
+    memcardIoStep_00007514.setu(0);
 
-    memcardIoPort_00007500.get(v1).set(port);
-    memcardIoSector_00007508.get(v1).set(sector);
-    memcardIoCallback_00007528.get(v1).set(MEMORY.ref(4, getMethodAddress(Kernel.class, "FUN_00005688"), SupplierRef::new));
-    memcardIoAddress_00007550.get(v1).set(dest);
-    memcardStateBitset_00007568.get(v1).set(0x2);
+    // Direct read, no interrupts
+    MEMCARD.directRead(sector, dest);
+    memcardOkay_a000b9d0.setu(0x1L);
+//    bu_callback_okay();
+    DeliverEvent_Impl_B07(HwCARD, EvSpIOE);
+    FUN_bfc0bff0(joypadIndex, EvSpIOE);
+    memcardIoFinished();
+
+    // Disable old code
+    if(false) {
+      memcardIoPort_00007500.get(joypadIndex).set(port);
+      memcardIoSector_00007508.get(joypadIndex).set(sector);
+      memcardIoCallback_00007528.get(joypadIndex).set(MEMORY.ref(4, getMethodAddress(Kernel.class, "readMemcardIoCallback"), SupplierRef::new));
+      memcardIoAddress_00007550.get(joypadIndex).set(dest);
+      memcardStateBitset_00007568.get(joypadIndex).set(0x2);
+    }
 
     return 1;
   }
@@ -2260,21 +2391,32 @@ public final class Kernel {
     }
 
     //LAB_00005f18
-    final int v1 = at >>> 4;
-    if((memcardStateBitset_00007568.get(v1).get() & 0x1) == 0 || sector < 0 || sector > 0x400L) {
+    final int joypadIndex = at >>> 4;
+    if((memcardStateBitset_00007568.get(joypadIndex).get() & 0x1) == 0 || sector < 0 || sector > 0x400L) {
       //LAB_00005f44
       return false;
     }
 
     //LAB_00005f4c
     _000074a4.setu(0);
-    _00007514.setu(0);
+    memcardIoStep_00007514.setu(0);
 
-    memcardIoPort_00007500.get(v1).set(port);
-    memcardIoSector_00007508.get(v1).set(sector);
-    memcardIoCallback_00007528.get(v1).set(MEMORY.ref(4, getMethodAddress(Kernel.class, "FUN_000051f4"), SupplierRef::new));
-    memcardIoAddress_00007550.get(v1).set(src);
-    memcardStateBitset_00007568.get(v1).set(0x4);
+    // Direct write, no interrupts
+    MEMCARD.directWrite(sector, src);
+    memcardOkay_a000b9d0.setu(0x1L);
+//    bu_callback_okay();
+    DeliverEvent_Impl_B07(HwCARD, EvSpIOE);
+    FUN_bfc0bff0(joypadIndex, EvSpIOE);
+    memcardIoFinished();
+
+    // Disable old code
+    if(false) {
+      memcardIoPort_00007500.get(joypadIndex).set(port);
+      memcardIoSector_00007508.get(joypadIndex).set(sector);
+      memcardIoCallback_00007528.get(joypadIndex).set(MEMORY.ref(4, getMethodAddress(Kernel.class, "writeMemcardIoCallback"), SupplierRef::new));
+      memcardIoAddress_00007550.get(joypadIndex).set(src);
+      memcardStateBitset_00007568.get(joypadIndex).set(0x4);
+    }
 
     return true;
   }
@@ -2287,19 +2429,30 @@ public final class Kernel {
     }
 
     //LAB_00005fcc
-    final int v1 = at >>> 4;
-    if((memcardStateBitset_00007568.get(v1).get() & 0x1) == 0) {
+    final int joypadIndex = at >>> 4;
+    if((memcardStateBitset_00007568.get(joypadIndex).get() & 0x1) == 0) {
       return false;
     }
 
     //LAB_00005ff0
-    _00007514.setu(0);
     _000074a4.setu(0);
-    memcardIoPort_00007500.get(v1).set(port);
-    memcardIoAddress_00007550.get(v1).set(0);
-    memcardIoCallback_00007528.get(v1).set(MEMORY.ref(4, getMethodAddress(Kernel.class, "FUN_00005b64"), SupplierRef::new));
-    memcardIoSector_00007508.get(v1).set(0);
-    memcardStateBitset_00007568.get(v1).set(0x8);
+    memcardIoStep_00007514.setu(0);
+
+    // No need to actually do anything
+//    bu_callback_okay();
+    memcardOkay_a000b9d0.setu(0x1L);
+    DeliverEvent_Impl_B07(HwCARD, EvSpIOE);
+    FUN_bfc0bff0(joypadIndex, EvSpIOE);
+    memcardIoFinished();
+
+    // Disable old code
+    if(false) {
+      memcardIoPort_00007500.get(joypadIndex).set(port);
+      memcardIoAddress_00007550.get(joypadIndex).set(0);
+      memcardIoCallback_00007528.get(joypadIndex).set(MEMORY.ref(4, getMethodAddress(Kernel.class, "memcardInfoIoCallback"), SupplierRef::new));
+      memcardIoSector_00007508.get(joypadIndex).set(0);
+      memcardStateBitset_00007568.get(joypadIndex).set(0x8);
+    }
 
     return true;
   }
@@ -2307,19 +2460,18 @@ public final class Kernel {
   @Method(0x61c4L)
   public static long OutdatedPadGetButtons_Impl_B16() {
     assert false;
-    //TODO
     return 0;
   }
 
   @Method(0x6380L)
-  public static void FUN_00006380() {
-    _000075c0.setu(0x1L);
+  public static void memcardIoFinished() {
+    memcardIoFinished_000075c0.setu(0x1L);
   }
 
   @Method(0x6390L)
   public static void FUN_00006390(final long memcardIoAddress, final UnsignedByteRef memcardStateBitset, final UnsignedIntRef a2) {
     _000072f0.setu(0);
-    _000075c0.setu(0);
+    memcardIoFinished_000075c0.setu(0);
     memcardIoAddress_000075c4.setu(memcardIoAddress);
     memcardStateBitset_000075c8.set(memcardStateBitset);
     _000075cc.set(a2);
@@ -2330,7 +2482,7 @@ public final class Kernel {
    */
   @Method(0x63bcL)
   public static void installEarlyCardIrqHandler() {
-    _000075c0.setu(0);
+    memcardIoFinished_000075c0.setu(0);
 
     //LAB_000063dc
     for(int i = 0; i < 0x10; i += 4) {
@@ -2349,15 +2501,15 @@ public final class Kernel {
   }
 
   @Method(0x63f8L)
-  public static long FUN_000063f8() {
-    return _000075c0.get();
+  public static long isMemcardIoFinished() {
+    return memcardIoFinished_000075c0.get();
   }
 
   private static final SupplierRef<Boolean> early_card_irq_vector = MEMORY.ref(4, 0x0000641cL, SupplierRef::new);
 
   @Method(0x641cL)
   public static boolean early_card_irq_vector() {
-    if(_000075c0.get() == 0 || I_STAT.get(0x80L) == 0 || I_MASK.get(0x80L) == 0) {
+    if(memcardIoFinished_000075c0.get() == 0 || I_STAT.get(0x80L) == 0 || I_MASK.get(0x80L) == 0) {
       return false;
     }
 
@@ -2376,7 +2528,7 @@ public final class Kernel {
       _000072f0.addu(0x1L);
 
       if(_000072f0.get() >= 0x80L) {
-        _000075c0.setu(0);
+        memcardIoFinished_000075c0.setu(0);
       }
 
       //LAB_000064ec;
@@ -2393,7 +2545,7 @@ public final class Kernel {
       _000072f0.addu(0x1L);
 
       if(_000072f0.get() >= 0x7fL) {
-        _000075c0.setu(0);
+        memcardIoFinished_000075c0.setu(0);
       }
 
       //LAB_0000658c

@@ -70,6 +70,7 @@ public class Joypad implements Runnable {
   }
 
   int counter;
+  int counter2;
 
   private final Object registerLock = new Object();
 
@@ -86,6 +87,16 @@ public class Joypad implements Runnable {
           this.counter -= 100;
           if(this.counter == 0) {
             LOGGER.debug("[IRQ] TICK Triggering JOYPAD");
+            this.ackInputLevel = false;
+            this.interruptRequest = true;
+            this.edgeTrigger = true;
+          }
+        }
+
+        if(this.counter2 > 0) {
+          this.counter2 -= 100;
+          if(this.counter2 == 0) {
+            LOGGER.debug("[IRQ] TICK Triggering JOYPAD (memcard)");
             this.ackInputLevel = false;
             this.interruptRequest = true;
             this.edgeTrigger = true;
@@ -153,7 +164,7 @@ public class Joypad implements Runnable {
           this.JOY_RX_DATA = this.memoryCard.process(this.JOY_TX_DATA);
           this.ackInputLevel = this.memoryCard.ack;
           if(this.ackInputLevel) {
-            this.counter = 500;
+            this.counter2 = 100000;
           }
           LOGGER.debug("[JOYPAD] MemCard TICK Enqueued RX response %02x ack: %b", this.JOY_RX_DATA, this.ackInputLevel);
           //Console.ReadLine();
@@ -208,8 +219,8 @@ public class Joypad implements Runnable {
         this.setJOY_CTRL(0);
         this.JOY_BAUD = 0;
 
-        this.JOY_RX_DATA = (byte)0xFF;
-        this.JOY_TX_DATA = (byte)0xFF;
+        this.JOY_RX_DATA = (byte)0xff;
+        this.JOY_TX_DATA = (byte)0xff;
 
         this.txReadyFlag1 = true;
         this.txReadyFlag2 = true;
