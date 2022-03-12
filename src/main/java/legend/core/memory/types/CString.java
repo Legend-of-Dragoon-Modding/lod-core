@@ -36,7 +36,7 @@ public class CString implements MemoryRef {
   }
 
   public void set(final String string) {
-    if(string.length() >= this.ref.getSize() - 1) {
+    if(string.length() + 1 > this.ref.getSize()) {
       throw new IndexOutOfBoundsException("String buffer overrun - string \"" + string + "\" of length " + string.length() + " (+ null terminator) doesn't fit within " + this.ref.getSize() + " bytes");
     }
 
