@@ -136,8 +136,12 @@ public class MemoryCard {
     this.mode = Mode.IDLE;
   }
 
+  public void directRead(final int sector, final long dest, final int sectors) {
+    MEMORY.setBytes(dest, this.memory, sector * 0x80, sectors * 0x80);
+  }
+
   public void directRead(final int sector, final long dest) {
-    MEMORY.setBytes(dest, this.memory, sector * 0x80, 0x80);
+    this.directRead(sector, dest, 1);
   }
 
   public void directWrite(final int sector, final long src) {

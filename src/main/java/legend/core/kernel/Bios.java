@@ -28,6 +28,7 @@ import static legend.core.Hardware.CPU;
 import static legend.core.Hardware.DMA;
 import static legend.core.Hardware.ENTRY_POINT;
 import static legend.core.Hardware.GATE;
+import static legend.core.Hardware.MEMCARD;
 import static legend.core.Hardware.MEMORY;
 import static legend.core.Hardware.SPU;
 import static legend.core.InterruptController.I_MASK;
@@ -526,6 +527,14 @@ public final class Bios {
     }
 
     return dst;
+  }
+
+  @Method(0xbfc02200L)
+  public static int rand_Impl_A2f() {
+    final long v1 = (randSeed_a0009010.get() * 0x41c6_4e6dL & 0xffff_ffffL) + 0x3039L;
+    final long v0 = v1 >>> 16;
+    randSeed_a0009010.setu(v1);
+    return (int)(v0 & 0x7fff);
   }
 
   @Method(0xbfc02230L)
@@ -3424,12 +3433,16 @@ public final class Bios {
 
       //LAB_bfc09f20
       MEMORY.ref(4, fcb).offset(0x18L).setu(0x10L);
-      if(read_card_sector((int)MEMORY.ref(4, fcb).offset(0x4L).get(), (int)sector, dest) != 0x1L) {
-        return -1;
-      }
+//      if(read_card_sector((int)MEMORY.ref(4, fcb).offset(0x4L).get(), (int)sector, dest) != 0x1L) {
+//        return -1;
+//      }
 
       //LAB_bfc09f50
-      MEMORY.ref(4, fcb).offset(0x18L).setu(0);
+//      MEMORY.ref(4, fcb).offset(0x18L).setu(0);
+//      return 0;
+
+      MEMCARD.directRead((int)sector, dest, length / 0x80);
+      _a0009f20.offset(joypadIndex * 0x4L).setu(0);
       return 0;
     }
 
