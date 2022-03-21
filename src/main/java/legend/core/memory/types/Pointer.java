@@ -130,6 +130,12 @@ public class Pointer<T extends MemoryRef> implements MemoryRef {
     return this.ref.get();
   }
 
+  public Pointer<T> setPointer(final long address) {
+    this.ref.setu(address);
+    this.cache = null;
+    return this;
+  }
+
   public Pointer<T> clear() {
     this.ref.setu(0);
     this.cache = null;
