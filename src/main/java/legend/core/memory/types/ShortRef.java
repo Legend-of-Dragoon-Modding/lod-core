@@ -72,6 +72,46 @@ public class ShortRef implements MemoryRef {
     return this.set((short)~this.get());
   }
 
+  public ShortRef and(final int val) {
+    return this.set((short)(this.get() & val));
+  }
+
+  public ShortRef and(final ShortRef val) {
+    return this.and(val.get());
+  }
+
+  public ShortRef or(final int val) {
+    return this.set((short)(this.get() | val));
+  }
+
+  public ShortRef or(final ShortRef val) {
+    return this.or(val.get());
+  }
+
+  public ShortRef xor(final int val) {
+    return this.set((short)(this.get() ^ val));
+  }
+
+  public ShortRef xor(final ShortRef val) {
+    return this.xor(val.get());
+  }
+
+  public ShortRef shl(final int bits) {
+    return this.set((short)(this.get() << bits));
+  }
+
+  public ShortRef shl(final ShortRef bits) {
+    return this.shl(bits.get());
+  }
+
+  public ShortRef shr(final int bits) {
+    return this.set((short)(this.get() >>> bits));
+  }
+
+  public ShortRef shr(final ShortRef bits) {
+    return this.shr(bits.get());
+  }
+
   @Override
   public long getAddress() {
     if(this.ref == null) {
