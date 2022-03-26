@@ -127,6 +127,6 @@ public class UnsignedShortRef implements MemoryRef {
 
   @Override
   public String toString() {
-    return this.get() + (this.ref == null ? " (local)" : " @ " + Long.toHexString(this.getAddress()));
+    return Integer.toHexString(this.get()) + (this.ref == null ? " (local)" : " @ " + Long.toHexString(this.getAddress()));
   }
 }
