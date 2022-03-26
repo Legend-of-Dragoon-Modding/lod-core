@@ -1201,6 +1201,9 @@ public class Gpu implements Runnable {
       return polygonRenderer(buffer, gpu);
     }),
 
+    SHADED_THREE_POINT_POLYGON_TRANSLUCENT(0x32, 6, (buffer, gpu) -> {
+      return polygonRenderer(buffer, gpu);
+    }),
     SHADED_TEXTURED_THREE_POINT_POLYGON_OPAQUE_BLENDED(0x34, 9, (buffer, gpu) -> {
       return polygonRenderer(buffer, gpu);
     }),
@@ -1254,6 +1257,13 @@ public class Gpu implements Runnable {
       final long tex = buffer.getLong(2);
       final long size = buffer.getLong(3);
       return gpu.texturedRectangleBuilder(command, vertex, tex, size);
+    }),
+
+    TEX_RECT_16_TRANSPARENT_BLENDED(0x7e, 3, (buffer, gpu) -> {
+      final long command = buffer.getLong(0);
+      final long vertex = buffer.getLong(1);
+      final long tex = buffer.getLong(2);
+      return gpu.texturedRectangleBuilder(command, vertex, tex, 0x10_0010L);
     }),
 
     COPY_RECT_VRAM_VRAM(0x80, 4, (buffer, gpu) -> {
