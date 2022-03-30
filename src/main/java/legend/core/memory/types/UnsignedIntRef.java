@@ -108,8 +108,16 @@ public class UnsignedIntRef implements MemoryRef {
     return this.add(1);
   }
 
+  public UnsignedIntRef incrOverflow() {
+    return this.addOverflow(1);
+  }
+
   public UnsignedIntRef decr() {
     return this.sub(1);
+  }
+
+  public UnsignedIntRef decrOverflow() {
+    return this.subOverflow(1);
   }
 
   public UnsignedIntRef not() {
