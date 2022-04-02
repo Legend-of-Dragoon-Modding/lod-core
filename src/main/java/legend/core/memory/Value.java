@@ -264,6 +264,22 @@ public class Value {
     return this.divu(amount.get());
   }
 
+  public Value mod(final long amount) {
+    return this.set(this.getSigned() % amount);
+  }
+
+  public Value mod(final Value amount) {
+    return this.mod(amount.get());
+  }
+
+  public Value modu(final long amount) {
+    return this.setu(this.get() % amount);
+  }
+
+  public Value modu(final Value amount) {
+    return this.modu(amount.get());
+  }
+
   public Value and(final long amount) {
     return this.setu(this.get() & amount);
   }
