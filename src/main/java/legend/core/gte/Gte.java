@@ -160,8 +160,8 @@ public class Gte {
     }
 
     if((this.FLAG & 0x7f87_e000L) != 0) {
-      LOGGER.error("GTE error during command %02x (flags: %08x)", command, this.FLAG);
-      LOGGER.error("Stack trace:", new Throwable());
+//      LOGGER.error("GTE error during command %02x (flags: %08x)", command, this.FLAG);
+//      LOGGER.error("Stack trace:", new Throwable());
       this.FLAG |= 0x8000_0000L;
     }
   }

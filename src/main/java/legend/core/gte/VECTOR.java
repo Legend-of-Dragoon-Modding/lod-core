@@ -47,6 +47,14 @@ public class VECTOR implements MemoryRef {
     return this;
   }
 
+  /** NOTE: does NOT set pad */
+  public VECTOR set(final int x, final int y, final int z) {
+    this.setX(x);
+    this.setY(y);
+    this.setZ(z);
+    return this;
+  }
+
   public int getX() {
     return this.x.get();
   }
