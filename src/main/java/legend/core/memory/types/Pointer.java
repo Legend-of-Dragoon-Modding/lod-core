@@ -86,6 +86,17 @@ public class Pointer<T extends MemoryRef> implements MemoryRef {
     return cls.cast(this.deref());
   }
 
+  @Nullable
+  public <U> U derefNullableAs(final Class<U> cls) {
+    final T t = this.derefNullable();
+
+    if(t == null) {
+      return null;
+    }
+
+    return cls.cast(t);
+  }
+
   public Pointer<T> set(final T ref) {
     this.ref.setu(ref.getAddress());
     this.cache = ref;
