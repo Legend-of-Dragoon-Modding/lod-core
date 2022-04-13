@@ -149,7 +149,7 @@ public class UnsignedIntRef implements MemoryRef {
   }
 
   public UnsignedIntRef shl(final long bits) {
-    return this.set(this.get() << bits);
+    return this.set(this.get() << bits & 0xffff_ffffL);
   }
 
   public UnsignedIntRef shl(final UnsignedIntRef bits) {
