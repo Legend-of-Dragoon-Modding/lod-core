@@ -1195,8 +1195,12 @@ public class Gpu implements Runnable {
       };
     }),
 
-    TEXTURED_FOUR_POINT_POLYGON_OPAQUE_BLENDED(0x2c, 9, Gpu::polygonRenderer),
-    TEXTURED_FOUR_POINT_POLYGON_TRANSLUCENT_BLENDED(0x2e, 9, Gpu::polygonRenderer),
+    TEXTURED_FOUR_POINT_POLYGON_OPAQUE_BLENDED(0x2c, 9, (buffer, gpu) -> {
+      return polygonRenderer(buffer, gpu);
+    }),
+    TEXTURED_FOUR_POINT_POLYGON_TRANSLUCENT_BLENDED(0x2e, 9, (buffer, gpu) -> {
+      return polygonRenderer(buffer, gpu);
+    }),
     SHADED_THREE_POINT_POLYGON_OPAQUE(0x30, 6, (buffer, gpu) -> {
       return polygonRenderer(buffer, gpu);
     }),
