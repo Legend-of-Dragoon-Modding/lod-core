@@ -220,4 +220,8 @@ public final class Hardware {
     GATE.acquire();
     MEMORY.ref(4, 0xbfc0_0000L).cast(RunnableRef::new).run();
   }
+
+  public static boolean isGpuThread() {
+    return Thread.currentThread() == gpuThread;
+  }
 }

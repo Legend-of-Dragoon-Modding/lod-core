@@ -89,6 +89,7 @@ public class Gpu implements Runnable {
 
   private Shader vramShader;
   private Texture vramTexture;
+  private Mesh vramMesh;
 
   private Texture displayTexture;
   private Mesh displayMesh;
@@ -392,6 +393,8 @@ public class Gpu implements Runnable {
     return new Timers.Sync(dot, hBlank, vBlank);
   }
 
+  public Runnable r = () -> { };
+
   @Override
   public void run() {
     this.camera = new Camera(0.0f, 0.0f);
@@ -417,14 +420,14 @@ public class Gpu implements Runnable {
     this.vramShader = this.loadShader(Paths.get("gfx", "shaders", "vram.vsh"), Paths.get("gfx", "shaders", "vram.fsh"));
     this.vramTexture = Texture.empty(1024, 512);
 
-    final Mesh vramMesh = new Mesh(GL_TRIANGLE_STRIP, new float[] {
+    this.vramMesh = new Mesh(GL_TRIANGLE_STRIP, new float[] {
          0,   0, 0, 0,
          0, 512, 0, 1,
       1024,   0, 1, 0,
       1024, 512, 1, 1,
     }, 4);
-    vramMesh.attribute(0, 0L, 2, 4);
-    vramMesh.attribute(1, 2L, 2, 4);
+    this.vramMesh.attribute(0, 0L, 2, 4);
+    this.vramMesh.attribute(1, 2L, 2, 4);
 
     this.displaySize(320, 240);
 
@@ -445,214 +448,8 @@ public class Gpu implements Runnable {
     });
 
     this.ctx.onDraw(() -> {
-      INTERRUPTS.set(InterruptType.VBLANK);
-
-      //Video clock is the cpu clock multiplied by 11/7.
-      this.videoCycles += 100 * 11 / 7;
-
-      if(this.videoCycles >= this.horizontalTiming) {
-        this.videoCycles -= this.horizontalTiming;
-        this.scanLine++;
-
-        if(this.status.verticalResolution == VERTICAL_RESOLUTION._240) {
-          this.isOddLine = (this.scanLine & 0x1) != 0;
-        }
-
-        if(this.scanLine >= this.verticalTiming) {
-          this.scanLine = 0;
-
-          if(this.status.verticalInterlace && this.status.verticalResolution == VERTICAL_RESOLUTION._480) {
-            this.isOddLine = !this.isOddLine;
-          }
-        }
-      }
-
-      // Restore model buffer to identity
-      this.transforms.identity();
-      this.transforms2.set(this.transforms);
-
-      //TODO most stuff here is deprecated, communicate with GPU directly rather than using DMA
-
-      if(this.dma.channelControl.isBusy()) {
-        switch(this.status.dmaDirection) {
-          case OFF -> throw new RuntimeException("GPU DMA channel busy but no DMA direction");
-
-          case CPU_TO_GP0 -> {
-            switch(this.dma.channelControl.getMode()) {
-              case SYNC_TO_DMA_REQUESTS -> {
-                while(this.dma.getBlockCount() > 0) {
-                  LOGGER.info("Transferring size %04x", this.dma.getBlockSize());
-
-                  synchronized(this.commandQueue) {
-                    for(int n = 0; n < this.dma.getBlockSize() / 4; n++) {
-                      this.queueGp0Command(this.dma.MADR.deref(4).offset(n * 4L).get());
-                    }
-
-                    while(!this.commandQueue.isEmpty()) {
-                      this.processGp0Command();
-                    }
-                  }
-
-                  this.dma.MADR.addu(this.dma.getBlockSize());
-                  this.dma.decrementBlockCount();
-                }
-
-                LOGGER.info("GPU DMA transfer complete");
-                this.dma.channelControl.resetBusy();
-              }
-
-              case LINKED_LIST -> {
-                LOGGER.info("Linked list transfer");
-
-                final Value value = this.dma.MADR.deref(4);
-                this.dma.MADR.setu(0x8000_0000 | value.get(0xff_ffffL));
-
-                final long words = value.get(0xff00_0000L) >> 24;
-
-                for(int i = 1; i < words; i++) {
-                  this.queueGp0Command(value.offset(i * 4L).get());
-                }
-
-                if(value.get(0xff_ffffL) == 0xff_ffffL) {
-                  LOGGER.info("GPU DMA linked list transfer complete");
-                  this.dma.channelControl.resetBusy();
-                }
-              }
-
-              default -> throw new RuntimeException("Unsupported GPU DMA sync mode " + this.dma.channelControl.getMode());
-            }
-          }
-
-          default -> throw new RuntimeException("Unsupported GPU DMA transfer direction " + this.status.dmaDirection);
-        }
-      }
-
-      this.status.readyToReceiveCommand = true;
-
-      if(this.dmaOtc.channelControl.getStartTrigger() == DmaChannel.ChannelControl.START_TRIGGER.MANUAL) {
-        this.dmaOtcAddress = this.dmaOtc.MADR.get();
-        this.dmaOtcCount = (int)this.dmaOtc.BCR.get();
-
-        LOGGER.info("Starting OTC DMA transfer at %08x (count: %04x)", this.dmaOtcAddress, this.dmaOtcCount);
-        this.dmaOtc.channelControl.resetStartTrigger();
-      }
-
-      if(this.dmaOtc.channelControl.isBusy()) {
-        MEMORY.waitForLock(() -> {
-          for(int i = 0; i < this.dmaOtcCount - 1; i++) {
-            MEMORY.ref(4, this.dmaOtcAddress).offset(-i * 4L).setu(this.dmaOtcAddress - (i + 1) * 4L & 0xff_ffffL);
-          }
-
-          //TODO no$ docs seem to say this should be added here but this needs to be verified
-          MEMORY.ref(4, this.dmaOtcAddress).offset(-this.dmaOtcCount * 4L).setu(0xff_ffffL);
-        });
-
-        LOGGER.info("OTC DMA transfer complete");
-        this.dmaOtc.transferComplete();
-        this.dmaOtc.channelControl.resetBusy();
-      }
-
-      if(this.isVramViewer) {
-        final int size = VRAM_WIDTH * VRAM_HEIGHT;
-        final ByteBuffer pixels = BufferUtils.createByteBuffer(size * 4);
-
-        for(int i = 0; i < size; i++) {
-          final long packed = this.vram24[i];
-
-          pixels.put((byte)(packed        & 0xff));
-          pixels.put((byte)(packed >>>  8 & 0xff));
-          pixels.put((byte)(packed >>> 16 & 0xff));
-          pixels.put((byte)(packed >>> 24 & 0xff));
-        }
-
-        pixels.flip();
-
-        this.vramTexture.data(new RECT((short)0, (short)0, (short)VRAM_WIDTH, (short)VRAM_HEIGHT), pixels);
-
-        this.vramShader.use();
-        this.vramTexture.use();
-        vramMesh.draw();
-      } else if(this.status.displayAreaColourDepth == DISPLAY_AREA_COLOUR_DEPTH.BITS_24) {
-        int yRangeOffset = 240 - (this.displayRangeY2 - this.displayRangeY1) >> (this.status.verticalResolution == VERTICAL_RESOLUTION._480 ? 0 : 1);
-        if(yRangeOffset < 0) {
-          yRangeOffset = 0;
-        }
-
-        final int size = this.displayTexture.width * this.displayTexture.height;
-        final ByteBuffer pixels = BufferUtils.createByteBuffer(size * 4);
-        final IntBuffer pixelsInt = pixels.asIntBuffer();
-
-        for(int y = yRangeOffset; y < this.status.verticalResolution.res - yRangeOffset; y++) {
-          int offset = 0;
-          for(int x = 0; x < (this.status.horizontalResolution2 == HORIZONTAL_RESOLUTION_2._368 ? 368 : this.status.horizontalResolution1.res); x += 2) {
-            final int p0rgb = (int)this.vram24[offset++ + this.displayStartX + (y - yRangeOffset + this.displayStartY) * 1024];
-            final int p1rgb = (int)this.vram24[offset++ + this.displayStartX + (y - yRangeOffset + this.displayStartY) * 1024];
-            final int p2rgb = (int)this.vram24[offset++ + this.displayStartX + (y - yRangeOffset + this.displayStartY) * 1024];
-
-            final int p0bgr555 = GetPixelBGR555(p0rgb);
-            final int p1bgr555 = GetPixelBGR555(p1rgb);
-            final int p2bgr555 = GetPixelBGR555(p2rgb);
-
-            //[(G0R0][R1)(B0][B1G1)]
-            //   RG    B - R   GB
-
-            final int p0R = p0bgr555 & 0xff;
-            final int p0G = p0bgr555 >>> 8 & 0xff;
-            final int p0B = p1bgr555 & 0xff;
-            final int p1R = p1bgr555 >>> 8 & 0xff;
-            final int p1G = p2bgr555 & 0xff;
-            final int p1B = p2bgr555 >>> 8 & 0xff;
-
-            final int p0rgb24bpp = p0B << 16 | p0G << 8 | p0R;
-            final int p1rgb24bpp = p1B << 16 | p1G << 8 | p1R;
-
-            pixelsInt.put(p0rgb24bpp);
-            pixelsInt.put(p1rgb24bpp);
-          }
-        }
-
-        pixels.flip();
-
-        this.displayTexture.data(new RECT((short)0, (short)0, (short)this.displayTexture.width, (short)this.displayTexture.height), pixels);
-
-        this.vramShader.use();
-        this.displayTexture.use();
-        this.displayMesh.draw();
-      } else { // 15bpp
-        int yRangeOffset = 240 - (this.displayRangeY2 - this.displayRangeY1) >> (this.status.verticalResolution == VERTICAL_RESOLUTION._480 ? 0 : 1);
-        if(yRangeOffset < 0) {
-          yRangeOffset = 0;
-        }
-
-        final ByteBuffer vram = BufferUtils.createByteBuffer(this.vram24.length * 4);
-        final IntBuffer intVram = vram.asIntBuffer();
-
-        for(final long l : this.vram24) {
-          intVram.put((int)l);
-        }
-
-        final int size = this.displayTexture.width * this.displayTexture.height;
-        final ByteBuffer pixels = BufferUtils.createByteBuffer(size * 4);
-        final byte[] from = new byte[this.status.horizontalResolution1.res * 4];
-
-        for(int y = yRangeOffset; y < this.status.verticalResolution.res - yRangeOffset; y++) {
-          vram.get((this.displayStartX + (y - yRangeOffset + this.displayStartY) * this.vramTexture.width) * 4, from);
-          pixels.put(from, 0, from.length);
-        }
-
-        pixels.flip();
-
-        this.displayTexture.data(new RECT((short)0, (short)0, (short)this.displayTexture.width, (short)this.displayTexture.height), pixels);
-      }
-
-      synchronized(this.commandQueue) {
-        while(!this.commandQueue.isEmpty()) {
-          this.processGp0Command();
-        }
-      }
-
-      //TODO in 240-line vertical resolution mode, this changes per scanline. We don't do scanlines. Not sure of the implications.
-      this.status.drawingLine = this.status.drawingLine.flip();
+      this.r.run();
+      this.tick();
     });
 
     this.window.show();
@@ -663,6 +460,217 @@ public class Gpu implements Runnable {
       LOGGER.error("Shutting down due to GPU exception:", t);
       this.window.close();
     }
+  }
+
+  public void tick() {
+    INTERRUPTS.set(InterruptType.VBLANK);
+
+    //Video clock is the cpu clock multiplied by 11/7.
+    this.videoCycles += 100 * 11 / 7;
+
+    if(this.videoCycles >= this.horizontalTiming) {
+      this.videoCycles -= this.horizontalTiming;
+      this.scanLine++;
+
+      if(this.status.verticalResolution == VERTICAL_RESOLUTION._240) {
+        this.isOddLine = (this.scanLine & 0x1) != 0;
+      }
+
+      if(this.scanLine >= this.verticalTiming) {
+        this.scanLine = 0;
+
+        if(this.status.verticalInterlace && this.status.verticalResolution == VERTICAL_RESOLUTION._480) {
+          this.isOddLine = !this.isOddLine;
+        }
+      }
+    }
+
+    // Restore model buffer to identity
+    this.transforms.identity();
+    this.transforms2.set(this.transforms);
+
+    //TODO most stuff here is deprecated, communicate with GPU directly rather than using DMA
+
+    if(this.dma.channelControl.isBusy()) {
+      switch(this.status.dmaDirection) {
+        case OFF -> throw new RuntimeException("GPU DMA channel busy but no DMA direction");
+
+        case CPU_TO_GP0 -> {
+          switch(this.dma.channelControl.getMode()) {
+            case SYNC_TO_DMA_REQUESTS -> {
+              while(this.dma.getBlockCount() > 0) {
+                LOGGER.info("Transferring size %04x", this.dma.getBlockSize());
+
+                synchronized(this.commandQueue) {
+                  for(int n = 0; n < this.dma.getBlockSize() / 4; n++) {
+                    this.queueGp0Command(this.dma.MADR.deref(4).offset(n * 4L).get());
+                  }
+
+                  while(!this.commandQueue.isEmpty()) {
+                    this.processGp0Command();
+                  }
+                }
+
+                this.dma.MADR.addu(this.dma.getBlockSize());
+                this.dma.decrementBlockCount();
+              }
+
+              LOGGER.info("GPU DMA transfer complete");
+              this.dma.channelControl.resetBusy();
+            }
+
+            case LINKED_LIST -> {
+              LOGGER.info("Linked list transfer");
+
+              final Value value = this.dma.MADR.deref(4);
+              this.dma.MADR.setu(0x8000_0000 | value.get(0xff_ffffL));
+
+              final long words = value.get(0xff00_0000L) >> 24;
+
+              for(int i = 1; i < words; i++) {
+                this.queueGp0Command(value.offset(i * 4L).get());
+              }
+
+              if(value.get(0xff_ffffL) == 0xff_ffffL) {
+                LOGGER.info("GPU DMA linked list transfer complete");
+                this.dma.channelControl.resetBusy();
+              }
+            }
+
+            default -> throw new RuntimeException("Unsupported GPU DMA sync mode " + this.dma.channelControl.getMode());
+          }
+        }
+
+        default -> throw new RuntimeException("Unsupported GPU DMA transfer direction " + this.status.dmaDirection);
+      }
+    }
+
+    this.status.readyToReceiveCommand = true;
+
+    if(this.dmaOtc.channelControl.getStartTrigger() == DmaChannel.ChannelControl.START_TRIGGER.MANUAL) {
+      this.dmaOtcAddress = this.dmaOtc.MADR.get();
+      this.dmaOtcCount = (int)this.dmaOtc.BCR.get();
+
+      LOGGER.info("Starting OTC DMA transfer at %08x (count: %04x)", this.dmaOtcAddress, this.dmaOtcCount);
+      this.dmaOtc.channelControl.resetStartTrigger();
+    }
+
+    if(this.dmaOtc.channelControl.isBusy()) {
+      MEMORY.waitForLock(() -> {
+        for(int i = 0; i < this.dmaOtcCount - 1; i++) {
+          MEMORY.ref(4, this.dmaOtcAddress).offset(-i * 4L).setu(this.dmaOtcAddress - (i + 1) * 4L & 0xff_ffffL);
+        }
+
+        //TODO no$ docs seem to say this should be added here but this needs to be verified
+        MEMORY.ref(4, this.dmaOtcAddress).offset(-this.dmaOtcCount * 4L).setu(0xff_ffffL);
+      });
+
+      LOGGER.info("OTC DMA transfer complete");
+      this.dmaOtc.transferComplete();
+      this.dmaOtc.channelControl.resetBusy();
+    }
+
+    if(this.isVramViewer) {
+      final int size = VRAM_WIDTH * VRAM_HEIGHT;
+      final ByteBuffer pixels = BufferUtils.createByteBuffer(size * 4);
+
+      for(int i = 0; i < size; i++) {
+        final long packed = this.vram24[i];
+
+        pixels.put((byte)(packed        & 0xff));
+        pixels.put((byte)(packed >>>  8 & 0xff));
+        pixels.put((byte)(packed >>> 16 & 0xff));
+        pixels.put((byte)(packed >>> 24 & 0xff));
+      }
+
+      pixels.flip();
+
+      this.vramTexture.data(new RECT((short)0, (short)0, (short)VRAM_WIDTH, (short)VRAM_HEIGHT), pixels);
+
+      this.vramShader.use();
+      this.vramTexture.use();
+      this.vramMesh.draw();
+    } else if(this.status.displayAreaColourDepth == DISPLAY_AREA_COLOUR_DEPTH.BITS_24) {
+      int yRangeOffset = 240 - (this.displayRangeY2 - this.displayRangeY1) >> (this.status.verticalResolution == VERTICAL_RESOLUTION._480 ? 0 : 1);
+      if(yRangeOffset < 0) {
+        yRangeOffset = 0;
+      }
+
+      final int size = this.displayTexture.width * this.displayTexture.height;
+      final ByteBuffer pixels = BufferUtils.createByteBuffer(size * 4);
+      final IntBuffer pixelsInt = pixels.asIntBuffer();
+
+      for(int y = yRangeOffset; y < this.status.verticalResolution.res - yRangeOffset; y++) {
+        int offset = 0;
+        for(int x = 0; x < (this.status.horizontalResolution2 == HORIZONTAL_RESOLUTION_2._368 ? 368 : this.status.horizontalResolution1.res); x += 2) {
+          final int p0rgb = (int)this.vram24[offset++ + this.displayStartX + (y - yRangeOffset + this.displayStartY) * 1024];
+          final int p1rgb = (int)this.vram24[offset++ + this.displayStartX + (y - yRangeOffset + this.displayStartY) * 1024];
+          final int p2rgb = (int)this.vram24[offset++ + this.displayStartX + (y - yRangeOffset + this.displayStartY) * 1024];
+
+          final int p0bgr555 = GetPixelBGR555(p0rgb);
+          final int p1bgr555 = GetPixelBGR555(p1rgb);
+          final int p2bgr555 = GetPixelBGR555(p2rgb);
+
+          //[(G0R0][R1)(B0][B1G1)]
+          //   RG    B - R   GB
+
+          final int p0R = p0bgr555 & 0xff;
+          final int p0G = p0bgr555 >>> 8 & 0xff;
+          final int p0B = p1bgr555 & 0xff;
+          final int p1R = p1bgr555 >>> 8 & 0xff;
+          final int p1G = p2bgr555 & 0xff;
+          final int p1B = p2bgr555 >>> 8 & 0xff;
+
+          final int p0rgb24bpp = p0B << 16 | p0G << 8 | p0R;
+          final int p1rgb24bpp = p1B << 16 | p1G << 8 | p1R;
+
+          pixelsInt.put(p0rgb24bpp);
+          pixelsInt.put(p1rgb24bpp);
+        }
+      }
+
+      pixels.flip();
+
+      this.displayTexture.data(new RECT((short)0, (short)0, (short)this.displayTexture.width, (short)this.displayTexture.height), pixels);
+
+      this.vramShader.use();
+      this.displayTexture.use();
+      this.displayMesh.draw();
+    } else { // 15bpp
+      int yRangeOffset = 240 - (this.displayRangeY2 - this.displayRangeY1) >> (this.status.verticalResolution == VERTICAL_RESOLUTION._480 ? 0 : 1);
+      if(yRangeOffset < 0) {
+        yRangeOffset = 0;
+      }
+
+      final ByteBuffer vram = BufferUtils.createByteBuffer(this.vram24.length * 4);
+      final IntBuffer intVram = vram.asIntBuffer();
+
+      for(final long l : this.vram24) {
+        intVram.put((int)l);
+      }
+
+      final int size = this.displayTexture.width * this.displayTexture.height;
+      final ByteBuffer pixels = BufferUtils.createByteBuffer(size * 4);
+      final byte[] from = new byte[this.status.horizontalResolution1.res * 4];
+
+      for(int y = yRangeOffset; y < this.status.verticalResolution.res - yRangeOffset; y++) {
+        vram.get((this.displayStartX + (y - yRangeOffset + this.displayStartY) * this.vramTexture.width) * 4, from);
+        pixels.put(from, 0, from.length);
+      }
+
+      pixels.flip();
+
+      this.displayTexture.data(new RECT((short)0, (short)0, (short)this.displayTexture.width, (short)this.displayTexture.height), pixels);
+    }
+
+    synchronized(this.commandQueue) {
+      while(!this.commandQueue.isEmpty()) {
+        this.processGp0Command();
+      }
+    }
+
+    //TODO in 240-line vertical resolution mode, this changes per scanline. We don't do scanlines. Not sure of the implications.
+    this.status.drawingLine = this.status.drawingLine.flip();
   }
 
   private static short signed11bit(final int n) {
