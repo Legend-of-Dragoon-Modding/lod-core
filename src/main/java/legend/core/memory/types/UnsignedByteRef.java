@@ -76,6 +76,30 @@ public class UnsignedByteRef implements MemoryRef {
     return this.set(~this.get() & 0xff);
   }
 
+  public UnsignedByteRef and(final int val) {
+    return this.set(this.get() & val);
+  }
+
+  public UnsignedByteRef and(final UnsignedByteRef val) {
+    return this.and(val.get());
+  }
+
+  public UnsignedByteRef or(final int val) {
+    return this.set(this.get() | val);
+  }
+
+  public UnsignedByteRef or(final UnsignedByteRef val) {
+    return this.or(val.get());
+  }
+
+  public UnsignedByteRef xor(final int val) {
+    return this.set(this.get() ^ val);
+  }
+
+  public UnsignedByteRef xor(final UnsignedByteRef val) {
+    return this.xor(val.get());
+  }
+
   @Override
   public long getAddress() {
     return this.ref != null ? this.ref.getAddress() : 0;
