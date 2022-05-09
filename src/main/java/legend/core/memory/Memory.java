@@ -1,5 +1,7 @@
 package legend.core.memory;
 
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import legend.core.MathHelper;
@@ -32,11 +34,15 @@ public class Memory {
 
   private final List<Segment> segments = new ArrayList<>();
 
+  private boolean alignmentChecks = true;
+
   private static final long TEMP_FLAG = 0xffff_0000L;
   private static final long TEMP_MASK = 0x0000_ffffL;
 
   private final byte[] temp = new byte[0x1000];
   private final BitSet tempUsage = new BitSet(0x1000);
+
+  public static final IntSet watches = new IntOpenHashSet();
 
   public void waitForLock(final Runnable callback) {
     synchronized(this.lock) {
@@ -44,7 +50,19 @@ public class Memory {
     }
   }
 
+  public void disableAlignmentChecks() {
+    this.alignmentChecks = false;
+  }
+
+  public void enableAlignmentChecks() {
+    this.alignmentChecks = true;
+  }
+
   private void checkAlignment(final long address, final int size) {
+    if(!this.alignmentChecks) {
+      return;
+    }
+
     // Don't check alignment for temps - they use special storage
     if((address & TEMP_FLAG) == TEMP_FLAG) {
       return;
@@ -114,9 +132,9 @@ public class Memory {
       segment.set((int)(this.maskAddress(address) - segment.getAddress()), data);
     }
 
-//    if((address & 0xffffff) == 0xba88L) {
-//      LOGGER.error(Long.toHexString(address) + " set to " + Long.toHexString(data), new Throwable());
-//    }
+    if(watches.contains((int)address & 0xffffff)) {
+      LOGGER.error(Long.toHexString(address) + " set to " + Long.toHexString(data), new Throwable());
+    }
   }
 
   public void set(final long address, final int size, final long data) {
@@ -140,9 +158,9 @@ public class Memory {
       segment.set((int)(this.maskAddress(address) - segment.getAddress()), size, data);
     }
 
-//    if((address & 0xffffff) == 0xba88L) {
-//      LOGGER.error(Long.toHexString(address) + " set to " + Long.toHexString(data), new Throwable());
-//    }
+    if(watches.contains((int)address & 0xffffff)) {
+      LOGGER.error(Long.toHexString(address) + " set to " + Long.toHexString(data), new Throwable());
+    }
   }
 
   public byte[] getBytes(final long address, final int size) {
@@ -169,9 +187,9 @@ public class Memory {
       segment.setBytes((int)(this.maskAddress(address) - segment.getAddress()), data, offset, size);
     }
 
-//    if((address & 0xffffff) == 0xba88L) {
-//      LOGGER.error(Long.toHexString(address) + " set to " + Long.toHexString(MathHelper.get(data, 0, 4)), new Throwable());
-//    }
+    if(watches.contains((int)address & 0xffffff)) {
+      LOGGER.error(Long.toHexString(address) + " set to " + Long.toHexString(MathHelper.get(data, 0, 4)), new Throwable());
+    }
   }
 
   public Value ref(final int byteSize, final long address) {
