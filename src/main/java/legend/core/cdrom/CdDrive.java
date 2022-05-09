@@ -478,6 +478,40 @@ public class CdDrive {
     return this.interruptFlag | 0b1110_0000L;
   }
 
+  /**
+   * Direct read sync code
+   */
+  public SyncCode readSyncCode() {
+    return SyncCode.fromLong(this.onRegister3ReadInterruptFlags() & 0b111L);
+  }
+
+  /**
+   * Direct read response
+   */
+  public long readResponse() {
+    return this.onRegister1Read();
+  }
+
+  public void acknowledgeInterrupts(final long interrupts) {
+    this.onRegister3Index1Write(interrupts);
+  }
+
+  public void acknowledgeInterrupts() {
+    this.acknowledgeInterrupts(0x7L);
+  }
+
+  public void enableInterrupts(final long interrupts) {
+    this.onRegister2Index1Write(interrupts);
+  }
+
+  public void sendCommand(final CdlCOMMAND command, final long... params) {
+    for(final long param : params) {
+      this.onRegister2Index0Write(param);
+    }
+
+    this.onRegister1Index0Write(command.command);
+  }
+
   private void getStat() {
     LOGGER.info(DRIVE_MARKER, "[CDROM] Running GetSTAT...");
 

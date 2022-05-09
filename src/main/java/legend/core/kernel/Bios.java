@@ -24,6 +24,7 @@ import org.apache.logging.log4j.Logger;
 import javax.annotation.Nullable;
 import java.util.function.Function;
 
+import static legend.core.Hardware.CDROM;
 import static legend.core.Hardware.CPU;
 import static legend.core.Hardware.DMA;
 import static legend.core.Hardware.ENTRY_POINT;
@@ -2045,12 +2046,14 @@ public final class Bios {
 
   @Method(0xbfc07410L)
   public static long cdromPostInit() {
-    if(CdReadSector_Impl_Aa5(1, 0x10L, _a000b070.getAddress()) != 0x1L) {
-      return 0;
-    }
+    CDROM.readFromDisk(new CdlLOC().unpack(0x10L), 1, _a000b070.getAddress());
+//    if(CdReadSector_Impl_Aa5(1, 0x10L, _a000b070.getAddress()) != 0x1L) {
+//      return 0;
+//    }
 
     //LAB_bfc0744c
     if(strncmp_Impl_A18(_a000b071.getString(), "CD001", 5) != 0) {
+      assert false : "Bad CDROM sector";
       return 0;
     }
 
@@ -2060,9 +2063,10 @@ public final class Bios {
     _a0009d78.setu(_a000b111.get() << 24 | _a000b110.get() << 16 | _a000b10f.get() << 8 | _a000b10e.get());
     _a0009d7c.setu(_a000b0c0);
 
-    if(CdReadSector_Impl_Aa5(1, _a000b0fc.get(), _a000b070.getAddress()) != 0x1L) {
-      return 0;
-    }
+    CDROM.readFromDisk(new CdlLOC().unpack(_a000b0fc.get()), 1, _a000b070.getAddress());
+//    if(CdReadSector_Impl_Aa5(1, _a000b0fc.get(), _a000b070.getAddress()) != 0x1L) {
+//      return 0;
+//    }
 
     //LAB_bfc07500
     //LAB_bfc07518
@@ -2289,10 +2293,12 @@ public final class Bios {
 
     //LAB_bfc07b08
     final int sectors = adjustedLength / 0x800;
-    if(CdReadSector_Impl_Aa5(sectors, MEMORY.ref(4, fcb).offset(0x24L).get() + MEMORY.ref(4, fcb).offset(0x10L).get() / 0x800L, dest) != sectors) {
-      MEMORY.ref(4, fcb).offset(0x18L).setu(0x10L);
-      return -1;
-    }
+
+    CDROM.readFromDisk(new CdlLOC().unpack(MEMORY.ref(4, fcb).offset(0x24L).get() + MEMORY.ref(4, fcb).offset(0x10L).get() / 0x800L), sectors, dest);
+//    if(CdReadSector_Impl_Aa5(sectors, MEMORY.ref(4, fcb).offset(0x24L).get() + MEMORY.ref(4, fcb).offset(0x10L).get() / 0x800L, dest) != sectors) {
+//      MEMORY.ref(4, fcb).offset(0x18L).setu(0x10L);
+//      return -1;
+//    }
 
     //LAB_bfc07b40
     final long v = MEMORY.ref(4, fcb).offset(0x10L).get();
