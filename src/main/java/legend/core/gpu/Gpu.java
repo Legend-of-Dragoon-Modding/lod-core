@@ -1203,6 +1203,10 @@ public class Gpu implements Runnable {
       };
     }),
 
+    MONO_FOUR_POINT_POLY_OPAQUE(0x28, 5, (buffer, gpu) -> {
+      return polygonRenderer(buffer, gpu);
+    }),
+
     TEXTURED_FOUR_POINT_POLYGON_OPAQUE_BLENDED(0x2c, 9, (buffer, gpu) -> {
       return polygonRenderer(buffer, gpu);
     }),
@@ -1272,6 +1276,13 @@ public class Gpu implements Runnable {
       final long tex = buffer.getLong(2);
       final long size = buffer.getLong(3);
       return gpu.texturedRectangleBuilder(command, vertex, tex, size);
+    }),
+
+    TEX_RECT_16_OPAQUE_BLENDED(0x7c, 3, (buffer, gpu) -> {
+      final long command = buffer.getLong(0);
+      final long vertex = buffer.getLong(1);
+      final long tex = buffer.getLong(2);
+      return gpu.texturedRectangleBuilder(command, vertex, tex, 0x10_0010L);
     }),
 
     TEX_RECT_16_TRANSPARENT_BLENDED(0x7e, 3, (buffer, gpu) -> {
