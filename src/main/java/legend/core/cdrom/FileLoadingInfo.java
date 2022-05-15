@@ -23,7 +23,7 @@ public class FileLoadingInfo implements MemoryRef {
   /**
    * 0x8 - 4 bytes
    */
-  public final Pointer<TriConsumerRef<Value, Long, Long>> callback;
+  public final Pointer<TriConsumerRef<Long, Long, Long>> callback;
   /**
    * 0xc - 4 bytes
    */
