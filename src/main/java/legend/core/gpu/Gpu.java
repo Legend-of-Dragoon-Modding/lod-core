@@ -816,6 +816,118 @@ public class Gpu implements Runnable {
     };
   }
 
+  private static Runnable lineRenderer(final LongList buffer, final Gpu gpu) {
+    int bufferIndex = 0;
+    final long cmd = buffer.getLong(bufferIndex++);
+    final int colour1 = (int)(cmd & 0xff_ffff);
+    final long command = cmd >>> 24;
+
+    final boolean isPoly = (command & 1 << 27) != 0;
+    final boolean isShaded = (command & 1 << 28) != 0;
+    final boolean isTransparent = (command & 1 << 25) != 0;
+
+    if(isPoly) {
+      throw new RuntimeException("Polyline not supported");
+    }
+
+    final long v1 = buffer.getLong(bufferIndex++);
+
+    final int colour2;
+    if(isShaded) {
+      colour2 = (int)buffer.getLong(bufferIndex++);
+    } else {
+      colour2 = colour1;
+    }
+
+    final long v2 = buffer.getLong(bufferIndex);
+
+    return () -> gpu.rasterizeLine(v1, v2, colour1, colour2, isTransparent);
+  }
+
+  private void rasterizeLine(final long v1, final long v2, final int colour1, final int colour2, final boolean transparent) {
+    short x = signed11bit((int)(v1 & 0xffff));
+    short y = signed11bit((int)(v1 >> 16));
+
+    short x2 = signed11bit((int)(v2 & 0xffff));
+    short y2 = signed11bit((int)(v2 >> 16));
+
+    if(Math.abs(x - x2) > 0x3ff || Math.abs(y - y2) > 0x1ff) {
+      return;
+    }
+
+    x += this.drawingArea.x.get();
+    y += this.drawingArea.y.get();
+
+    x2 += this.drawingArea.x.get();
+    y2 += this.drawingArea.y.get();
+
+    final int w = x2 - x;
+    final int h = y2 - y;
+
+    int dx1 = 0;
+    if(w < 0) {
+      dx1 = -1;
+    } else if(w > 0) {
+      dx1 = 1;
+    }
+
+    int dy1 = 0;
+    if(h < 0) {
+      dy1 = -1;
+    } else if(h > 0) {
+      dy1 = 1;
+    }
+
+    int dx2 = 0;
+    if(w < 0) {
+      dx2 = -1;
+    } else if(w > 0) {
+      dx2 = 1;
+    }
+
+    int longest = Math.abs(w);
+    int shortest = Math.abs(h);
+
+    int dy2 = 0;
+    if(longest <= shortest) {
+      longest = Math.abs(h);
+      shortest = Math.abs(w);
+      if(h < 0) {
+        dy2 = -1;
+      } else if(h > 0) {
+        dy2 = 1;
+      }
+      dx2 = 0;
+    }
+
+    int numerator = longest >> 1;
+
+    for(int i = 0; i <= longest; i++) {
+      final float ratio = (float)i / longest;
+      int color = interpolateColours(colour1, colour2, ratio);
+
+      if(x >= this.drawingArea.x.get() && x < this.drawingArea.w.get() && y >= this.drawingArea.y.get() && y < this.drawingArea.h.get()) {
+        if(transparent) {
+          color = this.handleTranslucence(x, y, color, this.status.semiTransparency);
+        }
+
+        color |= (this.status.setMaskBit ? 1 : 0) << 24;
+
+        this.setPixel(x, y, color);
+      }
+
+      numerator += shortest;
+      if(numerator >= longest) {
+        numerator -= longest;
+        x += (short)dx1;
+        y += (short)dy1;
+      } else {
+        x += (short)dx2;
+        y += (short)dy2;
+      }
+    }
+  }
+
   private Runnable untexturedRectangleBuilder(final long command, final long vertex, final long size) {
     final boolean isTranslucent = (command & 1 << 25) != 0;
 
@@ -1083,6 +1195,21 @@ public class Gpu implements Runnable {
     return (t0 * w0 + t1 * w1 + t2 * w2) / area;
   }
 
+  private static int interpolateColours(final int c1, final int c2, final float ratio) {
+    final int c1B = c1       & 0xff;
+    final int c1G = c1 >>  8 & 0xff;
+    final int c1R = c1 >> 16 & 0xff;
+    final int c2B = c2       & 0xff;
+    final int c2G = c2 >>  8 & 0xff;
+    final int c2R = c2 >> 16 & 0xff;
+
+    final byte b = (byte)(c2B * ratio + c1B * (1 - ratio));
+    final byte g = (byte)(c2G * ratio + c1G * (1 - ratio));
+    final byte r = (byte)(c2R * ratio + c1R * (1 - ratio));
+
+    return r << 16 | g << 8 | b;
+  }
+
   private int maskTexelAxis(final int axis, final int preMaskAxis, final int postMaskAxis) {
     return axis & 0xff & preMaskAxis | postMaskAxis;
   }
@@ -1238,6 +1365,13 @@ public class Gpu implements Runnable {
     }),
     SHADED_TEXTURED_FOUR_POINT_POLYGON_TRANSLUCENT_BLENDED(0x3e, 12, (buffer, gpu) -> {
       return polygonRenderer(buffer, gpu);
+    }),
+
+    SHADED_LINE_OPAQUE(0x50, 4, (buffer, gpu) -> {
+      return lineRenderer(buffer, gpu);
+    }),
+    SHADED_LINE_TRANSLUCENT(0x52, 4, (buffer, gpu) -> {
+      return lineRenderer(buffer, gpu);
     }),
 
     MONO_RECT_VAR_SIZE_OPAQUE(0x60, 3, (buffer, gpu) -> {
