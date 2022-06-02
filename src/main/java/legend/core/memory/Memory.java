@@ -5,6 +5,7 @@ import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import legend.core.MathHelper;
+import legend.core.memory.types.QuadConsumer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.TriConsumer;
@@ -426,6 +427,16 @@ public class Memory {
     public <T, U, V> Value set(final TriConsumer<T, U, V> function) {
       try {
         Memory.this.setFunction(this.address, function.getClass().getMethod("accept", Object.class, Object.class, Object.class), function, false);
+      } catch(final NoSuchMethodException e) {
+        throw new RuntimeException(e);
+      }
+      return this;
+    }
+
+    @Override
+    public <T, U, V, W> Value set(final QuadConsumer<T, U, V, W> function) {
+      try {
+        Memory.this.setFunction(this.address, function.getClass().getMethod("accept", Object.class, Object.class, Object.class, Object.class), function, false);
       } catch(final NoSuchMethodException e) {
         throw new RuntimeException(e);
       }

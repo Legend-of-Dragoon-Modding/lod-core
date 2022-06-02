@@ -101,6 +101,13 @@ public class VECTOR implements MemoryRef {
     return this;
   }
 
+  public VECTOR add(final int value) {
+    this.x.add(value);
+    this.y.add(value);
+    this.z.add(value);
+    return this;
+  }
+
   public VECTOR sub(final VECTOR other) {
     this.x.sub(other.x);
     this.y.sub(other.y);
@@ -115,10 +122,73 @@ public class VECTOR implements MemoryRef {
     return this;
   }
 
+  public VECTOR sub(final int value) {
+    this.x.sub(value);
+    this.y.sub(value);
+    this.z.sub(value);
+    return this;
+  }
+
+  public VECTOR mul(final VECTOR value) {
+    this.x.mul(value.x);
+    this.y.mul(value.y);
+    this.z.mul(value.z);
+    return this;
+  }
+
+  public VECTOR mul(final SVECTOR value) {
+    this.x.mul(value.x.get());
+    this.y.mul(value.y.get());
+    this.z.mul(value.z.get());
+    return this;
+  }
+
+  public VECTOR mul(final int value) {
+    this.x.mul(value);
+    this.y.mul(value);
+    this.z.mul(value);
+    return this;
+  }
+
+  public VECTOR div(final VECTOR divisor) {
+    this.x.div(divisor.x);
+    this.y.div(divisor.y);
+    this.z.div(divisor.z);
+    return this;
+  }
+
+  public VECTOR div(final SVECTOR divisor) {
+    this.x.div(divisor.x.get());
+    this.y.div(divisor.y.get());
+    this.z.div(divisor.z.get());
+    return this;
+  }
+
   public VECTOR div(final int divisor) {
-    this.x.set(this.x.get() / divisor);
-    this.y.set(this.y.get() / divisor);
-    this.z.set(this.z.get() / divisor);
+    this.x.div(divisor);
+    this.y.div(divisor);
+    this.z.div(divisor);
+    return this;
+  }
+
+  public VECTOR mod(final VECTOR divisor) {
+    this.x.mod(divisor.x);
+    this.y.mod(divisor.y);
+    this.z.mod(divisor.z);
+    return this;
+  }
+
+  public VECTOR mod(final SVECTOR divisor) {
+    this.x.mod(divisor.x.get());
+    this.y.mod(divisor.y.get());
+    this.z.mod(divisor.z.get());
+    return this;
+  }
+
+  public VECTOR mod(final int divisor) {
+    this.x.mod(divisor);
+    this.y.mod(divisor);
+    this.z.mod(divisor);
     return this;
   }
 

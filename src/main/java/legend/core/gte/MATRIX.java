@@ -40,6 +40,15 @@ public class MATRIX implements MemoryRef {
     return this.data2[index];
   }
 
+  /** Returns elements index and index+1 packed together as an unsigned int */
+  public long getPacked(final int index) {
+    if(index == 8) {
+      return this.get(8) & 0xffff;
+    }
+
+    return (this.get(index + 1) & 0xffff) << 16 | this.get(index) & 0xffff;
+  }
+
   public MATRIX set(final int x, final int y, final short val) {
     this.set(x * 3 + y, val);
     return this;
@@ -64,6 +73,17 @@ public class MATRIX implements MemoryRef {
 
     for(int i = 0; i < 3; i++) {
       this.transfer.set(other.transfer);
+    }
+
+    return this;
+  }
+
+  /** Sets elements index and index+1 to the packed unsigned int value */
+  public MATRIX setPacked(final int index, final long value) {
+    this.set(index, (short)(value & 0xffff));
+
+    if(index != 8) {
+      this.set(index + 1, (short)(value >> 16));
     }
 
     return this;

@@ -60,6 +60,30 @@ public class IntRef implements MemoryRef {
     return this.sub(amount.get());
   }
 
+  public IntRef mul(final int amount) {
+    return this.set(this.get() * amount);
+  }
+
+  public IntRef mul(final IntRef amount) {
+    return this.mul(amount.get());
+  }
+
+  public IntRef div(final int amount) {
+    return this.set(this.get() / amount);
+  }
+
+  public IntRef div(final IntRef amount) {
+    return this.div(amount.get());
+  }
+
+  public IntRef mod(final int amount) {
+    return this.set(this.get() % amount);
+  }
+
+  public IntRef mod(final IntRef amount) {
+    return this.mod(amount.get());
+  }
+
   public IntRef incr() {
     return this.add(1);
   }
