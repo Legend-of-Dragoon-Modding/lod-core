@@ -64,6 +64,30 @@ public class UnsignedShortRef implements MemoryRef {
     return this.sub(val.get());
   }
 
+  public UnsignedShortRef mul(final long val) {
+    return this.set((int)(this.get() * val));
+  }
+
+  public UnsignedShortRef mul(final UnsignedShortRef val) {
+    return this.mul(val.get());
+  }
+
+  public UnsignedShortRef mulOverflow(final long val) {
+    return this.set((int)(this.get() * val & 0xffff));
+  }
+
+  public UnsignedShortRef mulOverflow(final UnsignedShortRef val) {
+    return this.mulOverflow(val.get());
+  }
+
+  public UnsignedShortRef div(final long val) {
+    return this.set((int)(this.get() / val));
+  }
+
+  public UnsignedShortRef div(final UnsignedShortRef val) {
+    return this.div(val.get());
+  }
+
   public UnsignedShortRef incr() {
     return this.add(1);
   }
@@ -113,6 +137,14 @@ public class UnsignedShortRef implements MemoryRef {
   }
 
   public UnsignedShortRef shr(final UnsignedShortRef bits) {
+    return this.shr(bits.get());
+  }
+
+  public UnsignedShortRef shra(final int bits) {
+    return this.set(this.get() >> bits);
+  }
+
+  public UnsignedShortRef shra(final UnsignedShortRef bits) {
     return this.shr(bits.get());
   }
 

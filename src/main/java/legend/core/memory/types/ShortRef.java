@@ -112,6 +112,14 @@ public class ShortRef implements MemoryRef {
     return this.shr(bits.get());
   }
 
+  public ShortRef shra(final int bits) {
+    return this.set((short)(this.get() >> bits));
+  }
+
+  public ShortRef shra(final ShortRef bits) {
+    return this.shra(bits.get());
+  }
+
   @Override
   public long getAddress() {
     if(this.ref == null) {
