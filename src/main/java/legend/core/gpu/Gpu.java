@@ -1367,6 +1367,12 @@ public class Gpu implements Runnable {
       return polygonRenderer(buffer, gpu);
     }),
 
+    MONOCHROME_LINE_OPAQUE(0x40, 3, (buffer, gpu) -> {
+      return lineRenderer(buffer, gpu);
+    }),
+    MONOCHROME_LINE_TRANSLUCENT(0x42, 3, (buffer, gpu) -> {
+      return lineRenderer(buffer, gpu);
+    }),
     SHADED_LINE_OPAQUE(0x50, 4, (buffer, gpu) -> {
       return lineRenderer(buffer, gpu);
     }),
