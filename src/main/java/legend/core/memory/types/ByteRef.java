@@ -2,8 +2,17 @@ package legend.core.memory.types;
 
 import legend.core.memory.Value;
 
+import javax.annotation.Nullable;
+
 public class ByteRef implements MemoryRef {
+  @Nullable
   private final Value ref;
+
+  private byte val;
+
+  public ByteRef() {
+    this.ref = null;
+  }
 
   public ByteRef(final Value ref) {
     this.ref = ref;
@@ -14,11 +23,19 @@ public class ByteRef implements MemoryRef {
   }
 
   public byte get() {
-    return (byte)this.ref.get();
+    if(this.ref != null) {
+      return (byte)this.ref.get();
+    }
+
+    return this.val;
   }
 
   public ByteRef set(final int val) {
-    this.ref.setu(val);
+    if(this.ref != null) {
+      this.ref.setu(val);
+    }
+
+    this.val = (byte)val;
     return this;
   }
 
@@ -66,7 +83,7 @@ public class ByteRef implements MemoryRef {
 
   @Override
   public long getAddress() {
-    return this.ref.getAddress();
+    return this.ref != null ? this.ref.getAddress() : 0;
   }
 
   @Override
