@@ -323,7 +323,12 @@ public class Memory {
         throw new UnsupportedOperationException("Can't dereference callback");
       }
 
-      return Memory.this.ref(size, this.get());
+      try {
+        return Memory.this.ref(size, this.get());
+      } catch(final MisalignedAccessException e) {
+        LOGGER.error("Misaligned deref %s", this);
+        throw e;
+      }
     }
 
     @Override
