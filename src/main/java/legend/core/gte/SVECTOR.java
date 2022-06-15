@@ -97,10 +97,24 @@ public class SVECTOR implements MemoryRef {
     return this;
   }
 
+  public SVECTOR add(final VECTOR other) {
+    this.x.add((short)other.x.get());
+    this.y.add((short)other.y.get());
+    this.z.add((short)other.z.get());
+    return this;
+  }
+
   public SVECTOR add(final SVECTOR other) {
     this.x.add(other.x);
     this.y.add(other.y);
     this.z.add(other.z);
+    return this;
+  }
+
+  public SVECTOR sub(final VECTOR other) {
+    this.x.sub((short)other.x.get());
+    this.y.sub((short)other.y.get());
+    this.z.sub((short)other.z.get());
     return this;
   }
 
@@ -111,17 +125,45 @@ public class SVECTOR implements MemoryRef {
     return this;
   }
 
+  public SVECTOR mul(final VECTOR amount) {
+    this.x.mul((short)amount.getX());
+    this.y.mul((short)amount.getY());
+    this.z.mul((short)amount.getZ());
+    return this;
+  }
+
+  public SVECTOR mul(final SVECTOR amount) {
+    this.x.mul(amount.getX());
+    this.y.mul(amount.getY());
+    this.z.mul(amount.getZ());
+    return this;
+  }
+
   public SVECTOR mul(final int amount) {
-    this.x.set((short)(this.x.get() * amount));
-    this.y.set((short)(this.y.get() * amount));
-    this.z.set((short)(this.z.get() * amount));
+    this.x.mul((short)amount);
+    this.y.mul((short)amount);
+    this.z.mul((short)amount);
+    return this;
+  }
+
+  public SVECTOR div(final VECTOR amount) {
+    this.x.div((short)amount.getX());
+    this.y.div((short)amount.getY());
+    this.z.div((short)amount.getZ());
+    return this;
+  }
+
+  public SVECTOR div(final SVECTOR amount) {
+    this.x.div(amount.getX());
+    this.y.div(amount.getY());
+    this.z.div(amount.getZ());
     return this;
   }
 
   public SVECTOR div(final int divisor) {
-    this.x.set((short)(this.x.get() / divisor));
-    this.y.set((short)(this.y.get() / divisor));
-    this.z.set((short)(this.z.get() / divisor));
+    this.x.div((short)divisor);
+    this.y.div((short)divisor);
+    this.z.div((short)divisor);
     return this;
   }
 
