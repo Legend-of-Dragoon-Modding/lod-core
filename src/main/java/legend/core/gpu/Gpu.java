@@ -1333,6 +1333,9 @@ public class Gpu implements Runnable {
     MONO_FOUR_POINT_POLY_OPAQUE(0x28, 5, (buffer, gpu) -> {
       return polygonRenderer(buffer, gpu);
     }),
+    MONO_FOUR_POINT_POLY_TRANSLUCENT(0x2a, 5, (buffer, gpu) -> {
+      return polygonRenderer(buffer, gpu);
+    }),
 
     TEXTURED_FOUR_POINT_POLYGON_OPAQUE_BLENDED(0x2c, 9, (buffer, gpu) -> {
       return polygonRenderer(buffer, gpu);

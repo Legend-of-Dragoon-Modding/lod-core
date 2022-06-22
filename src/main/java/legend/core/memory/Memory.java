@@ -45,6 +45,14 @@ public class Memory {
 
   public static final IntSet watches = new IntOpenHashSet();
 
+  public static void addWatch(final long address) {
+    watches.add((int)(address & 0xffffff));
+  }
+
+  public static void removeWatch(final long address) {
+    watches.remove((int)(address & 0xffffff));
+  }
+
   public void waitForLock(final Runnable callback) {
     synchronized(this.lock) {
       callback.run();
