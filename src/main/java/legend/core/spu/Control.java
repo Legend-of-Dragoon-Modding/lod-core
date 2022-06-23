@@ -1,5 +1,11 @@
 package legend.core.spu;
 
+import legend.core.IoHelper;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+
 class Control {
   public short register;
 
@@ -45,5 +51,13 @@ class Control {
 
   public boolean cdAudioEnabled() {
     return (this.register & 0x1) != 0;
+  }
+
+  public void dump(final OutputStream stream) throws IOException {
+    IoHelper.write(stream, this.register);
+  }
+
+  public void load(final InputStream stream) throws IOException {
+    this.register = IoHelper.readShort(stream);
   }
 }

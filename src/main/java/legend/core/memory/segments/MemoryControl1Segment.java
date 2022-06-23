@@ -1,10 +1,15 @@
 package legend.core.memory.segments;
 
+import legend.core.IoHelper;
 import legend.core.memory.MisalignedAccessException;
 import legend.core.memory.Segment;
 import legend.core.memory.Value;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 import static legend.core.Hardware.MEMORY;
 
@@ -117,5 +122,31 @@ public class MemoryControl1Segment extends Segment {
         this.comDelay = value;
       }
     }
+  }
+
+  @Override
+  public void dump(final OutputStream stream) throws IOException {
+    IoHelper.write(stream, this.expansion1BaseAddress);
+    IoHelper.write(stream, this.expansion2BaseAddress);
+    IoHelper.write(stream, this.expansion1Delay);
+    IoHelper.write(stream, this.expansion3Delay);
+    IoHelper.write(stream, this.biosRomDelay);
+    IoHelper.write(stream, this.spuDelay);
+    IoHelper.write(stream, this.cdromDelay);
+    IoHelper.write(stream, this.expansion2Delay);
+    IoHelper.write(stream, this.comDelay);
+  }
+
+  @Override
+  public void load(final InputStream stream) throws IOException {
+    this.expansion1BaseAddress = IoHelper.readLong(stream);
+    this.expansion2BaseAddress = IoHelper.readLong(stream);
+    this.expansion1Delay = IoHelper.readLong(stream);
+    this.expansion3Delay = IoHelper.readLong(stream);
+    this.biosRomDelay = IoHelper.readLong(stream);
+    this.spuDelay = IoHelper.readLong(stream);
+    this.cdromDelay = IoHelper.readLong(stream);
+    this.expansion2Delay = IoHelper.readLong(stream);
+    this.comDelay = IoHelper.readLong(stream);
   }
 }

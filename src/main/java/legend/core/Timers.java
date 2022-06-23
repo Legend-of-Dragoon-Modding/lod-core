@@ -6,6 +6,10 @@ import legend.core.memory.MisalignedAccessException;
 import legend.core.memory.Segment;
 import legend.core.memory.Value;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+
 import static legend.core.Hardware.INTERRUPTS;
 import static legend.core.Hardware.MEMORY;
 
@@ -50,6 +54,13 @@ public class Timers implements Runnable {
       if(this.tick(2, 100)) {
         INTERRUPTS.set(InterruptType.TMR2);
       }
+
+      while(Hardware.dumping) {
+        Hardware.timerWaiting = true;
+        DebugHelper.sleep(1);
+      }
+
+      Hardware.timerWaiting = false;
 
       DebugHelper.sleep(1);
     }
@@ -344,6 +355,64 @@ public class Timers implements Runnable {
       this.reachedFFFF = 0;
 
       return counterMode;
+    }
+
+    /** Don't call directly - this is a segment */
+    @Override
+    @Deprecated
+    public void dump(final OutputStream stream) throws IOException {
+      IoHelper.write(stream, this.val);
+      IoHelper.write(stream, this.max);
+
+      IoHelper.write(stream, this.syncEnable);
+      IoHelper.write(stream, this.syncMode);
+      IoHelper.write(stream, this.resetCounterOnTarget);
+      IoHelper.write(stream, this.irqWhenCounterTarget);
+      IoHelper.write(stream, this.irqWhenCounterFFFF);
+      IoHelper.write(stream, this.irqRepeat);
+      IoHelper.write(stream, this.irqPulse);
+      IoHelper.write(stream, this.clockSource);
+      IoHelper.write(stream, this.interruptRequest);
+      IoHelper.write(stream, this.reachedTarget);
+      IoHelper.write(stream, this.reachedFFFF);
+
+      IoHelper.write(stream, this.vblank);
+      IoHelper.write(stream, this.hblank);
+      IoHelper.write(stream, this.dotDiv);
+
+      IoHelper.write(stream, this.prevHblank);
+      IoHelper.write(stream, this.prevVblank);
+
+      IoHelper.write(stream, this.irq);
+      IoHelper.write(stream, this.alreadyFiredIrq);
+    }
+
+    @Override
+    public void load(final InputStream stream) throws IOException {
+      this.val = IoHelper.readLong(stream);
+      this.max = IoHelper.readLong(stream);
+
+      this.syncEnable = IoHelper.readByte(stream);
+      this.syncMode = IoHelper.readByte(stream);
+      this.resetCounterOnTarget = IoHelper.readByte(stream);
+      this.irqWhenCounterTarget = IoHelper.readByte(stream);
+      this.irqWhenCounterFFFF = IoHelper.readByte(stream);
+      this.irqRepeat = IoHelper.readByte(stream);
+      this.irqPulse = IoHelper.readByte(stream);
+      this.clockSource = IoHelper.readByte(stream);
+      this.interruptRequest = IoHelper.readByte(stream);
+      this.reachedTarget = IoHelper.readByte(stream);
+      this.reachedFFFF = IoHelper.readByte(stream);
+
+      this.vblank = IoHelper.readBool(stream);
+      this.hblank = IoHelper.readBool(stream);
+      this.dotDiv = IoHelper.readInt(stream);
+
+      this.prevHblank = IoHelper.readBool(stream);
+      this.prevVblank = IoHelper.readBool(stream);
+
+      this.irq = IoHelper.readBool(stream);
+      this.alreadyFiredIrq = IoHelper.readBool(stream);
     }
   }
 }

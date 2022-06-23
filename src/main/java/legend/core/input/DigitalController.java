@@ -1,12 +1,29 @@
 package legend.core.input;
 
+import it.unimi.dsi.fastutil.bytes.Byte2ObjectMap;
+import it.unimi.dsi.fastutil.bytes.Byte2ObjectOpenHashMap;
+import legend.core.IoHelper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.function.Supplier;
 
 public class DigitalController extends Controller {
   private static final Logger LOGGER = LogManager.getFormatterLogger(DigitalController.class);
+
+  private final Byte2ObjectMap<Supplier<Responder>> responders = new Byte2ObjectOpenHashMap<>();
+  {
+    this.responders.put((byte)1, SimpleResponder::new);
+    this.responders.put((byte)0x43, Command43Responder::new);
+    this.responders.put((byte)0x44, Command44Responder::new);
+    this.responders.put((byte)0x46, Command46Responder::new);
+    this.responders.put((byte)0x47, Command47Responder::new);
+    this.responders.put((byte)0x4c, Command4cResponder::new);
+  }
 
   private enum Mode {
     IDLE,
@@ -22,22 +39,52 @@ public class DigitalController extends Controller {
   private boolean inConfig;
 
   @Override
+  public void dump(final OutputStream stream) throws IOException {
+    super.dump(stream);
+
+    IoHelper.write(stream, this.mode);
+
+    if(this.responder == null) {
+      IoHelper.write(stream, (byte)0);
+    } else {
+      this.responder.dump(stream);
+    }
+
+    IoHelper.write(stream, this.inConfig);
+  }
+
+  @Override
+  public void load(final InputStream stream) throws IOException {
+    super.load(stream);
+
+    this.mode = IoHelper.readEnum(stream, Mode.class);
+
+    final byte responderId = (byte)stream.read();
+    if(responderId == 0) {
+      this.responder = null;
+    } else {
+      this.responder = this.responders.get(responderId).get();
+      this.responder.load(stream);
+    }
+
+    this.inConfig = IoHelper.readBool(stream);
+  }
+
+  @Override
   public byte process(final byte b) {
     switch(this.mode) {
       case IDLE:
-        switch(b) {
-          case 0x01:
-            LOGGER.debug("[Controller] Idle Process 0x01");
-            this.mode = Mode.CONNECTED;
-            this.ack = true;
-            return (byte)0xff;
-          default:
-            LOGGER.error("[Controller] Idle Process Warning: %02x", b);
-            assert false;
-            this.responder = null;
-            this.ack = false;
-            return (byte)0xff;
+        if(b == 0x01) {
+          LOGGER.debug("[Controller] Idle Process 0x01");
+          this.mode = Mode.CONNECTED;
+          this.ack = true;
+          return (byte)0xff;
         }
+        LOGGER.error("[Controller] Idle Process Warning: %02x", b);
+        assert false;
+        this.responder = null;
+        this.ack = false;
+        return (byte)0xff;
 
       case CONNECTED:
         switch(b) {
@@ -194,13 +241,21 @@ public class DigitalController extends Controller {
   }
 
   private interface Responder {
+    byte id();
     byte get(final byte input);
     boolean hasMore();
+    void dump(final OutputStream stream) throws IOException;
+    void load(final InputStream stream) throws IOException;
   }
 
   private static class SimpleResponder implements Responder {
-    protected final int[] responses;
+    protected int[] responses;
     protected int index;
+
+    @Override
+    public byte id() {
+      return 1;
+    }
 
     public SimpleResponder(final int... responses) {
       this.responses = responses;
@@ -215,9 +270,37 @@ public class DigitalController extends Controller {
     public boolean hasMore() {
       return this.index < this.responses.length;
     }
+
+    @Override
+    public void dump(final OutputStream stream) throws IOException {
+      IoHelper.write(stream, this.id());
+      IoHelper.write(stream, this.responses.length);
+
+      for(final int response : this.responses) {
+        IoHelper.write(stream, response);
+      }
+
+      IoHelper.write(stream, this.index);
+    }
+
+    @Override
+    public void load(final InputStream stream) throws IOException {
+      this.responses = new int[IoHelper.readInt(stream)];
+
+      for(int i = 0; i < this.responses.length; i++) {
+        this.responses[i] = IoHelper.readInt(stream);
+      }
+
+      this.index = IoHelper.readInt(stream);
+    }
   }
 
   private class Command43Responder extends SimpleResponder {
+    @Override
+    public byte id() {
+      return 0x43;
+    }
+
     public Command43Responder() {
       super(
         DigitalController.this.inConfig ? 0xf3 : 0x41, // Digital
@@ -248,6 +331,11 @@ public class DigitalController extends Controller {
   }
 
   private static class Command44Responder extends SimpleResponder {
+    @Override
+    public byte id() {
+      return 0x44;
+    }
+
     public Command44Responder() {
       super(
         0xf3,
@@ -278,6 +366,11 @@ public class DigitalController extends Controller {
   }
 
   private static class Command46Responder extends SimpleResponder {
+    @Override
+    public byte id() {
+      return 0x46;
+    }
+
     public Command46Responder() {
       super(
         0xf3,
@@ -312,6 +405,11 @@ public class DigitalController extends Controller {
   }
 
   private static class Command47Responder extends SimpleResponder {
+    @Override
+    public byte id() {
+      return 0x47;
+    }
+
     public Command47Responder() {
       super(
         0xf3,
@@ -341,6 +439,11 @@ public class DigitalController extends Controller {
   }
 
   private static class Command4cResponder extends SimpleResponder {
+    @Override
+    public byte id() {
+      return 0x4c;
+    }
+
     public Command4cResponder() {
       super(
         0xf3,

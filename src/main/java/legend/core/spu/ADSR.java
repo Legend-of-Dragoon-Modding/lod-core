@@ -1,5 +1,11 @@
 package legend.core.spu;
 
+import legend.core.IoHelper;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+
 public class ADSR {
   public int lo;               //8
   public int hi;               //A
@@ -46,5 +52,15 @@ public class ADSR {
 
   public int releaseShift() {
     return this.hi & 0x1f;
+  }
+
+  public void dump(final OutputStream stream) throws IOException {
+    IoHelper.write(stream, this.lo);
+    IoHelper.write(stream, this.hi);
+  }
+
+  public void load(final InputStream stream) throws IOException {
+    this.lo = IoHelper.readInt(stream);
+    this.hi = IoHelper.readInt(stream);
   }
 }

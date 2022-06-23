@@ -3,6 +3,9 @@ package legend.core;
 import legend.core.gte.Gte;
 import legend.core.memory.types.RunnableRef;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -242,6 +245,28 @@ public class Cpu {
     return 0;
   }
 
+  public void dump(final OutputStream stream) throws IOException {
+    for(final Register reg : this.registers.values()) {
+      reg.dump(stream);
+    }
+
+    this.gte.dump(stream);
+
+    IoHelper.write(stream, this.lastSyscall);
+    IoHelper.write(stream, this.exceptionHandled);
+  }
+
+  public void load(final InputStream stream) throws IOException {
+    for(final Register reg : this.registers.values()) {
+      reg.load(stream);
+    }
+
+    this.gte.load(stream);
+
+    this.lastSyscall = IoHelper.readInt(stream);
+    this.exceptionHandled = IoHelper.readBool(stream);
+  }
+
   public static class Register {
     protected long value;
 
@@ -251,6 +276,14 @@ public class Cpu {
 
     public long get() {
       return this.value;
+    }
+
+    public void dump(final OutputStream stream) throws IOException {
+      IoHelper.write(stream, this.value);
+    }
+
+    public void load(final InputStream stream) throws IOException {
+      this.value = IoHelper.readLong(stream);
     }
   }
 
@@ -696,6 +729,46 @@ public class Cpu {
 
     public void resetCU2() {
       this.CU2 = false;
+    }
+
+    public void dump(final OutputStream stream) throws IOException {
+      IoHelper.write(stream, this.IEc);
+      IoHelper.write(stream, this.KUc);
+      IoHelper.write(stream, this.IEp);
+      IoHelper.write(stream, this.KUp);
+      IoHelper.write(stream, this.IEo);
+      IoHelper.write(stream, this.KUo);
+      IoHelper.write(stream, this.Im);
+      IoHelper.write(stream, this.Isc);
+      IoHelper.write(stream, this.Swc);
+      IoHelper.write(stream, this.PZ);
+      IoHelper.write(stream, this.CM);
+      IoHelper.write(stream, this.PE);
+      IoHelper.write(stream, this.TS);
+      IoHelper.write(stream, this.BEV);
+      IoHelper.write(stream, this.RE);
+      IoHelper.write(stream, this.CU0);
+      IoHelper.write(stream, this.CU2);
+    }
+
+    public void load(final InputStream stream) throws IOException {
+      this.IEc = IoHelper.readBool(stream);
+      this.KUc = IoHelper.readBool(stream);
+      this.IEp = IoHelper.readBool(stream);
+      this.KUp = IoHelper.readBool(stream);
+      this.IEo = IoHelper.readBool(stream);
+      this.KUo = IoHelper.readBool(stream);
+      this.Im = IoHelper.readLong(stream);
+      this.Isc = IoHelper.readBool(stream);
+      this.Swc = IoHelper.readBool(stream);
+      this.PZ = IoHelper.readBool(stream);
+      this.CM = IoHelper.readBool(stream);
+      this.PE = IoHelper.readBool(stream);
+      this.TS = IoHelper.readBool(stream);
+      this.BEV = IoHelper.readBool(stream);
+      this.RE = IoHelper.readBool(stream);
+      this.CU0 = IoHelper.readBool(stream);
+      this.CU2 = IoHelper.readBool(stream);
     }
   }
 

@@ -1,8 +1,13 @@
 package legend.core.gte;
 
+import legend.core.IoHelper;
 import legend.core.MathHelper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 public class Gte {
   private static final Logger LOGGER = LogManager.getFormatterLogger(Gte.class);
@@ -45,6 +50,18 @@ public class Gte {
     public Matrix copy() {
       return new Matrix(this.v1.copy(), this.v2.copy(), this.v3.copy());
     }
+
+    public void dump(final OutputStream stream) throws IOException {
+      this.v1.dump(stream);
+      this.v2.dump(stream);
+      this.v3.dump(stream);
+    }
+
+    public void load(final InputStream stream) throws IOException {
+      this.v1.load(stream);
+      this.v2.load(stream);
+      this.v3.load(stream);
+    }
   }
 
   private static class Vector2 {
@@ -63,6 +80,16 @@ public class Gte {
     public void set(final Vector2 other) {
       this.x = other.x;
       this.y = other.y;
+    }
+
+    public void dump(final OutputStream stream) throws IOException {
+      IoHelper.write(stream, this.x);
+      IoHelper.write(stream, this.y);
+    }
+
+    public void load(final InputStream stream) throws IOException {
+      this.x = IoHelper.readShort(stream);
+      this.y = IoHelper.readShort(stream);
     }
   }
 
@@ -88,6 +115,20 @@ public class Gte {
       this.g = other.g;
       this.b = other.b;
       this.c = other.c;
+    }
+
+    public void dump(final OutputStream stream) throws IOException {
+      stream.write(this.r);
+      stream.write(this.g);
+      stream.write(this.b);
+      stream.write(this.c);
+    }
+
+    public void load(final InputStream stream) throws IOException {
+      this.r = (byte)stream.read();
+      this.g = (byte)stream.read();
+      this.b = (byte)stream.read();
+      this.c = (byte)stream.read();
     }
   }
 
@@ -1093,6 +1134,124 @@ public class Gte {
         }
       }
     }
+  }
+
+  public void dump(final OutputStream stream) throws IOException {
+    for(final ShortVector3 vec : this.V) {
+      vec.dump(stream);
+    }
+
+    this.RGBC.dump(stream);
+    IoHelper.write(stream, this.OTZ);
+
+    for(final short ir : this.IR) {
+      IoHelper.write(stream, ir);
+    }
+
+    for(final Vector2 v : this.SXY) {
+      v.dump(stream);
+    }
+
+    for(final short sz : this.SZ) {
+      IoHelper.write(stream, sz);
+    }
+
+    for(final Color c : this.RGB) {
+      c.dump(stream);
+    }
+
+    IoHelper.write(stream, this.RES1);
+    IoHelper.write(stream, this.MAC0);
+    IoHelper.write(stream, this.MAC1);
+    IoHelper.write(stream, this.MAC2);
+    IoHelper.write(stream, this.MAC3);
+    IoHelper.write(stream, this.IRGB);
+    IoHelper.write(stream, this.LZCS);
+    IoHelper.write(stream, this.LZCR);
+
+    this.RT.dump(stream);
+    this.LM.dump(stream);
+    this.LRGB.dump(stream);
+    IoHelper.write(stream, this.TRX);
+    IoHelper.write(stream, this.TRY);
+    IoHelper.write(stream, this.TRZ);
+    IoHelper.write(stream, this.RBK);
+    IoHelper.write(stream, this.GBK);
+    IoHelper.write(stream, this.BBK);
+    IoHelper.write(stream, this.RFC);
+    IoHelper.write(stream, this.GFC);
+    IoHelper.write(stream, this.BFC);
+    IoHelper.write(stream, this.OFX);
+    IoHelper.write(stream, this.OFY);
+    IoHelper.write(stream, this.DQB);
+    IoHelper.write(stream, this.H);
+    IoHelper.write(stream, this.ZSF3);
+    IoHelper.write(stream, this.ZSF4);
+    IoHelper.write(stream, this.DQA);
+    IoHelper.write(stream, this.FLAG);
+
+    IoHelper.write(stream, this.sf);
+    IoHelper.write(stream, this.lm);
+    IoHelper.write(stream, this.currentCommand);
+  }
+
+  public void load(final InputStream stream) throws IOException {
+    for(final ShortVector3 vec : this.V) {
+      vec.load(stream);
+    }
+
+    this.RGBC.load(stream);
+    this.OTZ = IoHelper.readShort(stream);
+
+    for(int i = 0; i < this.IR.length; i++) {
+      this.IR[i] = IoHelper.readShort(stream);
+    }
+
+    for(final Vector2 v : this.SXY) {
+      v.load(stream);
+    }
+
+    for(int i = 0; i < this.SZ.length; i++) {
+      this.SZ[i] = IoHelper.readShort(stream);
+    }
+
+    for(final Color c : this.RGB) {
+      c.load(stream);
+    }
+
+    this.RES1 = IoHelper.readInt(stream);
+    this.MAC0 = IoHelper.readInt(stream);
+    this.MAC1 = IoHelper.readInt(stream);
+    this.MAC2 = IoHelper.readInt(stream);
+    this.MAC3 = IoHelper.readInt(stream);
+    this.IRGB = IoHelper.readShort(stream);
+    this.LZCS = IoHelper.readInt(stream);
+    this.LZCR = IoHelper.readInt(stream);
+
+    this.RT.load(stream);
+    this.LM.load(stream);
+    this.LRGB.load(stream);
+    this.TRX = IoHelper.readInt(stream);
+    this.TRY = IoHelper.readInt(stream);
+    this.TRZ = IoHelper.readInt(stream);
+    this.RBK = IoHelper.readInt(stream);
+    this.GBK = IoHelper.readInt(stream);
+    this.BBK = IoHelper.readInt(stream);
+    this.RFC = IoHelper.readInt(stream);
+    this.GFC = IoHelper.readInt(stream);
+    this.BFC = IoHelper.readInt(stream);
+    this.OFX = IoHelper.readInt(stream);
+    this.OFY = IoHelper.readInt(stream);
+    this.DQB = IoHelper.readInt(stream);
+    this.H = IoHelper.readShort(stream);
+    this.ZSF3 = IoHelper.readShort(stream);
+    this.ZSF4 = IoHelper.readShort(stream);
+    this.DQA = IoHelper.readShort(stream);
+    this.FLAG = IoHelper.readLong(stream);
+
+    this.sf = IoHelper.readInt(stream);
+    this.lm = IoHelper.readBool(stream);
+    this.currentCommand = IoHelper.readInt(stream);
   }
 
   private void debug() {

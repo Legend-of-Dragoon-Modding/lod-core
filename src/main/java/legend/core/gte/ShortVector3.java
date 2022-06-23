@@ -1,5 +1,11 @@
 package legend.core.gte;
 
+import legend.core.IoHelper;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+
 class ShortVector3 {
   public short x;
   public short y;
@@ -24,5 +30,17 @@ class ShortVector3 {
 
   public ShortVector3 copy() {
     return new ShortVector3(this.x, this.y, this.z);
+  }
+
+  public void dump(final OutputStream stream) throws IOException {
+    IoHelper.write(stream, this.x);
+    IoHelper.write(stream, this.y);
+    IoHelper.write(stream, this.z);
+  }
+
+  public void load(final InputStream stream) throws IOException {
+    this.x = IoHelper.readShort(stream);
+    this.y = IoHelper.readShort(stream);
+    this.z = IoHelper.readShort(stream);
   }
 }

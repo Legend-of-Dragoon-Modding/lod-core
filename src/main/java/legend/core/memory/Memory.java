@@ -11,10 +11,15 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.TriConsumer;
 
 import javax.annotation.Nullable;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -42,6 +47,8 @@ public class Memory {
 
   private final byte[] temp = new byte[0x1000];
   private final BitSet tempUsage = new BitSet(0x1000);
+
+  private final Set<Class<?>> overlays = new HashSet<>();
 
   public static final IntSet watches = new IntOpenHashSet();
 
@@ -238,10 +245,28 @@ public class Memory {
     this.tempUsage.clear((int)(address & TEMP_MASK), (int)(address & TEMP_MASK) + length);
   }
 
-  private static record MethodInfo(java.lang.reflect.Method method, boolean ignoreExtraParams) { }
+  public void dump(final OutputStream stream) throws IOException {
+    for(final Segment segment : this.segments) {
+      segment.dump(stream);
+    }
+  }
+
+  public void load(final InputStream stream) throws IOException {
+    for(final Segment segment : this.segments) {
+      segment.load(stream);
+    }
+  }
+
+  private record MethodInfo(java.lang.reflect.Method method, boolean ignoreExtraParams) { }
+
+  public Set<Class<?>> getOverlays() {
+    return this.overlays;
+  }
 
   public void addFunctions(final Class<?> cls) {
     LOGGER.info("Adding function references from %s", cls);
+
+    this.overlays.add(cls);
 
     final Long2ObjectMap<MethodInfo> methods = new Long2ObjectOpenHashMap<>();
 

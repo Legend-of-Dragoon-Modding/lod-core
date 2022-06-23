@@ -3,6 +3,9 @@ package legend.core.memory.segments;
 import legend.core.memory.IllegalAddressException;
 import legend.core.memory.Segment;
 
+import java.io.InputStream;
+import java.io.OutputStream;
+
 public class InvalidSegment extends Segment {
   public InvalidSegment(final long address, final int length) {
     super(address, length);
@@ -26,5 +29,15 @@ public class InvalidSegment extends Segment {
   @Override
   public void set(final int offset, final int size, final long value) {
     throw new IllegalAddressException("Memory at " + Long.toHexString(this.getAddress() + offset) + " may not be used");
+  }
+
+  @Override
+  public void dump(final OutputStream stream) {
+
+  }
+
+  @Override
+  public void load(final InputStream stream) {
+
   }
 }

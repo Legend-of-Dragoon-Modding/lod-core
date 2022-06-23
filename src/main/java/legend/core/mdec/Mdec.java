@@ -10,6 +10,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Queue;
@@ -330,6 +333,14 @@ public class Mdec {
     return this.outBufferPos == 0; //TODO compare to inBufferPos when we handle full dma in
   }
 
+  public void dump(final OutputStream stream) throws IOException {
+    //TODO
+  }
+
+  public void load(final InputStream stream) throws IOException {
+    //TODO
+  }
+
   private static final byte[] zigzag = {
      0,  1,  8, 16,  9,  2,  3, 10,
     17, 24, 32, 25, 18, 11,  4,  5,
@@ -449,6 +460,16 @@ public class Mdec {
           //Console.WriteLine("[MDEC] dataInRequest " + isDataInRequested + " dataOutRequested " + isDataOutRequested);
         }
       }
+    }
+
+    @Override
+    public void dump(final OutputStream stream) {
+
+    }
+
+    @Override
+    public void load(final InputStream stream) {
+
     }
   }
 }

@@ -1,5 +1,6 @@
 package legend.core.dma;
 
+import legend.core.IoHelper;
 import legend.core.memory.IllegalAddressException;
 import legend.core.memory.Memory;
 import legend.core.memory.MisalignedAccessException;
@@ -8,7 +9,11 @@ import legend.core.memory.Value;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.EnumMap;
+import java.util.Map;
 
 import static legend.core.Hardware.MEMORY;
 
@@ -134,6 +139,48 @@ public class DmaManager {
     this.updateInterruptFlag();
   }
 
+  public void dump(final OutputStream stream) throws IOException {
+    for(final DmaChannel channel : this.channels.values()) {
+      channel.dump(stream);
+    }
+
+    for(final boolean enable : this.dicrIrqEnable.values()) {
+      IoHelper.write(stream, enable);
+    }
+
+    for(final boolean flag : this.dicrIrqFlag.values()) {
+      IoHelper.write(stream, flag);
+    }
+
+    IoHelper.write(stream, this.dpcr);
+
+    IoHelper.write(stream, this.dicrForceIrq);
+    IoHelper.write(stream, this.dicrMasterEnable);
+    IoHelper.write(stream, this.dicrMasterFlag);
+
+    IoHelper.write(stream, this.edgeTrigger);
+  }
+
+  public void load(final InputStream stream) throws IOException {
+    for(final DmaChannel channel : this.channels.values()) {
+      channel.load(stream);
+    }
+
+    for(final Map.Entry<DmaChannelType, Boolean> entry : this.dicrIrqEnable.entrySet()) {
+      entry.setValue(IoHelper.readBool(stream));
+    }
+
+    for(final var entry : this.dicrIrqFlag.entrySet()) {
+      entry.setValue(IoHelper.readBool(stream));
+    }
+
+    this.dpcr = IoHelper.readLong(stream);
+    this.dicrForceIrq = IoHelper.readBool(stream);
+    this.dicrMasterEnable = IoHelper.readBool(stream);
+    this.dicrMasterFlag = IoHelper.readBool(stream);
+    this.edgeTrigger = IoHelper.readBool(stream);
+  }
+
   public class DmaSegment extends Segment {
     public DmaSegment(final long address) {
       super(address, 0x8);
@@ -239,6 +286,16 @@ public class DmaManager {
           DmaManager.this.updateInterruptFlag();
         }
       }
+    }
+
+    @Override
+    public void dump(final OutputStream stream) throws IOException {
+
+    }
+
+    @Override
+    public void load(final InputStream stream) throws IOException {
+
     }
   }
 }

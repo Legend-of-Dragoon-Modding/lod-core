@@ -28,6 +28,9 @@ import org.reflections8.Reflections;
 import org.reflections8.util.ClasspathHelper;
 
 import javax.annotation.Nullable;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Paths;
 import java.util.Set;
 
@@ -60,6 +63,90 @@ public final class Hardware {
 
   @Nullable
   public static final Class<?> ENTRY_POINT;
+
+  public static boolean dumping;
+  public static boolean hardwareWaiting;
+  public static boolean timerWaiting;
+  public static boolean spuWaiting;
+  public static boolean joyWaiting;
+
+  private static void dumpLock() {
+    dumping = true;
+
+    while(!hardwareWaiting || !timerWaiting || !spuWaiting || !joyWaiting) {
+      DebugHelper.sleep(1);
+    }
+  }
+
+  private static void dumpUnlock() {
+    dumping = false;
+  }
+
+  public static void dump(final OutputStream stream) throws IOException {
+    dumpLock();
+
+    stream.write((byte)'d');
+    stream.write((byte)'d');
+    stream.write((byte)'m');
+    stream.write((byte)'p');
+    stream.write(0x00);
+
+    MEMORY.dump(stream);
+    CPU.dump(stream);
+    INTERRUPTS.dump(stream);
+    DMA.dump(stream);
+    GPU.dump(stream);
+    MDEC.dump(stream);
+    CDROM.dump(stream);
+    SPU.dump(stream);
+    JOYPAD.dump(stream);
+
+    final Set<Class<?>> overlays = MEMORY.getOverlays();
+    IoHelper.write(stream, overlays.size());
+    for(final Class<?> cls : overlays) {
+      IoHelper.write(stream, cls.getName());
+    }
+
+    dumpUnlock();
+  }
+
+  public static void load(final InputStream stream) throws IOException {
+    dumpLock();
+
+    if(stream.read() != 'd' || stream.read() != 'd' || stream.read() != 'm' || stream.read() != 'p') {
+      LOGGER.error("Failed to load state: invalid file");
+      dumpUnlock();
+      return;
+    }
+
+    if(stream.read() != 0) {
+      LOGGER.error("Failed to load state: invalid version");
+    }
+
+    MEMORY.load(stream);
+    CPU.load(stream);
+    INTERRUPTS.load(stream);
+    DMA.load(stream);
+    GPU.load(stream);
+    MDEC.load(stream);
+    CDROM.load(stream);
+    SPU.load(stream);
+    JOYPAD.load(stream);
+
+    // Need to acquire gate to load kernel/bios functions
+    GATE.acquire();
+    final int overlayCount = IoHelper.readInt(stream);
+    for(int i = 0; i < overlayCount; i++) {
+      try {
+        MEMORY.addFunctions(Class.forName(IoHelper.readString(stream)));
+      } catch(final ClassNotFoundException e) {
+        throw new IOException(e);
+      }
+    }
+    GATE.release();
+
+    dumpUnlock();
+  }
 
   static {
     // --- BIOS memory ------------------------
@@ -211,6 +298,13 @@ public final class Hardware {
         SPU.stop();
         JOYPAD.stop();
       }
+
+      while(dumping) {
+        hardwareWaiting = true;
+        DebugHelper.sleep(1);
+      }
+
+      hardwareWaiting = false;
     }
   }
 

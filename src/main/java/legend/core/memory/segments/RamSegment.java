@@ -3,6 +3,10 @@ package legend.core.memory.segments;
 import legend.core.MathHelper;
 import legend.core.memory.Segment;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+
 public class RamSegment extends Segment {
   private final byte[] data;
 
@@ -62,5 +66,15 @@ public class RamSegment extends Segment {
   @Override
   public void setBytes(final int offset, final byte[] data, final int dataOffset, final int dataLength) {
     System.arraycopy(data, dataOffset, this.data, offset, dataLength);
+  }
+
+  @Override
+  public void dump(final OutputStream stream) throws IOException {
+    stream.write(this.data);
+  }
+
+  @Override
+  public void load(final InputStream stream) throws IOException {
+    stream.read(this.data);
   }
 }

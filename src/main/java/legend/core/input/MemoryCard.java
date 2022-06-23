@@ -1,9 +1,13 @@
 package legend.core.input;
 
+import legend.core.IoHelper;
 import legend.core.memory.Value;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -20,10 +24,10 @@ public class MemoryCard {
 
   //emulating a 3rd party one as it seems easier to and 0x3FF bad address than to handle the
   //original memcard badAddress 0xFFFF error and the IdCommand
-  byte MEMORY_CARD_ID_1 = 0x5A;
-  byte MEMORY_CARD_ID_2 = 0x5D;
-  byte MEMORY_CARD_COMMAND_ACK_1 = 0x5C;
-  byte MEMORY_CARD_COMMAND_ACK_2 = 0x5D;
+  final byte MEMORY_CARD_ID_1 = 0x5A;
+  final byte MEMORY_CARD_ID_2 = 0x5D;
+  final byte MEMORY_CARD_COMMAND_ACK_1 = 0x5C;
+  final byte MEMORY_CARD_COMMAND_ACK_2 = 0x5D;
   private byte[] memory = new byte[128 * 1024]; //Standard memcard 128KB
   public boolean ack;
 
@@ -324,5 +328,45 @@ public class MemoryCard {
     this.transferMode = TransferMode.UNDEFINED;
     this.mode = Mode.IDLE;
     return (byte)0xff;
+  }
+
+  public void dump(final OutputStream stream) throws IOException {
+    stream.write(this.memory);
+
+    IoHelper.write(stream, this.ack);
+
+    IoHelper.write(stream, this.flag);
+
+    IoHelper.write(stream, this.addressMSB);
+    IoHelper.write(stream, this.addressLSB);
+    IoHelper.write(stream, this.address);
+
+    IoHelper.write(stream, this.checksum);
+    IoHelper.write(stream, this.readPointer);
+    IoHelper.write(stream, this.endTransfer);
+
+    IoHelper.write(stream, this.mode);
+
+    IoHelper.write(stream, this.transferMode);
+  }
+
+  public void load(final InputStream stream) throws IOException {
+    stream.read(this.memory);
+
+    this.ack = IoHelper.readBool(stream);
+
+    this.flag = IoHelper.readByte(stream);
+
+    this.addressMSB = IoHelper.readByte(stream);
+    this.addressLSB = IoHelper.readByte(stream);
+    this.address = IoHelper.readShort(stream);
+
+    this.checksum = IoHelper.readByte(stream);
+    this.readPointer = IoHelper.readInt(stream);
+    this.endTransfer = IoHelper.readByte(stream);
+
+    this.mode = IoHelper.readEnum(stream, Mode.class);
+
+    this.transferMode = IoHelper.readEnum(stream, TransferMode.class);
   }
 }

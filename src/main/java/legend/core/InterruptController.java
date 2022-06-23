@@ -8,6 +8,10 @@ import legend.core.memory.Value;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+
 import static legend.core.Hardware.MEMORY;
 
 public class InterruptController {
@@ -29,6 +33,16 @@ public class InterruptController {
 
   public boolean interruptPending() {
     return (this.stat & this.mask) != 0;
+  }
+
+  public void dump(final OutputStream stream) throws IOException {
+    IoHelper.write(stream, this.stat);
+    IoHelper.write(stream, this.mask);
+  }
+
+  public void load(final InputStream stream) throws IOException {
+    this.stat = IoHelper.readLong(stream);
+    this.mask = IoHelper.readLong(stream);
   }
 
   public class InterruptControlSegment extends Segment {
@@ -78,6 +92,16 @@ public class InterruptController {
 
         default -> throw new IllegalAddressException("There is no interrupt control port at " + Long.toHexString(offset));
       }
+    }
+
+    @Override
+    public void dump(final OutputStream stream) throws IOException {
+
+    }
+
+    @Override
+    public void load(final InputStream stream) throws IOException {
+
     }
   }
 }

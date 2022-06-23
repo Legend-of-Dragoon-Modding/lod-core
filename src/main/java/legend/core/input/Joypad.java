@@ -1,12 +1,18 @@
 package legend.core.input;
 
 import legend.core.DebugHelper;
+import legend.core.Hardware;
 import legend.core.InterruptType;
+import legend.core.IoHelper;
 import legend.core.memory.Memory;
 import legend.core.memory.MisalignedAccessException;
 import legend.core.memory.Segment;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 import static legend.core.Hardware.INTERRUPTS;
 
@@ -114,6 +120,13 @@ public class Joypad implements Runnable {
       }
 
       timer = System.nanoTime() + timeout;
+
+      while(Hardware.dumping) {
+        Hardware.joyWaiting = true;
+        DebugHelper.sleep(1);
+      }
+
+      Hardware.joyWaiting = false;
     }
   }
 
@@ -305,6 +318,98 @@ public class Joypad implements Runnable {
     return this.JOY_BAUD;
   }
 
+  public void dump(final OutputStream stream) throws IOException {
+    IoHelper.write(stream, this.JOY_TX_DATA);
+    IoHelper.write(stream, this.JOY_RX_DATA);
+
+    IoHelper.write(stream, this.fifoFull);
+
+    IoHelper.write(stream, this.edgeTrigger);
+    IoHelper.write(stream, this.txReadyFlag1);
+    IoHelper.write(stream, this.txReadyFlag2);
+    IoHelper.write(stream, this.rxParityError);
+    IoHelper.write(stream, this.ackInputLevel);
+    IoHelper.write(stream, this.interruptRequest);
+    IoHelper.write(stream, this.baudrateTimer);
+
+    IoHelper.write(stream, this.baudrateReloadFactor);
+    IoHelper.write(stream, this.characterLength);
+    IoHelper.write(stream, this.parityEnable);
+    IoHelper.write(stream, this.parityTypeOdd);
+    IoHelper.write(stream, this.clkOutputPolarity);
+
+    IoHelper.write(stream, this.txEnable);
+    IoHelper.write(stream, this.JoyOutput);
+    IoHelper.write(stream, this.rxEnable);
+    IoHelper.write(stream, this.joyControlUnknownBit3);
+    IoHelper.write(stream, this.controlAck);
+    IoHelper.write(stream, this.joyControlUnknownBit5);
+    IoHelper.write(stream, this.controlReset);
+    IoHelper.write(stream, this.rxInterruptMode);
+    IoHelper.write(stream, this.txInterruptEnable);
+    IoHelper.write(stream, this.rxInterruptEnable);
+    IoHelper.write(stream, this.ackInterruptEnable);
+    IoHelper.write(stream, this.desiredSlotNumber);
+
+    IoHelper.write(stream, this.JOY_BAUD);
+
+    IoHelper.write(stream, this.joypadDevice);
+
+    this.controller.dump(stream);
+    this.memoryCard.dump(stream);
+
+    IoHelper.write(stream, this.running);
+
+    IoHelper.write(stream, this.counter);
+    IoHelper.write(stream, this.counter2);
+  }
+
+  public void load(final InputStream stream) throws IOException {
+    this.JOY_TX_DATA = IoHelper.readByte(stream);
+    this.JOY_RX_DATA = IoHelper.readByte(stream);
+
+    this.fifoFull = IoHelper.readBool(stream);
+
+    this.edgeTrigger = IoHelper.readBool(stream);
+    this.txReadyFlag1 = IoHelper.readBool(stream);
+    this.txReadyFlag2 = IoHelper.readBool(stream);
+    this.rxParityError = IoHelper.readBool(stream);
+    this.ackInputLevel = IoHelper.readBool(stream);
+    this.interruptRequest = IoHelper.readBool(stream);
+    this.baudrateTimer = IoHelper.readInt(stream);
+
+    this.baudrateReloadFactor = IoHelper.readInt(stream);
+    this.characterLength = IoHelper.readInt(stream);
+    this.parityEnable = IoHelper.readBool(stream);
+    this.parityTypeOdd = IoHelper.readBool(stream);
+    this.clkOutputPolarity = IoHelper.readBool(stream);
+
+    this.txEnable = IoHelper.readBool(stream);
+    this.JoyOutput = IoHelper.readBool(stream);
+    this.rxEnable = IoHelper.readBool(stream);
+    this.joyControlUnknownBit3 = IoHelper.readBool(stream);
+    this.controlAck = IoHelper.readBool(stream);
+    this.joyControlUnknownBit5 = IoHelper.readBool(stream);
+    this.controlReset = IoHelper.readBool(stream);
+    this.rxInterruptMode = IoHelper.readInt(stream);
+    this.txInterruptEnable = IoHelper.readBool(stream);
+    this.rxInterruptEnable = IoHelper.readBool(stream);
+    this.ackInterruptEnable = IoHelper.readBool(stream);
+    this.desiredSlotNumber = IoHelper.readInt(stream);
+
+    this.JOY_BAUD = IoHelper.readShort(stream);
+
+    this.joypadDevice = IoHelper.readEnum(stream, JoypadDevice.class);
+
+    this.controller.load(stream);
+    this.memoryCard.load(stream);
+
+    this.running = IoHelper.readBool(stream);
+
+    this.counter = IoHelper.readInt(stream);
+    this.counter2 = IoHelper.readInt(stream);
+  }
+
   public class JoypadSegment extends Segment {
     public JoypadSegment(final long address) {
       super(address, 0x10);
@@ -368,10 +473,21 @@ public class Joypad implements Runnable {
         return;
       }
 
-      switch(offset & 0x4) {
-        case 0x00 -> Joypad.this.setJOY_DATA((int)value);
-        default -> throw new MisalignedAccessException("Peripheral IO port " + Long.toHexString(this.getAddress() + offset) + " may not be accessed with 32-bit reads or writes");
-      };
+      if((offset & 0x4) == 0x00) {
+        Joypad.this.setJOY_DATA((int)value);
+      } else {
+        throw new MisalignedAccessException("Peripheral IO port " + Long.toHexString(this.getAddress() + offset) + " may not be accessed with 32-bit reads or writes");
+      }
+    }
+
+    @Override
+    public void dump(final OutputStream stream) throws IOException {
+
+    }
+
+    @Override
+    public void load(final InputStream stream) throws IOException {
+
     }
   }
 }

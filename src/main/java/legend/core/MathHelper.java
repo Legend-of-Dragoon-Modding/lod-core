@@ -1,8 +1,7 @@
 package legend.core;
 
 public final class MathHelper {
-  private MathHelper() {
-  }
+  private MathHelper() { }
 
   public static short clamp(final short value, final short min, final short max) {
     return (short)Math.max(min, Math.min(value, max));

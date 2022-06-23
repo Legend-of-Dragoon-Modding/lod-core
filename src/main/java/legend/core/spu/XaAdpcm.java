@@ -4,9 +4,13 @@ import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 import it.unimi.dsi.fastutil.bytes.ByteList;
 import it.unimi.dsi.fastutil.shorts.ShortArrayList;
 import it.unimi.dsi.fastutil.shorts.ShortList;
+import legend.core.IoHelper;
 import legend.core.MathHelper;
 import legend.core.memory.Ref;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.List;
 
 public final class XaAdpcm {
@@ -194,5 +198,35 @@ public final class XaAdpcm {
 
   public static int signed4bit(final byte value) {
     return value << 28 >> 28;
+  }
+
+  public static void dump(final OutputStream stream) throws IOException {
+    IoHelper.write(stream, oldL);
+    IoHelper.write(stream, olderL);
+    IoHelper.write(stream, oldR);
+    IoHelper.write(stream, olderR);
+    IoHelper.write(stream, sixStep);
+    IoHelper.write(stream, resamplePointer);
+
+    for(final short[] buffer : resampleRingBuffer) {
+      for(final short value : buffer) {
+        IoHelper.write(stream, value);
+      }
+    }
+  }
+
+  public static void load(final InputStream stream) throws IOException {
+    oldL = IoHelper.readShort(stream);
+    olderL = IoHelper.readShort(stream);
+    oldR = IoHelper.readShort(stream);
+    olderR = IoHelper.readShort(stream);
+    sixStep = IoHelper.readInt(stream);
+    resamplePointer = IoHelper.readInt(stream);
+
+    for(int i = 0; i < resampleRingBuffer.length; i++) {
+      for(int n = 0; n < resampleRingBuffer[i].length; n++) {
+        resampleRingBuffer[i][n] = IoHelper.readShort(stream);
+      }
+    }
   }
 }

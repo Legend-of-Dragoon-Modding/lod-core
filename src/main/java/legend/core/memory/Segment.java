@@ -4,6 +4,9 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 
 import javax.annotation.Nullable;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.reflect.Method;
 
 public abstract class Segment {
@@ -69,4 +72,7 @@ public abstract class Segment {
   protected boolean isFunction(final int offset) {
     return this.functions.containsKey(offset & 0xffff_fffcL);
   }
+
+  public abstract void dump(final OutputStream stream) throws IOException;
+  public abstract void load(final InputStream stream) throws IOException;
 }

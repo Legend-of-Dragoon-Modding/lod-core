@@ -1,7 +1,12 @@
 package legend.core.input;
 
+import legend.core.IoHelper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 public abstract class Controller {
   private static final Logger LOGGER = LogManager.getFormatterLogger(Controller.class);
@@ -20,5 +25,15 @@ public abstract class Controller {
   public void handleJoyPadUp(final GamepadInputsEnum inputCode) {
     this.buttons |= (short)inputCode.value;
     LOGGER.error("[JOYPAD] Button up %s (current button code: %08x)", inputCode, this.buttons);
+  }
+
+  public void dump(final OutputStream stream) throws IOException {
+    IoHelper.write(stream, this.buttons);
+    IoHelper.write(stream, this.ack);
+  }
+
+  public void load(final InputStream stream) throws IOException {
+    this.buttons = IoHelper.readShort(stream);
+    this.ack = IoHelper.readBool(stream);
   }
 }

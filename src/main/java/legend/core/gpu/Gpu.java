@@ -6,6 +6,7 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongList;
 import legend.core.Config;
 import legend.core.InterruptType;
+import legend.core.IoHelper;
 import legend.core.MathHelper;
 import legend.core.Timers;
 import legend.core.dma.DmaChannel;
@@ -28,6 +29,8 @@ import org.lwjgl.BufferUtils;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
@@ -153,6 +156,10 @@ public class Gpu implements Runnable {
     this.gamepadKeyMap.put(GLFW_KEY_D, GamepadInputsEnum.CIRCLE);
     this.gamepadKeyMap.put(GLFW_KEY_S, GamepadInputsEnum.CROSS);
     this.gamepadKeyMap.put(GLFW_KEY_A, GamepadInputsEnum.SQUARE);
+  }
+
+  public Window.Events events() {
+    return this.window.events;
   }
 
   public void command00Nop() {
@@ -403,6 +410,10 @@ public class Gpu implements Runnable {
     this.ctx = new Context(this.window, this.camera);
 
     this.window.events.onKeyPress((window, key, scancode, mods) -> {
+      if(mods != 0) {
+        return;
+      }
+
       if(key == GLFW_KEY_TAB) {
         this.isVramViewer = !this.isVramViewer;
 
@@ -432,6 +443,10 @@ public class Gpu implements Runnable {
     this.displaySize(320, 240);
 
     this.window.events.onKeyPress((window, key, scancode, mods) -> {
+      if(mods != 0) {
+        return;
+      }
+
       final GamepadInputsEnum input = this.gamepadKeyMap.get(key);
 
       if(input != null) {
@@ -440,6 +455,10 @@ public class Gpu implements Runnable {
     });
 
     this.window.events.onKeyRelease((window, key, scancode, mods) -> {
+      if(mods != 0) {
+        return;
+      }
+
       final GamepadInputsEnum input = this.gamepadKeyMap.get(key);
 
       if(input != null) {
@@ -1302,6 +1321,138 @@ public class Gpu implements Runnable {
     return b << 16 | g << 8 | r;
   }
 
+  public void dump(final OutputStream stream) throws IOException {
+    for(final long pixel : this.vram24) {
+      IoHelper.write(stream, pixel);
+    }
+
+    for(final long pixel : this.vram15) {
+      IoHelper.write(stream, pixel);
+    }
+
+    IoHelper.write(stream, this.isVramViewer);
+
+    IoHelper.write(stream, this.status.texturePageXBase);
+    IoHelper.write(stream, this.status.texturePageYBase);
+    IoHelper.write(stream, this.status.semiTransparency);
+    IoHelper.write(stream, this.status.texturePageColours);
+    IoHelper.write(stream, this.status.dither);
+    IoHelper.write(stream, this.status.drawable);
+    IoHelper.write(stream, this.status.setMaskBit);
+    IoHelper.write(stream, this.status.drawPixels);
+    IoHelper.write(stream, this.status.interlaceField);
+    IoHelper.write(stream, this.status.disableTextures);
+    IoHelper.write(stream, this.status.horizontalResolution2);
+    IoHelper.write(stream, this.status.horizontalResolution1);
+    IoHelper.write(stream, this.status.verticalResolution);
+    IoHelper.write(stream, this.status.videoMode);
+    IoHelper.write(stream, this.status.displayAreaColourDepth);
+    IoHelper.write(stream, this.status.verticalInterlace);
+    IoHelper.write(stream, this.status.displayEnable);
+    IoHelper.write(stream, this.status.interruptRequest);
+    IoHelper.write(stream, this.status.dmaRequest);
+    IoHelper.write(stream, this.status.readyToReceiveCommand);
+    IoHelper.write(stream, this.status.readyToSendVramToCpu);
+    IoHelper.write(stream, this.status.readyToReceiveDmaBlock);
+    IoHelper.write(stream, this.status.dmaDirection);
+    IoHelper.write(stream, this.status.drawingLine);
+
+    IoHelper.write(stream, this.gpuInfo);
+
+    IoHelper.write(stream, this.dmaOtcAddress);
+    IoHelper.write(stream, this.dmaOtcCount);
+
+    IoHelper.write(stream, this.displayStartX);
+    IoHelper.write(stream, this.displayStartY);
+    IoHelper.write(stream, this.displayRangeX1);
+    IoHelper.write(stream, this.displayRangeX2);
+    IoHelper.write(stream, this.displayRangeY1);
+    IoHelper.write(stream, this.displayRangeY2);
+    IoHelper.write(stream, this.drawingArea);
+    IoHelper.write(stream, this.offsetX);
+    IoHelper.write(stream, this.offsetY);
+    IoHelper.write(stream, this.texturedRectXFlip);
+    IoHelper.write(stream, this.texturedRectYFlip);
+    IoHelper.write(stream, this.textureWindowMaskX);
+    IoHelper.write(stream, this.textureWindowMaskY);
+    IoHelper.write(stream, this.textureWindowOffsetX);
+    IoHelper.write(stream, this.textureWindowOffsetY);
+    IoHelper.write(stream, this.preMaskX);
+    IoHelper.write(stream, this.preMaskY);
+    IoHelper.write(stream, this.postMaskX);
+    IoHelper.write(stream, this.postMaskY);
+
+    IoHelper.write(stream, this.videoCycles);
+    IoHelper.write(stream, this.scanLine);
+    IoHelper.write(stream, this.isOddLine);
+  }
+
+  public void load(final InputStream stream) throws IOException {
+    for(int i = 0; i < this.vram24.length; i++) {
+      this.vram24[i] = IoHelper.readLong(stream);
+    }
+
+    for(int i = 0; i < this.vram15.length; i++) {
+      this.vram15[i] = IoHelper.readLong(stream);
+    }
+
+    this.isVramViewer = IoHelper.readBool(stream);
+
+    this.status.texturePageXBase = IoHelper.readInt(stream);
+    this.status.texturePageYBase = IoHelper.readEnum(stream, TEXTURE_PAGE_Y_BASE.class);
+    this.status.semiTransparency = IoHelper.readEnum(stream, SEMI_TRANSPARENCY.class);
+    this.status.texturePageColours = IoHelper.readEnum(stream, Bpp.class);
+    this.status.dither = IoHelper.readBool(stream);
+    this.status.drawable = IoHelper.readBool(stream);
+    this.status.setMaskBit = IoHelper.readBool(stream);
+    this.status.drawPixels = IoHelper.readEnum(stream, DRAW_PIXELS.class);
+    this.status.interlaceField = IoHelper.readBool(stream);
+    this.status.disableTextures = IoHelper.readBool(stream);
+    this.status.horizontalResolution2 = IoHelper.readEnum(stream, HORIZONTAL_RESOLUTION_2.class);
+    this.status.horizontalResolution1 = IoHelper.readEnum(stream, HORIZONTAL_RESOLUTION_1.class);
+    this.status.verticalResolution = IoHelper.readEnum(stream, VERTICAL_RESOLUTION.class);
+    this.status.videoMode = IoHelper.readEnum(stream, VIDEO_MODE.class);
+    this.status.displayAreaColourDepth = IoHelper.readEnum(stream, DISPLAY_AREA_COLOUR_DEPTH.class);
+    this.status.verticalInterlace = IoHelper.readBool(stream);
+    this.status.displayEnable = IoHelper.readBool(stream);
+    this.status.interruptRequest = IoHelper.readBool(stream);
+    this.status.dmaRequest = IoHelper.readBool(stream);
+    this.status.readyToReceiveCommand = IoHelper.readBool(stream);
+    this.status.readyToSendVramToCpu = IoHelper.readBool(stream);
+    this.status.readyToReceiveDmaBlock = IoHelper.readBool(stream);
+    this.status.dmaDirection = IoHelper.readEnum(stream, DMA_DIRECTION.class);
+    this.status.drawingLine = IoHelper.readEnum(stream, DRAWING_LINE.class);
+
+    this.gpuInfo = IoHelper.readInt(stream);
+
+    this.dmaOtcAddress = IoHelper.readLong(stream);
+    this.dmaOtcCount = IoHelper.readInt(stream);
+
+    this.displayStartX = IoHelper.readInt(stream);
+    this.displayStartY = IoHelper.readInt(stream);
+    this.displayRangeX1 = IoHelper.readInt(stream);
+    this.displayRangeX2 = IoHelper.readInt(stream);
+    this.displayRangeY1 = IoHelper.readInt(stream);
+    this.displayRangeY2 = IoHelper.readInt(stream);
+    IoHelper.readRect(stream, this.drawingArea);
+    this.offsetX = IoHelper.readShort(stream);
+    this.offsetY = IoHelper.readShort(stream);
+    this.texturedRectXFlip = IoHelper.readBool(stream);
+    this.texturedRectYFlip = IoHelper.readBool(stream);
+    this.textureWindowMaskX = IoHelper.readInt(stream);
+    this.textureWindowMaskY = IoHelper.readInt(stream);
+    this.textureWindowOffsetX = IoHelper.readInt(stream);
+    this.textureWindowOffsetY = IoHelper.readInt(stream);
+    this.preMaskX = IoHelper.readInt(stream);
+    this.preMaskY = IoHelper.readInt(stream);
+    this.postMaskX = IoHelper.readInt(stream);
+    this.postMaskY = IoHelper.readInt(stream);
+
+    this.videoCycles = IoHelper.readInt(stream);
+    this.scanLine = IoHelper.readInt(stream);
+    this.isOddLine = IoHelper.readBool(stream);
+  }
+
   public enum GP0_COMMAND {
     NOOP(0x00, 1, (buffer, gpu) -> () -> LOGGER.trace("GPU NOOP")),
     NOOP_4(0x04, 1, (buffer, gpu) -> () -> LOGGER.trace("GPU NOOP 4")), //TODO I'm not sure if this command is actually supposed to be executing, or if it's a bug in the game code
@@ -2006,6 +2157,16 @@ public class Gpu implements Runnable {
 
     private long onReg1Read() {
       return Gpu.this.status.pack();
+    }
+
+    @Override
+    public void dump(final OutputStream stream) throws IOException {
+
+    }
+
+    @Override
+    public void load(final InputStream stream) throws IOException {
+
     }
   }
 }

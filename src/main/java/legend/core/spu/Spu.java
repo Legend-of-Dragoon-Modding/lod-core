@@ -3,7 +3,9 @@ package legend.core.spu;
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 import it.unimi.dsi.fastutil.bytes.ByteList;
 import legend.core.DebugHelper;
+import legend.core.Hardware;
 import legend.core.InterruptType;
+import legend.core.IoHelper;
 import legend.core.MathHelper;
 import legend.core.dma.DmaChannel;
 import legend.core.dma.DmaInterface;
@@ -23,6 +25,9 @@ import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayDeque;
 import java.util.Queue;
 
@@ -152,6 +157,13 @@ public class Spu implements Runnable, MemoryRef {
       if(this.tick(100)) {
         INTERRUPTS.set(InterruptType.SPU);
       }
+
+      while(Hardware.dumping) {
+        Hardware.spuWaiting = true;
+        DebugHelper.sleep(1);
+      }
+
+      Hardware.spuWaiting = false;
 
       DebugHelper.sleep(0);
     }
@@ -531,6 +543,108 @@ public class Spu implements Runnable, MemoryRef {
     return 0x1f80_1c00L;
   }
 
+  public void dump(final OutputStream stream) throws IOException {
+    IoHelper.write(stream, this.spuOutput.size());
+
+    for(final byte b : this.spuOutput) {
+      IoHelper.write(stream, b);
+    }
+
+    IoHelper.write(stream, this.cdBuffer.size());
+
+    for(final byte b : this.cdBuffer) {
+      IoHelper.write(stream, b);
+    }
+
+    stream.write(this.ram);
+
+    for(final Voice voice : this.voices) {
+      voice.dump(stream);
+    }
+
+    IoHelper.write(stream, this.ramDataTransferAddressInternal);
+
+    IoHelper.write(stream, this.captureBufferPos);
+
+    IoHelper.write(stream, this.mainVolumeL);
+    IoHelper.write(stream, this.mainVolumeR);
+    IoHelper.write(stream, this.reverbOutputVolumeL);
+    IoHelper.write(stream, this.reverbOutputVolumeR);
+    IoHelper.write(stream, this.keyOn);
+    IoHelper.write(stream, this.keyOff);
+    IoHelper.write(stream, this.channelFmMode);
+    IoHelper.write(stream, this.channelNoiseMode);
+    IoHelper.write(stream, this.channelReverbMode);
+    IoHelper.write(stream, this.channelOnOffStatus);
+    IoHelper.write(stream, this.reverbWorkAreaAddress);
+    IoHelper.write(stream, this.irqAddress);
+    IoHelper.write(stream, this.dataTransferAddress);
+    IoHelper.write(stream, this.dataTransferFifo);
+    this.control.dump(stream);
+    IoHelper.write(stream, this.dataTransferControl);
+    this.status.dump(stream);
+    IoHelper.write(stream, this.cdVolumeL);
+    IoHelper.write(stream, this.cdVolumeR);
+    IoHelper.write(stream, this.externalVolumeL);
+    IoHelper.write(stream, this.externalVolumeR);
+    IoHelper.write(stream, this.currentMainVolumeL);
+    IoHelper.write(stream, this.currentMainVolumeR);
+
+    IoHelper.write(stream, this.counter);
+    IoHelper.write(stream, this.running);
+  }
+
+  public void load(final InputStream stream) throws IOException {
+    this.spuOutput.clear();
+    final int spuOutputSize = IoHelper.readInt(stream);
+    for(int i = 0; i < spuOutputSize; i++) {
+      this.spuOutput.add(IoHelper.readByte(stream));
+    }
+
+    this.cdBuffer.clear();
+    final int cdBufferSize = IoHelper.readInt(stream);
+    for(int i = 0; i < cdBufferSize; i++) {
+      this.cdBuffer.add(IoHelper.readByte(stream));
+    }
+
+    stream.read(this.ram);
+
+    for(final Voice voice : this.voices) {
+      voice.load(stream);
+    }
+
+    this.ramDataTransferAddressInternal = IoHelper.readInt(stream);
+
+    this.captureBufferPos = IoHelper.readInt(stream);
+
+    this.mainVolumeL = IoHelper.readLong(stream);
+    this.mainVolumeR = IoHelper.readLong(stream);
+    this.reverbOutputVolumeL = IoHelper.readLong(stream);
+    this.reverbOutputVolumeR = IoHelper.readLong(stream);
+    this.keyOn = IoHelper.readLong(stream);
+    this.keyOff = IoHelper.readLong(stream);
+    this.channelFmMode = IoHelper.readLong(stream);
+    this.channelNoiseMode = IoHelper.readLong(stream);
+    this.channelReverbMode = IoHelper.readLong(stream);
+    this.channelOnOffStatus = IoHelper.readLong(stream);
+    this.reverbWorkAreaAddress = IoHelper.readLong(stream);
+    this.irqAddress = IoHelper.readLong(stream);
+    this.dataTransferAddress = IoHelper.readLong(stream);
+    this.dataTransferFifo = IoHelper.readLong(stream);
+    this.control.load(stream);
+    this.dataTransferControl = IoHelper.readLong(stream);
+    this.status.load(stream);
+    this.cdVolumeL = IoHelper.readLong(stream);
+    this.cdVolumeR = IoHelper.readLong(stream);
+    this.externalVolumeL = IoHelper.readLong(stream);
+    this.externalVolumeR = IoHelper.readLong(stream);
+    this.currentMainVolumeL = IoHelper.readLong(stream);
+    this.currentMainVolumeR = IoHelper.readLong(stream);
+
+    this.counter = IoHelper.readInt(stream);
+    this.running = IoHelper.readBool(stream);
+  }
+
   public class SpuSegment extends Segment {
     public SpuSegment(final long address) {
       super(address, 0x40);
@@ -758,6 +872,16 @@ public class Spu implements Runnable, MemoryRef {
           }
         }
       }
+    }
+
+    @Override
+    public void dump(final OutputStream stream) throws IOException {
+
+    }
+
+    @Override
+    public void load(final InputStream stream) throws IOException {
+
     }
   }
 }

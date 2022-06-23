@@ -1,5 +1,11 @@
 package legend.core.spu;
 
+import legend.core.IoHelper;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+
 public class Volume {
   private short register;
 
@@ -37,5 +43,13 @@ public class Volume {
 
   public int sweepStep() {
     return this.register & 0x3;
+  }
+
+  public void dump(final OutputStream stream) throws IOException {
+    IoHelper.write(stream, this.register);
+  }
+
+  public void load(final InputStream stream) throws IOException {
+    this.register = IoHelper.readShort(stream);
   }
 }

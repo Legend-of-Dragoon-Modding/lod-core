@@ -4,6 +4,9 @@ import legend.core.memory.MethodBinding;
 import legend.core.memory.Segment;
 
 import javax.annotation.Nullable;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.reflect.Method;
 
 public class PrivilegedSegment extends Segment {
@@ -100,5 +103,15 @@ public class PrivilegedSegment extends Segment {
     }
 
     return super.isFunction(offset);
+  }
+
+  @Override
+  public void dump(final OutputStream stream) throws IOException {
+    this.segment.dump(stream);
+  }
+
+  @Override
+  public void load(final InputStream stream) throws IOException {
+    this.segment.load(stream);
   }
 }

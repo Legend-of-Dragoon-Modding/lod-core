@@ -1,10 +1,15 @@
 package legend.core.memory.segments;
 
+import legend.core.IoHelper;
 import legend.core.memory.MisalignedAccessException;
 import legend.core.memory.Segment;
 import legend.core.memory.Value;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 import static legend.core.Hardware.MEMORY;
 
@@ -57,5 +62,15 @@ public class MemoryControl2Segment extends Segment {
 
     LOGGER.info("Setting RAM size to %08x", value);
     this.ramSize = value & 0xffff_ffffL;
+  }
+
+  @Override
+  public void dump(final OutputStream stream) throws IOException {
+    IoHelper.write(stream, this.ramSize);
+  }
+
+  @Override
+  public void load(final InputStream stream) throws IOException {
+    this.ramSize = IoHelper.readLong(stream);
   }
 }

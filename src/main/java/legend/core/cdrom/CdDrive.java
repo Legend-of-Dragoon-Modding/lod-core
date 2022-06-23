@@ -1,6 +1,7 @@
 package legend.core.cdrom;
 
 import legend.core.InterruptType;
+import legend.core.IoHelper;
 import legend.core.MathHelper;
 import legend.core.dma.DmaChannel;
 import legend.core.dma.DmaInterface;
@@ -14,6 +15,8 @@ import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Paths;
 import java.util.ArrayDeque;
 import java.util.Arrays;
@@ -668,6 +671,82 @@ public class CdDrive {
     }
   }
 
+  public void dump(final OutputStream stream) throws IOException {
+    IoHelper.write(stream, this.status.error);
+    IoHelper.write(stream, this.status.spindleMotor);
+    IoHelper.write(stream, this.status.seekError);
+    IoHelper.write(stream, this.status.idError);
+    IoHelper.write(stream, this.status.shellOpen);
+    IoHelper.write(stream, this.status.reading);
+    IoHelper.write(stream, this.status.seeking);
+    IoHelper.write(stream, this.status.playing);
+
+    IoHelper.write(stream, this.mode.toLong());
+
+    IoHelper.write(stream, this.seekLoc.pack());
+    IoHelper.write(stream, this.readLoc.pack());
+
+    IoHelper.write(stream, this.parameterBuffer.size());
+    for(final int param : this.parameterBuffer) {
+      IoHelper.write(stream, param);
+    }
+
+    IoHelper.write(stream, this.responseBuffer.size());
+    for(final int resp : this.responseBuffer) {
+      IoHelper.write(stream, resp);
+    }
+
+    IoHelper.write(stream, this.interruptQueue.size());
+    for(final byte interrupt : this.interruptQueue) {
+      IoHelper.write(stream, interrupt);
+    }
+
+    IoHelper.write(stream, this.interruptEnable);
+    IoHelper.write(stream, this.interruptFlag);
+
+    IoHelper.write(stream, this.isBusy);
+
+    IoHelper.write(stream, this.index);
+  }
+
+  public void load(final InputStream stream) throws IOException {
+    this.status.error = IoHelper.readBool(stream);
+    this.status.spindleMotor = IoHelper.readBool(stream);
+    this.status.seekError = IoHelper.readBool(stream);
+    this.status.idError = IoHelper.readBool(stream);
+    this.status.shellOpen = IoHelper.readBool(stream);
+    this.status.reading = IoHelper.readBool(stream);
+    this.status.seeking = IoHelper.readBool(stream);
+    this.status.playing = IoHelper.readBool(stream);
+
+    this.mode.set(IoHelper.readLong(stream));
+
+    this.seekLoc.unpack(IoHelper.readLong(stream));
+    this.readLoc.unpack(IoHelper.readLong(stream));
+
+    this.parameterBuffer.clear();
+    for(int i = 0; i < IoHelper.readInt(stream); i++) {
+      this.parameterBuffer.add(IoHelper.readInt(stream));
+    }
+
+    this.responseBuffer.clear();
+    for(int i = 0; i < IoHelper.readInt(stream); i++) {
+      this.responseBuffer.add(IoHelper.readInt(stream));
+    }
+
+    this.interruptQueue.clear();
+    for(int i = 0; i < IoHelper.readInt(stream); i++) {
+      this.interruptQueue.add(IoHelper.readByte(stream));
+    }
+
+    this.interruptEnable = IoHelper.readInt(stream);
+    this.interruptFlag = IoHelper.readInt(stream);
+
+    this.isBusy = IoHelper.readBool(stream);
+
+    this.index = IoHelper.readEnum(stream, INDEX.class);
+  }
+
   private enum INDEX {
     INDEX_0,
     INDEX_1,
@@ -829,6 +908,16 @@ public class CdDrive {
       }
 
       this.set(offset, (byte)value);
+    }
+
+    @Override
+    public void dump(final OutputStream stream) {
+
+    }
+
+    @Override
+    public void load(final InputStream stream) {
+
     }
   }
 }

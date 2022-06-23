@@ -1,5 +1,6 @@
 package legend.core.dma;
 
+import legend.core.IoHelper;
 import legend.core.memory.IllegalAddressException;
 import legend.core.memory.Memory;
 import legend.core.memory.MisalignedAccessException;
@@ -7,6 +8,10 @@ import legend.core.memory.Segment;
 import legend.core.memory.Value;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 import static legend.core.Hardware.DMA;
 
@@ -168,6 +173,38 @@ public class DmaChannel {
     return this.channelControl.pack();
   }
 
+  public void dump(final OutputStream stream) throws IOException {
+    IoHelper.write(stream, this.enabled);
+    IoHelper.write(stream, this.priority);
+
+    IoHelper.write(stream, this.madr);
+    IoHelper.write(stream, this.bcr);
+    IoHelper.write(stream, this.channelControl.transferDirection);
+    IoHelper.write(stream, this.channelControl.addressStep);
+    IoHelper.write(stream, this.channelControl.chopping);
+    IoHelper.write(stream, this.channelControl.mode);
+    IoHelper.write(stream, this.channelControl.choppingDmaWindowSize);
+    IoHelper.write(stream, this.channelControl.choppingCpuWindowSize);
+    IoHelper.write(stream, this.channelControl.busy);
+    IoHelper.write(stream, this.channelControl.startTrigger);
+  }
+
+  public void load(final InputStream stream) throws IOException {
+    this.enabled = IoHelper.readBool(stream);
+    this.priority = IoHelper.readInt(stream);
+
+    this.madr = IoHelper.readLong(stream);
+    this.bcr = IoHelper.readLong(stream);
+    this.channelControl.transferDirection = IoHelper.readEnum(stream, ChannelControl.TRANSFER_DIRECTION.class);
+    this.channelControl.addressStep = IoHelper.readEnum(stream, ChannelControl.ADDRESS_STEP.class);
+    this.channelControl.chopping = IoHelper.readBool(stream);
+    this.channelControl.mode = IoHelper.readEnum(stream, ChannelControl.MODE.class);
+    this.channelControl.choppingDmaWindowSize = IoHelper.readInt(stream);
+    this.channelControl.choppingCpuWindowSize = IoHelper.readInt(stream);
+    this.channelControl.busy = IoHelper.readBool(stream);
+    this.channelControl.startTrigger = IoHelper.readEnum(stream, ChannelControl.START_TRIGGER.class);
+  }
+
   public static class ChannelControl {
     private TRANSFER_DIRECTION transferDirection = TRANSFER_DIRECTION.TO_MAIN_RAM;
     private ADDRESS_STEP addressStep = ADDRESS_STEP.FORWARD;
@@ -306,6 +343,16 @@ public class DmaChannel {
         case 0x8 -> DmaChannel.this.onChcrWrite(value);
         default -> throw new IllegalAddressException("There is no DMA channel port at " + Long.toHexString(this.getAddress() + offset));
       }
+    }
+
+    @Override
+    public void dump(final OutputStream stream) throws IOException {
+
+    }
+
+    @Override
+    public void load(final InputStream stream) throws IOException {
+
     }
   }
 }

@@ -4,6 +4,8 @@ import legend.core.MathHelper;
 import legend.core.memory.Segment;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -48,6 +50,16 @@ public class RomSegment extends Segment {
   @Override
   public void set(final int offset, final int size, final long value) {
     throw new ReadOnlyMemoryException("Memory at " + Long.toHexString(offset) + " is read only");
+  }
+
+  @Override
+  public void dump(final OutputStream stream) throws IOException {
+    // Don't need to dump ROM
+  }
+
+  @Override
+  public void load(final InputStream stream) throws IOException {
+    // Don't need to load ROM
   }
 
   public static class ReadOnlyMemoryException extends RuntimeException {

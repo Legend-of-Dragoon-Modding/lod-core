@@ -1,6 +1,11 @@
 package legend.core.memory.segments;
 
+import legend.core.IoHelper;
 import legend.core.memory.Segment;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 public class IntSegment extends Segment {
   private int value;
@@ -41,5 +46,15 @@ public class IntSegment extends Segment {
     } else {
       this.value = (int)value;
     }
+  }
+
+  @Override
+  public void dump(final OutputStream stream) throws IOException {
+    IoHelper.write(stream, this.value);
+  }
+
+  @Override
+  public void load(final InputStream stream) throws IOException {
+    this.value = IoHelper.readInt(stream);
   }
 }

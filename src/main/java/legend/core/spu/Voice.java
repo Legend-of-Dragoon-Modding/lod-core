@@ -1,5 +1,6 @@
 package legend.core.spu;
 
+import legend.core.IoHelper;
 import legend.core.MathHelper;
 import legend.core.memory.Memory;
 import legend.core.memory.MisalignedAccessException;
@@ -8,6 +9,10 @@ import legend.core.memory.types.MemoryRef;
 import legend.core.memory.types.UnsignedShortRef;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 public class Voice implements MemoryRef {
   private static final Logger LOGGER = LogManager.getFormatterLogger(Voice.class);
@@ -266,6 +271,64 @@ public class Voice implements MemoryRef {
     return this.LEFT.getAddress();
   }
 
+  public void dump(final OutputStream stream) throws IOException {
+    this.volumeLeft.dump(stream);
+    this.volumeRight.dump(stream);
+
+    IoHelper.write(stream, this.pitch);
+    IoHelper.write(stream, this.startAddress);
+    IoHelper.write(stream, this.currentAddress);
+
+    this.adsr.dump(stream);
+
+    IoHelper.write(stream, this.adsrVolume);
+    IoHelper.write(stream, this.adpcmRepeatAddress);
+
+    this.counter.dump(stream);
+
+    IoHelper.write(stream, this.old);
+    IoHelper.write(stream, this.older);
+
+    IoHelper.write(stream, this.lastBlockSample26);
+    IoHelper.write(stream, this.lastBlockSample27);
+    IoHelper.write(stream, this.lastBlockSample28);
+
+    IoHelper.write(stream, this.latest);
+
+    IoHelper.write(stream, this.hasSamples);
+
+    IoHelper.write(stream, this.readRamIrq);
+  }
+
+  public void load(final InputStream stream) throws IOException {
+    this.volumeLeft.load(stream);
+    this.volumeRight.load(stream);
+
+    this.pitch = IoHelper.readInt(stream);
+    this.startAddress = IoHelper.readInt(stream);
+    this.currentAddress = IoHelper.readInt(stream);
+
+    this.adsr.load(stream);
+
+    this.adsrVolume = IoHelper.readInt(stream);
+    this.adpcmRepeatAddress = IoHelper.readInt(stream);
+
+    this.counter.load(stream);
+
+    this.old = IoHelper.readShort(stream);
+    this.older = IoHelper.readShort(stream);
+
+    this.lastBlockSample26 = IoHelper.readShort(stream);
+    this.lastBlockSample27 = IoHelper.readShort(stream);
+    this.lastBlockSample28 = IoHelper.readShort(stream);
+
+    this.latest = IoHelper.readShort(stream);
+
+    this.hasSamples = IoHelper.readBool(stream);
+
+    this.readRamIrq = IoHelper.readBool(stream);
+  }
+
   public class VoiceSegment extends Segment {
     public VoiceSegment(final long address) {
       super(address, 0x10);
@@ -322,7 +385,17 @@ public class Voice implements MemoryRef {
           Voice.this.adpcmRepeatAddress = (int)(value & 0xffff);
         }
         default -> throw new MisalignedAccessException("SPU voice port " + Long.toHexString(offset) + " does not exist");
-      };
+      }
+    }
+
+    @Override
+    public void dump(final OutputStream stream) throws IOException {
+
+    }
+
+    @Override
+    public void load(final InputStream stream) throws IOException {
+
     }
   }
 }
