@@ -5,9 +5,7 @@ import legend.core.memory.IllegalAddressException;
 import legend.core.memory.Segment;
 import legend.core.memory.Value;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 
 import static legend.core.Hardware.MEMORY;
 
@@ -61,12 +59,12 @@ public class ExpansionRegion2Segment extends Segment {
   }
 
   @Override
-  public void dump(final OutputStream stream) throws IOException {
+  public void dump(final ByteBuffer stream) {
     IoHelper.write(stream, this.bootStatus);
   }
 
   @Override
-  public void load(final InputStream stream) throws IOException {
+  public void load(final ByteBuffer stream) {
     this.bootStatus = IoHelper.readByte(stream);
   }
 }

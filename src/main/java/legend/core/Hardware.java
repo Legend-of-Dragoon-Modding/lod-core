@@ -28,9 +28,7 @@ import org.reflections8.Reflections;
 import org.reflections8.util.ClasspathHelper;
 
 import javax.annotation.Nullable;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.nio.file.Paths;
 import java.util.Set;
 
@@ -82,14 +80,14 @@ public final class Hardware {
     dumping = false;
   }
 
-  public static void dump(final OutputStream stream) throws IOException {
+  public static void dump(final ByteBuffer stream) {
     dumpLock();
 
-    stream.write((byte)'d');
-    stream.write((byte)'d');
-    stream.write((byte)'m');
-    stream.write((byte)'p');
-    stream.write(0x00);
+    stream.put((byte)'d');
+    stream.put((byte)'d');
+    stream.put((byte)'m');
+    stream.put((byte)'p');
+    stream.put((byte)0x00);
 
     MEMORY.dump(stream);
     CPU.dump(stream);
@@ -110,16 +108,16 @@ public final class Hardware {
     dumpUnlock();
   }
 
-  public static void load(final InputStream stream) throws IOException {
+  public static void load(final ByteBuffer stream) throws ClassNotFoundException {
     dumpLock();
 
-    if(stream.read() != 'd' || stream.read() != 'd' || stream.read() != 'm' || stream.read() != 'p') {
+    if(stream.get() != 'd' || stream.get() != 'd' || stream.get() != 'm' || stream.get() != 'p') {
       LOGGER.error("Failed to load state: invalid file");
       dumpUnlock();
       return;
     }
 
-    if(stream.read() != 0) {
+    if(stream.get() != 0) {
       LOGGER.error("Failed to load state: invalid version");
     }
 
@@ -137,11 +135,7 @@ public final class Hardware {
     GATE.acquire();
     final int overlayCount = IoHelper.readInt(stream);
     for(int i = 0; i < overlayCount; i++) {
-      try {
-        MEMORY.addFunctions(Class.forName(IoHelper.readString(stream)));
-      } catch(final ClassNotFoundException e) {
-        throw new IOException(e);
-      }
+      MEMORY.addFunctions(Class.forName(IoHelper.readString(stream)));
     }
     GATE.release();
 

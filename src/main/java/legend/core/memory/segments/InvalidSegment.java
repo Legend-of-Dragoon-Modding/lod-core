@@ -3,8 +3,7 @@ package legend.core.memory.segments;
 import legend.core.memory.IllegalAddressException;
 import legend.core.memory.Segment;
 
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 
 public class InvalidSegment extends Segment {
   public InvalidSegment(final long address, final int length) {
@@ -32,12 +31,12 @@ public class InvalidSegment extends Segment {
   }
 
   @Override
-  public void dump(final OutputStream stream) {
+  public void dump(final ByteBuffer stream) {
 
   }
 
   @Override
-  public void load(final InputStream stream) {
+  public void load(final ByteBuffer stream) {
 
   }
 }

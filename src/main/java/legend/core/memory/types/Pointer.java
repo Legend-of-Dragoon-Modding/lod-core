@@ -1,5 +1,6 @@
 package legend.core.memory.types;
 
+import legend.core.memory.MisalignedAccessException;
 import legend.core.memory.Value;
 
 import javax.annotation.Nullable;
@@ -41,7 +42,7 @@ public class Pointer<T extends MemoryRef> implements MemoryRef {
     if(precache) {
       try {
         this.updateCache();
-      } catch(final IllegalArgumentException ignored) {}
+      } catch(final IllegalArgumentException | MisalignedAccessException ignored) {}
     }
   }
 

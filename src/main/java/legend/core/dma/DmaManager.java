@@ -10,8 +10,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.EnumMap;
 import java.util.Map;
 
@@ -139,7 +138,7 @@ public class DmaManager {
     this.updateInterruptFlag();
   }
 
-  public void dump(final OutputStream stream) throws IOException {
+  public void dump(final ByteBuffer stream) {
     for(final DmaChannel channel : this.channels.values()) {
       channel.dump(stream);
     }
@@ -161,7 +160,7 @@ public class DmaManager {
     IoHelper.write(stream, this.edgeTrigger);
   }
 
-  public void load(final InputStream stream) throws IOException {
+  public void load(final ByteBuffer stream) {
     for(final DmaChannel channel : this.channels.values()) {
       channel.load(stream);
     }
@@ -289,12 +288,12 @@ public class DmaManager {
     }
 
     @Override
-    public void dump(final OutputStream stream) throws IOException {
+    public void dump(final ByteBuffer stream) {
 
     }
 
     @Override
-    public void load(final InputStream stream) throws IOException {
+    public void load(final ByteBuffer stream) {
 
     }
   }

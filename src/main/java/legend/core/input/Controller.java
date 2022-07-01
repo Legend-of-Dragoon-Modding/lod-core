@@ -4,9 +4,7 @@ import legend.core.IoHelper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 
 public abstract class Controller {
   private static final Logger LOGGER = LogManager.getFormatterLogger(Controller.class);
@@ -27,12 +25,12 @@ public abstract class Controller {
     LOGGER.error("[JOYPAD] Button up %s (current button code: %08x)", inputCode, this.buttons);
   }
 
-  public void dump(final OutputStream stream) throws IOException {
+  public void dump(final ByteBuffer stream) {
     IoHelper.write(stream, this.buttons);
     IoHelper.write(stream, this.ack);
   }
 
-  public void load(final InputStream stream) throws IOException {
+  public void load(final ByteBuffer stream) {
     this.buttons = IoHelper.readShort(stream);
     this.ack = IoHelper.readBool(stream);
   }

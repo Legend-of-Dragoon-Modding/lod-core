@@ -7,9 +7,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.function.Supplier;
 
 public class DigitalController extends Controller {
@@ -39,7 +37,7 @@ public class DigitalController extends Controller {
   private boolean inConfig;
 
   @Override
-  public void dump(final OutputStream stream) throws IOException {
+  public void dump(final ByteBuffer stream) {
     super.dump(stream);
 
     IoHelper.write(stream, this.mode);
@@ -54,12 +52,12 @@ public class DigitalController extends Controller {
   }
 
   @Override
-  public void load(final InputStream stream) throws IOException {
+  public void load(final ByteBuffer stream) {
     super.load(stream);
 
     this.mode = IoHelper.readEnum(stream, Mode.class);
 
-    final byte responderId = (byte)stream.read();
+    final byte responderId = stream.get();
     if(responderId == 0) {
       this.responder = null;
     } else {
@@ -244,8 +242,8 @@ public class DigitalController extends Controller {
     byte id();
     byte get(final byte input);
     boolean hasMore();
-    void dump(final OutputStream stream) throws IOException;
-    void load(final InputStream stream) throws IOException;
+    void dump(final ByteBuffer stream);
+    void load(final ByteBuffer stream);
   }
 
   private static class SimpleResponder implements Responder {
@@ -272,7 +270,7 @@ public class DigitalController extends Controller {
     }
 
     @Override
-    public void dump(final OutputStream stream) throws IOException {
+    public void dump(final ByteBuffer stream) {
       IoHelper.write(stream, this.id());
       IoHelper.write(stream, this.responses.length);
 
@@ -284,7 +282,7 @@ public class DigitalController extends Controller {
     }
 
     @Override
-    public void load(final InputStream stream) throws IOException {
+    public void load(final ByteBuffer stream) {
       this.responses = new int[IoHelper.readInt(stream)];
 
       for(int i = 0; i < this.responses.length; i++) {

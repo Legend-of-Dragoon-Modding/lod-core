@@ -3,9 +3,7 @@ package legend.core.memory.segments;
 import legend.core.MathHelper;
 import legend.core.memory.Segment;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 
 public class RamSegment extends Segment {
   private final byte[] data;
@@ -69,12 +67,12 @@ public class RamSegment extends Segment {
   }
 
   @Override
-  public void dump(final OutputStream stream) throws IOException {
-    stream.write(this.data);
+  public void dump(final ByteBuffer stream) {
+    stream.put(this.data);
   }
 
   @Override
-  public void load(final InputStream stream) throws IOException {
-    stream.read(this.data);
+  public void load(final ByteBuffer stream) {
+    stream.get(this.data);
   }
 }

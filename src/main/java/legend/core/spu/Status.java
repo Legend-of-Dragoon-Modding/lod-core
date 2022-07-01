@@ -2,9 +2,7 @@ package legend.core.spu;
 
 import legend.core.IoHelper;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 
 class Status {
   public short register;
@@ -34,11 +32,11 @@ class Status {
     this.register = (short)(value ? this.register | 1 << 6 : this.register & ~(1 << 6));
   }
 
-  public void dump(final OutputStream stream) throws IOException {
+  public void dump(final ByteBuffer stream) {
     IoHelper.write(stream, this.register);
   }
 
-  public void load(final InputStream stream) throws IOException {
+  public void load(final ByteBuffer stream) {
     this.register = IoHelper.readShort(stream);
   }
 }

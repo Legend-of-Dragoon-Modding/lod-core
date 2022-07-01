@@ -5,6 +5,7 @@ import legend.core.IoHelper;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 
 public class ADSR {
   public int lo;               //8
@@ -54,12 +55,12 @@ public class ADSR {
     return this.hi & 0x1f;
   }
 
-  public void dump(final OutputStream stream) throws IOException {
+  public void dump(final ByteBuffer stream) {
     IoHelper.write(stream, this.lo);
     IoHelper.write(stream, this.hi);
   }
 
-  public void load(final InputStream stream) throws IOException {
+  public void load(final ByteBuffer stream) {
     this.lo = IoHelper.readInt(stream);
     this.hi = IoHelper.readInt(stream);
   }

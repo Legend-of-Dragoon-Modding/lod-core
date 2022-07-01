@@ -25,9 +25,7 @@ import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.Queue;
 
@@ -543,7 +541,7 @@ public class Spu implements Runnable, MemoryRef {
     return 0x1f80_1c00L;
   }
 
-  public void dump(final OutputStream stream) throws IOException {
+  public void dump(final ByteBuffer stream) {
     IoHelper.write(stream, this.spuOutput.size());
 
     for(final byte b : this.spuOutput) {
@@ -556,7 +554,7 @@ public class Spu implements Runnable, MemoryRef {
       IoHelper.write(stream, b);
     }
 
-    stream.write(this.ram);
+    stream.get(this.ram);
 
     for(final Voice voice : this.voices) {
       voice.dump(stream);
@@ -592,9 +590,11 @@ public class Spu implements Runnable, MemoryRef {
 
     IoHelper.write(stream, this.counter);
     IoHelper.write(stream, this.running);
+
+    XaAdpcm.dump(stream);
   }
 
-  public void load(final InputStream stream) throws IOException {
+  public void load(final ByteBuffer stream) {
     this.spuOutput.clear();
     final int spuOutputSize = IoHelper.readInt(stream);
     for(int i = 0; i < spuOutputSize; i++) {
@@ -607,7 +607,7 @@ public class Spu implements Runnable, MemoryRef {
       this.cdBuffer.add(IoHelper.readByte(stream));
     }
 
-    stream.read(this.ram);
+    stream.get(this.ram);
 
     for(final Voice voice : this.voices) {
       voice.load(stream);
@@ -643,6 +643,8 @@ public class Spu implements Runnable, MemoryRef {
 
     this.counter = IoHelper.readInt(stream);
     this.running = IoHelper.readBool(stream);
+
+    XaAdpcm.load(stream);
   }
 
   public class SpuSegment extends Segment {
@@ -875,12 +877,12 @@ public class Spu implements Runnable, MemoryRef {
     }
 
     @Override
-    public void dump(final OutputStream stream) throws IOException {
+    public void dump(final ByteBuffer stream) {
 
     }
 
     @Override
-    public void load(final InputStream stream) throws IOException {
+    public void load(final ByteBuffer stream) {
 
     }
   }

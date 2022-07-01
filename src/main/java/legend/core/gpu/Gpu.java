@@ -29,8 +29,6 @@ import org.lwjgl.BufferUtils;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
@@ -1321,7 +1319,7 @@ public class Gpu implements Runnable {
     return b << 16 | g << 8 | r;
   }
 
-  public void dump(final OutputStream stream) throws IOException {
+  public void dump(final ByteBuffer stream) {
     for(final long pixel : this.vram24) {
       IoHelper.write(stream, pixel);
     }
@@ -1387,70 +1385,70 @@ public class Gpu implements Runnable {
     IoHelper.write(stream, this.isOddLine);
   }
 
-  public void load(final InputStream stream) throws IOException {
+  public void load(final ByteBuffer buf) {
     for(int i = 0; i < this.vram24.length; i++) {
-      this.vram24[i] = IoHelper.readLong(stream);
+      this.vram24[i] = IoHelper.readLong(buf);
     }
 
     for(int i = 0; i < this.vram15.length; i++) {
-      this.vram15[i] = IoHelper.readLong(stream);
+      this.vram15[i] = IoHelper.readLong(buf);
     }
 
-    this.isVramViewer = IoHelper.readBool(stream);
+    this.isVramViewer = IoHelper.readBool(buf);
 
-    this.status.texturePageXBase = IoHelper.readInt(stream);
-    this.status.texturePageYBase = IoHelper.readEnum(stream, TEXTURE_PAGE_Y_BASE.class);
-    this.status.semiTransparency = IoHelper.readEnum(stream, SEMI_TRANSPARENCY.class);
-    this.status.texturePageColours = IoHelper.readEnum(stream, Bpp.class);
-    this.status.dither = IoHelper.readBool(stream);
-    this.status.drawable = IoHelper.readBool(stream);
-    this.status.setMaskBit = IoHelper.readBool(stream);
-    this.status.drawPixels = IoHelper.readEnum(stream, DRAW_PIXELS.class);
-    this.status.interlaceField = IoHelper.readBool(stream);
-    this.status.disableTextures = IoHelper.readBool(stream);
-    this.status.horizontalResolution2 = IoHelper.readEnum(stream, HORIZONTAL_RESOLUTION_2.class);
-    this.status.horizontalResolution1 = IoHelper.readEnum(stream, HORIZONTAL_RESOLUTION_1.class);
-    this.status.verticalResolution = IoHelper.readEnum(stream, VERTICAL_RESOLUTION.class);
-    this.status.videoMode = IoHelper.readEnum(stream, VIDEO_MODE.class);
-    this.status.displayAreaColourDepth = IoHelper.readEnum(stream, DISPLAY_AREA_COLOUR_DEPTH.class);
-    this.status.verticalInterlace = IoHelper.readBool(stream);
-    this.status.displayEnable = IoHelper.readBool(stream);
-    this.status.interruptRequest = IoHelper.readBool(stream);
-    this.status.dmaRequest = IoHelper.readBool(stream);
-    this.status.readyToReceiveCommand = IoHelper.readBool(stream);
-    this.status.readyToSendVramToCpu = IoHelper.readBool(stream);
-    this.status.readyToReceiveDmaBlock = IoHelper.readBool(stream);
-    this.status.dmaDirection = IoHelper.readEnum(stream, DMA_DIRECTION.class);
-    this.status.drawingLine = IoHelper.readEnum(stream, DRAWING_LINE.class);
+    this.status.texturePageXBase = IoHelper.readInt(buf);
+    this.status.texturePageYBase = IoHelper.readEnum(buf, TEXTURE_PAGE_Y_BASE.class);
+    this.status.semiTransparency = IoHelper.readEnum(buf, SEMI_TRANSPARENCY.class);
+    this.status.texturePageColours = IoHelper.readEnum(buf, Bpp.class);
+    this.status.dither = IoHelper.readBool(buf);
+    this.status.drawable = IoHelper.readBool(buf);
+    this.status.setMaskBit = IoHelper.readBool(buf);
+    this.status.drawPixels = IoHelper.readEnum(buf, DRAW_PIXELS.class);
+    this.status.interlaceField = IoHelper.readBool(buf);
+    this.status.disableTextures = IoHelper.readBool(buf);
+    this.status.horizontalResolution2 = IoHelper.readEnum(buf, HORIZONTAL_RESOLUTION_2.class);
+    this.status.horizontalResolution1 = IoHelper.readEnum(buf, HORIZONTAL_RESOLUTION_1.class);
+    this.status.verticalResolution = IoHelper.readEnum(buf, VERTICAL_RESOLUTION.class);
+    this.status.videoMode = IoHelper.readEnum(buf, VIDEO_MODE.class);
+    this.status.displayAreaColourDepth = IoHelper.readEnum(buf, DISPLAY_AREA_COLOUR_DEPTH.class);
+    this.status.verticalInterlace = IoHelper.readBool(buf);
+    this.status.displayEnable = IoHelper.readBool(buf);
+    this.status.interruptRequest = IoHelper.readBool(buf);
+    this.status.dmaRequest = IoHelper.readBool(buf);
+    this.status.readyToReceiveCommand = IoHelper.readBool(buf);
+    this.status.readyToSendVramToCpu = IoHelper.readBool(buf);
+    this.status.readyToReceiveDmaBlock = IoHelper.readBool(buf);
+    this.status.dmaDirection = IoHelper.readEnum(buf, DMA_DIRECTION.class);
+    this.status.drawingLine = IoHelper.readEnum(buf, DRAWING_LINE.class);
 
-    this.gpuInfo = IoHelper.readInt(stream);
+    this.gpuInfo = IoHelper.readInt(buf);
 
-    this.dmaOtcAddress = IoHelper.readLong(stream);
-    this.dmaOtcCount = IoHelper.readInt(stream);
+    this.dmaOtcAddress = IoHelper.readLong(buf);
+    this.dmaOtcCount = IoHelper.readInt(buf);
 
-    this.displayStartX = IoHelper.readInt(stream);
-    this.displayStartY = IoHelper.readInt(stream);
-    this.displayRangeX1 = IoHelper.readInt(stream);
-    this.displayRangeX2 = IoHelper.readInt(stream);
-    this.displayRangeY1 = IoHelper.readInt(stream);
-    this.displayRangeY2 = IoHelper.readInt(stream);
-    IoHelper.readRect(stream, this.drawingArea);
-    this.offsetX = IoHelper.readShort(stream);
-    this.offsetY = IoHelper.readShort(stream);
-    this.texturedRectXFlip = IoHelper.readBool(stream);
-    this.texturedRectYFlip = IoHelper.readBool(stream);
-    this.textureWindowMaskX = IoHelper.readInt(stream);
-    this.textureWindowMaskY = IoHelper.readInt(stream);
-    this.textureWindowOffsetX = IoHelper.readInt(stream);
-    this.textureWindowOffsetY = IoHelper.readInt(stream);
-    this.preMaskX = IoHelper.readInt(stream);
-    this.preMaskY = IoHelper.readInt(stream);
-    this.postMaskX = IoHelper.readInt(stream);
-    this.postMaskY = IoHelper.readInt(stream);
+    this.displayStartX = IoHelper.readInt(buf);
+    this.displayStartY = IoHelper.readInt(buf);
+    this.displayRangeX1 = IoHelper.readInt(buf);
+    this.displayRangeX2 = IoHelper.readInt(buf);
+    this.displayRangeY1 = IoHelper.readInt(buf);
+    this.displayRangeY2 = IoHelper.readInt(buf);
+    IoHelper.readRect(buf, this.drawingArea);
+    this.offsetX = IoHelper.readShort(buf);
+    this.offsetY = IoHelper.readShort(buf);
+    this.texturedRectXFlip = IoHelper.readBool(buf);
+    this.texturedRectYFlip = IoHelper.readBool(buf);
+    this.textureWindowMaskX = IoHelper.readInt(buf);
+    this.textureWindowMaskY = IoHelper.readInt(buf);
+    this.textureWindowOffsetX = IoHelper.readInt(buf);
+    this.textureWindowOffsetY = IoHelper.readInt(buf);
+    this.preMaskX = IoHelper.readInt(buf);
+    this.preMaskY = IoHelper.readInt(buf);
+    this.postMaskX = IoHelper.readInt(buf);
+    this.postMaskY = IoHelper.readInt(buf);
 
-    this.videoCycles = IoHelper.readInt(stream);
-    this.scanLine = IoHelper.readInt(stream);
-    this.isOddLine = IoHelper.readBool(stream);
+    this.videoCycles = IoHelper.readInt(buf);
+    this.scanLine = IoHelper.readInt(buf);
+    this.isOddLine = IoHelper.readBool(buf);
   }
 
   public enum GP0_COMMAND {
@@ -2160,12 +2158,12 @@ public class Gpu implements Runnable {
     }
 
     @Override
-    public void dump(final OutputStream stream) throws IOException {
+    public void dump(final ByteBuffer stream) {
 
     }
 
     @Override
-    public void load(final InputStream stream) throws IOException {
+    public void load(final ByteBuffer stream) {
 
     }
   }

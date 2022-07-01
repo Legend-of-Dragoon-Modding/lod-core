@@ -9,9 +9,7 @@ import legend.core.memory.Value;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 
 import static legend.core.Hardware.DMA;
 
@@ -173,7 +171,7 @@ public class DmaChannel {
     return this.channelControl.pack();
   }
 
-  public void dump(final OutputStream stream) throws IOException {
+  public void dump(final ByteBuffer stream) {
     IoHelper.write(stream, this.enabled);
     IoHelper.write(stream, this.priority);
 
@@ -189,7 +187,7 @@ public class DmaChannel {
     IoHelper.write(stream, this.channelControl.startTrigger);
   }
 
-  public void load(final InputStream stream) throws IOException {
+  public void load(final ByteBuffer stream) {
     this.enabled = IoHelper.readBool(stream);
     this.priority = IoHelper.readInt(stream);
 
@@ -346,12 +344,12 @@ public class DmaChannel {
     }
 
     @Override
-    public void dump(final OutputStream stream) throws IOException {
+    public void dump(final ByteBuffer stream) {
 
     }
 
     @Override
-    public void load(final InputStream stream) throws IOException {
+    public void load(final ByteBuffer stream) {
 
     }
   }

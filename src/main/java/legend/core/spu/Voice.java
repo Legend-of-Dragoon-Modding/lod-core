@@ -10,9 +10,7 @@ import legend.core.memory.types.UnsignedShortRef;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 
 public class Voice implements MemoryRef {
   private static final Logger LOGGER = LogManager.getFormatterLogger(Voice.class);
@@ -271,7 +269,7 @@ public class Voice implements MemoryRef {
     return this.LEFT.getAddress();
   }
 
-  public void dump(final OutputStream stream) throws IOException {
+  public void dump(final ByteBuffer stream) {
     this.volumeLeft.dump(stream);
     this.volumeRight.dump(stream);
 
@@ -300,7 +298,7 @@ public class Voice implements MemoryRef {
     IoHelper.write(stream, this.readRamIrq);
   }
 
-  public void load(final InputStream stream) throws IOException {
+  public void load(final ByteBuffer stream) {
     this.volumeLeft.load(stream);
     this.volumeRight.load(stream);
 
@@ -389,12 +387,12 @@ public class Voice implements MemoryRef {
     }
 
     @Override
-    public void dump(final OutputStream stream) throws IOException {
+    public void dump(final ByteBuffer stream) {
 
     }
 
     @Override
-    public void load(final InputStream stream) throws IOException {
+    public void load(final ByteBuffer stream) {
 
     }
   }

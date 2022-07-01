@@ -8,9 +8,7 @@ import legend.core.IoHelper;
 import legend.core.MathHelper;
 import legend.core.memory.Ref;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.List;
 
 public final class XaAdpcm {
@@ -200,7 +198,7 @@ public final class XaAdpcm {
     return value << 28 >> 28;
   }
 
-  public static void dump(final OutputStream stream) throws IOException {
+  public static void dump(final ByteBuffer stream) {
     IoHelper.write(stream, oldL);
     IoHelper.write(stream, olderL);
     IoHelper.write(stream, oldR);
@@ -215,7 +213,7 @@ public final class XaAdpcm {
     }
   }
 
-  public static void load(final InputStream stream) throws IOException {
+  public static void load(final ByteBuffer stream) {
     oldL = IoHelper.readShort(stream);
     olderL = IoHelper.readShort(stream);
     oldR = IoHelper.readShort(stream);

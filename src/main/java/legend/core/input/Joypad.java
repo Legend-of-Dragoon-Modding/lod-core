@@ -13,6 +13,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 
 import static legend.core.Hardware.INTERRUPTS;
 
@@ -318,7 +319,7 @@ public class Joypad implements Runnable {
     return this.JOY_BAUD;
   }
 
-  public void dump(final OutputStream stream) throws IOException {
+  public void dump(final ByteBuffer stream) {
     IoHelper.write(stream, this.JOY_TX_DATA);
     IoHelper.write(stream, this.JOY_RX_DATA);
 
@@ -364,7 +365,7 @@ public class Joypad implements Runnable {
     IoHelper.write(stream, this.counter2);
   }
 
-  public void load(final InputStream stream) throws IOException {
+  public void load(final ByteBuffer stream) {
     this.JOY_TX_DATA = IoHelper.readByte(stream);
     this.JOY_RX_DATA = IoHelper.readByte(stream);
 
@@ -481,12 +482,12 @@ public class Joypad implements Runnable {
     }
 
     @Override
-    public void dump(final OutputStream stream) throws IOException {
+    public void dump(final ByteBuffer stream) {
 
     }
 
     @Override
-    public void load(final InputStream stream) throws IOException {
+    public void load(final ByteBuffer stream) {
 
     }
   }

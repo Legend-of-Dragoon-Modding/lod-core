@@ -7,9 +7,7 @@ import legend.core.memory.Value;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 
 import static legend.core.Hardware.MEMORY;
 
@@ -65,12 +63,12 @@ public class MemoryControl2Segment extends Segment {
   }
 
   @Override
-  public void dump(final OutputStream stream) throws IOException {
+  public void dump(final ByteBuffer stream) {
     IoHelper.write(stream, this.ramSize);
   }
 
   @Override
-  public void load(final InputStream stream) throws IOException {
+  public void load(final ByteBuffer stream) {
     this.ramSize = IoHelper.readLong(stream);
   }
 }

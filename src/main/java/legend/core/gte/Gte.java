@@ -5,9 +5,7 @@ import legend.core.MathHelper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 
 public class Gte {
   private static final Logger LOGGER = LogManager.getFormatterLogger(Gte.class);
@@ -51,13 +49,13 @@ public class Gte {
       return new Matrix(this.v1.copy(), this.v2.copy(), this.v3.copy());
     }
 
-    public void dump(final OutputStream stream) throws IOException {
+    public void dump(final ByteBuffer stream) {
       this.v1.dump(stream);
       this.v2.dump(stream);
       this.v3.dump(stream);
     }
 
-    public void load(final InputStream stream) throws IOException {
+    public void load(final ByteBuffer stream) {
       this.v1.load(stream);
       this.v2.load(stream);
       this.v3.load(stream);
@@ -82,12 +80,12 @@ public class Gte {
       this.y = other.y;
     }
 
-    public void dump(final OutputStream stream) throws IOException {
+    public void dump(final ByteBuffer stream) {
       IoHelper.write(stream, this.x);
       IoHelper.write(stream, this.y);
     }
 
-    public void load(final InputStream stream) throws IOException {
+    public void load(final ByteBuffer stream) {
       this.x = IoHelper.readShort(stream);
       this.y = IoHelper.readShort(stream);
     }
@@ -117,18 +115,18 @@ public class Gte {
       this.c = other.c;
     }
 
-    public void dump(final OutputStream stream) throws IOException {
-      stream.write(this.r);
-      stream.write(this.g);
-      stream.write(this.b);
-      stream.write(this.c);
+    public void dump(final ByteBuffer stream) {
+      stream.put(this.r);
+      stream.put(this.g);
+      stream.put(this.b);
+      stream.put(this.c);
     }
 
-    public void load(final InputStream stream) throws IOException {
-      this.r = (byte)stream.read();
-      this.g = (byte)stream.read();
-      this.b = (byte)stream.read();
-      this.c = (byte)stream.read();
+    public void load(final ByteBuffer stream) {
+      this.r = stream.get();
+      this.g = stream.get();
+      this.b = stream.get();
+      this.c = stream.get();
     }
   }
 
@@ -1136,7 +1134,7 @@ public class Gte {
     }
   }
 
-  public void dump(final OutputStream stream) throws IOException {
+  public void dump(final ByteBuffer stream) {
     for(final ShortVector3 vec : this.V) {
       vec.dump(stream);
     }
@@ -1195,7 +1193,7 @@ public class Gte {
     IoHelper.write(stream, this.currentCommand);
   }
 
-  public void load(final InputStream stream) throws IOException {
+  public void load(final ByteBuffer stream) {
     for(final ShortVector3 vec : this.V) {
       vec.load(stream);
     }

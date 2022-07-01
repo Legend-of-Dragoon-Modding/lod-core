@@ -6,9 +6,7 @@ import legend.core.memory.MisalignedAccessException;
 import legend.core.memory.Segment;
 import legend.core.memory.Value;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 
 import static legend.core.Hardware.INTERRUPTS;
 import static legend.core.Hardware.MEMORY;
@@ -360,7 +358,7 @@ public class Timers implements Runnable {
     /** Don't call directly - this is a segment */
     @Override
     @Deprecated
-    public void dump(final OutputStream stream) throws IOException {
+    public void dump(final ByteBuffer stream) {
       IoHelper.write(stream, this.val);
       IoHelper.write(stream, this.max);
 
@@ -388,7 +386,7 @@ public class Timers implements Runnable {
     }
 
     @Override
-    public void load(final InputStream stream) throws IOException {
+    public void load(final ByteBuffer stream) {
       this.val = IoHelper.readLong(stream);
       this.max = IoHelper.readLong(stream);
 

@@ -3,9 +3,7 @@ package legend.core.memory.segments;
 import legend.core.IoHelper;
 import legend.core.memory.Segment;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 
 public class IntSegment extends Segment {
   private int value;
@@ -49,12 +47,12 @@ public class IntSegment extends Segment {
   }
 
   @Override
-  public void dump(final OutputStream stream) throws IOException {
+  public void dump(final ByteBuffer stream) {
     IoHelper.write(stream, this.value);
   }
 
   @Override
-  public void load(final InputStream stream) throws IOException {
+  public void load(final ByteBuffer stream) {
     this.value = IoHelper.readInt(stream);
   }
 }

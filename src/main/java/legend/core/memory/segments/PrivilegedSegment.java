@@ -4,10 +4,8 @@ import legend.core.memory.MethodBinding;
 import legend.core.memory.Segment;
 
 import javax.annotation.Nullable;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
 
 public class PrivilegedSegment extends Segment {
   private final Segment segment;
@@ -106,12 +104,12 @@ public class PrivilegedSegment extends Segment {
   }
 
   @Override
-  public void dump(final OutputStream stream) throws IOException {
+  public void dump(final ByteBuffer stream) {
     this.segment.dump(stream);
   }
 
   @Override
-  public void load(final InputStream stream) throws IOException {
+  public void load(final ByteBuffer stream) {
     this.segment.load(stream);
   }
 }

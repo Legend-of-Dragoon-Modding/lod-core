@@ -11,10 +11,8 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.TriConsumer;
 
 import javax.annotation.Nullable;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashSet;
@@ -245,13 +243,13 @@ public class Memory {
     this.tempUsage.clear((int)(address & TEMP_MASK), (int)(address & TEMP_MASK) + length);
   }
 
-  public void dump(final OutputStream stream) throws IOException {
+  public void dump(final ByteBuffer stream) {
     for(final Segment segment : this.segments) {
       segment.dump(stream);
     }
   }
 
-  public void load(final InputStream stream) throws IOException {
+  public void load(final ByteBuffer stream) {
     for(final Segment segment : this.segments) {
       segment.load(stream);
     }

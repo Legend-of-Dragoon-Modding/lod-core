@@ -15,8 +15,7 @@ import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.nio.file.Paths;
 import java.util.ArrayDeque;
 import java.util.Arrays;
@@ -671,7 +670,7 @@ public class CdDrive {
     }
   }
 
-  public void dump(final OutputStream stream) throws IOException {
+  public void dump(final ByteBuffer stream) {
     IoHelper.write(stream, this.status.error);
     IoHelper.write(stream, this.status.spindleMotor);
     IoHelper.write(stream, this.status.seekError);
@@ -709,7 +708,7 @@ public class CdDrive {
     IoHelper.write(stream, this.index);
   }
 
-  public void load(final InputStream stream) throws IOException {
+  public void load(final ByteBuffer stream) {
     this.status.error = IoHelper.readBool(stream);
     this.status.spindleMotor = IoHelper.readBool(stream);
     this.status.seekError = IoHelper.readBool(stream);
@@ -911,12 +910,12 @@ public class CdDrive {
     }
 
     @Override
-    public void dump(final OutputStream stream) {
+    public void dump(final ByteBuffer stream) {
 
     }
 
     @Override
-    public void load(final InputStream stream) {
+    public void load(final ByteBuffer stream) {
 
     }
   }

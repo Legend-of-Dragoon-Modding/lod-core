@@ -8,9 +8,7 @@ import legend.core.memory.Value;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 
 import static legend.core.Hardware.MEMORY;
 
@@ -35,12 +33,12 @@ public class InterruptController {
     return (this.stat & this.mask) != 0;
   }
 
-  public void dump(final OutputStream stream) throws IOException {
+  public void dump(final ByteBuffer stream) {
     IoHelper.write(stream, this.stat);
     IoHelper.write(stream, this.mask);
   }
 
-  public void load(final InputStream stream) throws IOException {
+  public void load(final ByteBuffer stream) {
     this.stat = IoHelper.readLong(stream);
     this.mask = IoHelper.readLong(stream);
   }
@@ -95,12 +93,12 @@ public class InterruptController {
     }
 
     @Override
-    public void dump(final OutputStream stream) throws IOException {
+    public void dump(final ByteBuffer stream) {
 
     }
 
     @Override
-    public void load(final InputStream stream) throws IOException {
+    public void load(final ByteBuffer stream) {
 
     }
   }

@@ -4,8 +4,7 @@ import legend.core.MathHelper;
 import legend.core.memory.Segment;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -53,12 +52,12 @@ public class RomSegment extends Segment {
   }
 
   @Override
-  public void dump(final OutputStream stream) throws IOException {
+  public void dump(final ByteBuffer stream) {
     // Don't need to dump ROM
   }
 
   @Override
-  public void load(final InputStream stream) throws IOException {
+  public void load(final ByteBuffer stream) {
     // Don't need to load ROM
   }
 

@@ -5,9 +5,7 @@ import legend.core.memory.Value;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -330,8 +328,8 @@ public class MemoryCard {
     return (byte)0xff;
   }
 
-  public void dump(final OutputStream stream) throws IOException {
-    stream.write(this.memory);
+  public void dump(final ByteBuffer stream) {
+    stream.put(this.memory);
 
     IoHelper.write(stream, this.ack);
 
@@ -350,8 +348,8 @@ public class MemoryCard {
     IoHelper.write(stream, this.transferMode);
   }
 
-  public void load(final InputStream stream) throws IOException {
-    stream.read(this.memory);
+  public void load(final ByteBuffer stream) {
+    stream.get(this.memory);
 
     this.ack = IoHelper.readBool(stream);
 

@@ -3,9 +3,7 @@ package legend.core;
 import legend.core.gte.Gte;
 import legend.core.memory.types.RunnableRef;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -245,7 +243,7 @@ public class Cpu {
     return 0;
   }
 
-  public void dump(final OutputStream stream) throws IOException {
+  public void dump(final ByteBuffer stream) {
     for(final Register reg : this.registers.values()) {
       reg.dump(stream);
     }
@@ -256,7 +254,7 @@ public class Cpu {
     IoHelper.write(stream, this.exceptionHandled);
   }
 
-  public void load(final InputStream stream) throws IOException {
+  public void load(final ByteBuffer stream) {
     for(final Register reg : this.registers.values()) {
       reg.load(stream);
     }
@@ -278,11 +276,11 @@ public class Cpu {
       return this.value;
     }
 
-    public void dump(final OutputStream stream) throws IOException {
+    public void dump(final ByteBuffer stream) {
       IoHelper.write(stream, this.value);
     }
 
-    public void load(final InputStream stream) throws IOException {
+    public void load(final ByteBuffer stream) {
       this.value = IoHelper.readLong(stream);
     }
   }
@@ -731,7 +729,8 @@ public class Cpu {
       this.CU2 = false;
     }
 
-    public void dump(final OutputStream stream) throws IOException {
+    @Override
+    public void dump(final ByteBuffer stream) {
       IoHelper.write(stream, this.IEc);
       IoHelper.write(stream, this.KUc);
       IoHelper.write(stream, this.IEp);
@@ -751,7 +750,8 @@ public class Cpu {
       IoHelper.write(stream, this.CU2);
     }
 
-    public void load(final InputStream stream) throws IOException {
+    @Override
+    public void load(final ByteBuffer stream) {
       this.IEc = IoHelper.readBool(stream);
       this.KUc = IoHelper.readBool(stream);
       this.IEp = IoHelper.readBool(stream);

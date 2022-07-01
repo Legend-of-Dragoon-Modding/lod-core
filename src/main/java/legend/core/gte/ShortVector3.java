@@ -2,9 +2,7 @@ package legend.core.gte;
 
 import legend.core.IoHelper;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 
 class ShortVector3 {
   public short x;
@@ -32,13 +30,13 @@ class ShortVector3 {
     return new ShortVector3(this.x, this.y, this.z);
   }
 
-  public void dump(final OutputStream stream) throws IOException {
+  public void dump(final ByteBuffer stream) {
     IoHelper.write(stream, this.x);
     IoHelper.write(stream, this.y);
     IoHelper.write(stream, this.z);
   }
 
-  public void load(final InputStream stream) throws IOException {
+  public void load(final ByteBuffer stream) {
     this.x = IoHelper.readShort(stream);
     this.y = IoHelper.readShort(stream);
     this.z = IoHelper.readShort(stream);

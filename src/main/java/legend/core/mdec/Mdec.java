@@ -13,6 +13,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Queue;
@@ -333,11 +334,11 @@ public class Mdec {
     return this.outBufferPos == 0; //TODO compare to inBufferPos when we handle full dma in
   }
 
-  public void dump(final OutputStream stream) throws IOException {
+  public void dump(final ByteBuffer stream) {
     //TODO
   }
 
-  public void load(final InputStream stream) throws IOException {
+  public void load(final ByteBuffer stream) {
     //TODO
   }
 
@@ -463,12 +464,12 @@ public class Mdec {
     }
 
     @Override
-    public void dump(final OutputStream stream) {
+    public void dump(final ByteBuffer stream) {
 
     }
 
     @Override
-    public void load(final InputStream stream) {
+    public void load(final ByteBuffer stream) {
 
     }
   }

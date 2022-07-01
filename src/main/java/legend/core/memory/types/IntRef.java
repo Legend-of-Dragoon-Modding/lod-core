@@ -136,6 +136,16 @@ public class IntRef implements MemoryRef {
     return this.shr(bits.get());
   }
 
+  public IntRef abs() {
+    if(this.ref != null) {
+      this.ref.abs();
+    } else {
+      this.val = Math.abs(this.val);
+    }
+
+    return this;
+  }
+
   @Override
   public long getAddress() {
     if(this.ref == null) {
