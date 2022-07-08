@@ -15,7 +15,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.BiConsumer;
@@ -46,7 +46,7 @@ public class Memory {
   private final byte[] temp = new byte[0x1000];
   private final BitSet tempUsage = new BitSet(0x1000);
 
-  private final Set<Class<?>> overlays = new HashSet<>();
+  private final Set<Class<?>> overlays = new LinkedHashSet<>();
 
   public static final IntSet watches = new IntOpenHashSet();
 
@@ -107,7 +107,7 @@ public class Memory {
       }
     }
 
-    throw new RuntimeException("There is no memory segment at " + Long.toHexString(masked) + " (address: " + Long.toHexString(address) + ')');
+    throw new IllegalAddressException("There is no memory segment at " + Long.toHexString(masked) + " (address: " + Long.toHexString(address) + ')');
   }
 
   public byte get(final long address) {

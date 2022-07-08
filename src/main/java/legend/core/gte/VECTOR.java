@@ -55,6 +55,15 @@ public class VECTOR implements MemoryRef {
     return this;
   }
 
+  public int get(final int element) {
+    return switch(element) {
+      case 0 -> this.getX();
+      case 1 -> this.getY();
+      case 2 -> this.getZ();
+      default -> throw new IllegalArgumentException("Invalid element");
+    };
+  }
+
   public int getX() {
     return this.x.get();
   }
