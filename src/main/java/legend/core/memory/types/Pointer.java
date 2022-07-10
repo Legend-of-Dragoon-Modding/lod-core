@@ -158,4 +158,13 @@ public class Pointer<T extends MemoryRef> implements MemoryRef {
   public long getAddress() {
     return this.ref.getAddress();
   }
+
+  @Override
+  public String toString() {
+    if(this.isNull()) {
+      return "Null ptr @ %08x".formatted(this.getAddress());
+    }
+
+    return "Ptr %08x (%s) @ %08x".formatted(this.getPointer(), this.deref().getClass().getSimpleName(), this.getAddress());
+  }
 }
