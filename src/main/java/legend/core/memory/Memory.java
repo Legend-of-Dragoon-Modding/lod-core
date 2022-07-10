@@ -169,7 +169,9 @@ public class Memory {
       }
 
       final Segment segment = this.getSegment(address);
-      segment.set((int)(this.maskAddress(address) - segment.getAddress()), size, data);
+      final int addr = (int)(this.maskAddress(address) - segment.getAddress());
+      segment.removeFunction(addr);
+      segment.set(addr, size, data);
     }
 
     if(watches.contains((int)address & 0xffffff)) {
@@ -347,11 +349,11 @@ public class Memory {
     @Override
     public Value deref(final int size) {
       if(this.getSize() != 4) {
-        throw new UnsupportedOperationException("Can only dereference 4-byte values");
+        throw new UnsupportedOperationException("Can only dereference 4-byte values %s".formatted(this));
       }
 
       if((this.address & TEMP_FLAG) != TEMP_FLAG && Memory.this.isFunction(this.address)) {
-        throw new UnsupportedOperationException("Can't dereference callback");
+        throw new UnsupportedOperationException("Can't dereference callback %s".formatted(this));
       }
 
       try {

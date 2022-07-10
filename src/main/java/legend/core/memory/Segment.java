@@ -57,6 +57,10 @@ public abstract class Segment {
     this.functions.put(offset, new MethodBinding(function, instance, ignoreExtraParams));
   }
 
+  protected void removeFunction(final int offset) {
+    this.functions.remove(offset);
+  }
+
   protected MethodBinding getFunction(final int offset) {
     final MethodBinding method = this.functions.get(offset);
 
