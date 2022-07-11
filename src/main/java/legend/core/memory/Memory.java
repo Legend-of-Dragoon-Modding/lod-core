@@ -40,7 +40,7 @@ public class Memory {
 
   private boolean alignmentChecks = true;
 
-  private static final long TEMP_FLAG = 0xffff_0000L;
+  public static final long TEMP_FLAG = 0xffff_0000L;
   private static final long TEMP_MASK = 0x0000_ffffL;
 
   private final byte[] temp = new byte[0x1000];

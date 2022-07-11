@@ -1,5 +1,6 @@
 package legend.core.memory.types;
 
+import legend.core.memory.Memory;
 import legend.core.memory.MisalignedAccessException;
 import legend.core.memory.Value;
 
@@ -56,6 +57,10 @@ public class Pointer<T extends MemoryRef> implements MemoryRef {
   }
 
   public boolean isNull() {
+    if(this.cache != null && (this.getAddress() & Memory.TEMP_FLAG) == Memory.TEMP_FLAG) {
+      return false;
+    }
+
     return this.ref.get() == 0;
   }
 
