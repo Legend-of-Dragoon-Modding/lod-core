@@ -18,7 +18,6 @@ import static org.lwjgl.opengl.GL11C.GL_VENDOR;
 import static org.lwjgl.opengl.GL11C.GL_VERSION;
 import static org.lwjgl.opengl.GL11C.glClear;
 import static org.lwjgl.opengl.GL11C.glClearColor;
-import static org.lwjgl.opengl.GL11C.glGetError;
 import static org.lwjgl.opengl.GL11C.glGetString;
 import static org.lwjgl.opengl.GL11C.glViewport;
 import static org.lwjgl.opengl.GL20.GL_SHADING_LANGUAGE_VERSION;
@@ -87,10 +86,6 @@ public class Context {
   }
 
   private void draw() {
-    //TODO: for some reason it's extremely laggy on my Intel UHD620 with vsync enabled... but this fixes it
-    //      https://discourse.glfw.org/t/swap-interval-n-cause-1-n-fps-except-if-glgeterror-is-called/1298/3
-    glGetError();
-
     glViewport(0, 0, this.width, this.height);
     this.pre();
     this.onDraw.run();

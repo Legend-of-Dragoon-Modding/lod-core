@@ -3,7 +3,6 @@ package legend.core.opengl;
 import legend.core.DebugHelper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.lwjgl.BufferUtils;
 import org.lwjgl.Version;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWErrorCallback;
@@ -255,10 +254,12 @@ public class Window {
       this.window.width = width;
       this.window.height = height;
 
-      final FloatBuffer x = BufferUtils.createFloatBuffer(1);
-      final FloatBuffer y = BufferUtils.createFloatBuffer(1);
-      glfwGetWindowContentScale(window, x, y);
-      this.window.scale = x.get(0);
+      try(final MemoryStack stack = MemoryStack.stackPush()) {
+        final FloatBuffer x = stack.mallocFloat(1);
+        final FloatBuffer y = stack.mallocFloat(1);
+        glfwGetWindowContentScale(window, x, y);
+        this.window.scale = x.get(0);
+      }
 
       this.resize.forEach(cb -> cb.resize(this.window, width, height));
     }

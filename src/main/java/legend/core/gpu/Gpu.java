@@ -26,6 +26,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.joml.Matrix4f;
 import org.lwjgl.BufferUtils;
+import org.lwjgl.system.MemoryUtil;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -589,7 +590,7 @@ public class Gpu implements Runnable {
 
     if(this.isVramViewer) {
       final int size = VRAM_WIDTH * VRAM_HEIGHT;
-      final ByteBuffer pixels = BufferUtils.createByteBuffer(size * 4);
+      final ByteBuffer pixels = MemoryUtil.memAlloc(size * 4);
 
       for(int i = 0; i < size; i++) {
         final long packed = this.vram24[i];
@@ -607,6 +608,8 @@ public class Gpu implements Runnable {
       this.vramShader.use();
       this.vramTexture.use();
       this.vramMesh.draw();
+
+      MemoryUtil.memFree(pixels);
     } else if(this.status.displayAreaColourDepth == DISPLAY_AREA_COLOUR_DEPTH.BITS_24) {
       int yRangeOffset = 240 - (this.displayRangeY2 - this.displayRangeY1) >> (this.status.verticalResolution == VERTICAL_RESOLUTION._480 ? 0 : 1);
       if(yRangeOffset < 0) {
@@ -614,7 +617,7 @@ public class Gpu implements Runnable {
       }
 
       final int size = this.displayTexture.width * this.displayTexture.height;
-      final ByteBuffer pixels = BufferUtils.createByteBuffer(size * 4);
+      final ByteBuffer pixels = MemoryUtil.memAlloc(size * 4);
       final IntBuffer pixelsInt = pixels.asIntBuffer();
 
       for(int y = yRangeOffset; y < this.status.verticalResolution.res - yRangeOffset; y++) {
@@ -653,13 +656,15 @@ public class Gpu implements Runnable {
       this.vramShader.use();
       this.displayTexture.use();
       this.displayMesh.draw();
+
+      MemoryUtil.memFree(pixels);
     } else { // 15bpp
       int yRangeOffset = 240 - (this.displayRangeY2 - this.displayRangeY1) >> (this.status.verticalResolution == VERTICAL_RESOLUTION._480 ? 0 : 1);
       if(yRangeOffset < 0) {
         yRangeOffset = 0;
       }
 
-      final ByteBuffer vram = BufferUtils.createByteBuffer(this.vram24.length * 4);
+      final ByteBuffer vram = MemoryUtil.memAlloc(this.vram24.length * 4);
       final IntBuffer intVram = vram.asIntBuffer();
 
       for(final long l : this.vram24) {
@@ -667,8 +672,8 @@ public class Gpu implements Runnable {
       }
 
       final int size = this.displayTexture.width * this.displayTexture.height;
-      final ByteBuffer pixels = BufferUtils.createByteBuffer(size * 4);
-      final byte[] from = new byte[this.status.horizontalResolution1.res * 4];
+      final ByteBuffer pixels = MemoryUtil.memAlloc(size * 4);
+      final byte[] from = new byte[this.displayTexture.width * 4];
 
       for(int y = yRangeOffset; y < this.status.verticalResolution.res - yRangeOffset; y++) {
         vram.get((this.displayStartX + (y - yRangeOffset + this.displayStartY) * this.vramTexture.width) * 4, from);
@@ -678,6 +683,13 @@ public class Gpu implements Runnable {
       pixels.flip();
 
       this.displayTexture.data(new RECT((short)0, (short)0, (short)this.displayTexture.width, (short)this.displayTexture.height), pixels);
+
+      this.vramShader.use();
+      this.displayTexture.use();
+      this.displayMesh.draw();
+
+      MemoryUtil.memFree(vram);
+      MemoryUtil.memFree(pixels);
     }
 
     synchronized(this.commandQueue) {
