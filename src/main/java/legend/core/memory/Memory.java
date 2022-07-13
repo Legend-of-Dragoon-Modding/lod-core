@@ -266,6 +266,7 @@ public class Memory {
   public void addFunctions(final Class<?> cls) {
     LOGGER.info("Adding function references from %s", cls);
 
+    this.overlays.remove(cls); // Ensure that when a duplicate overlay is added, it moves to the top
     this.overlays.add(cls);
 
     final Long2ObjectMap<MethodInfo> methods = new Long2ObjectOpenHashMap<>();
