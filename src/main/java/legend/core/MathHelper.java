@@ -15,13 +15,13 @@ public final class MathHelper {
     return Math.max(min, Math.min(value, max));
   }
 
-  public static long colour15To24(final long colour) {
+  public static int colour15To24(final int colour) {
     final byte r = (byte)((colour        & 0b1_1111) * 8);
     final byte g = (byte)((colour >>>  5 & 0b1_1111) * 8);
     final byte b = (byte)((colour >>> 10 & 0b1_1111) * 8);
     final byte a = (byte)((colour >>> 15) * 255);
 
-    return (a & 0xffL) << 24 | (b & 0xffL) << 16 | (g & 0xffL) << 8 | r & 0xffL;
+    return (a & 0xff) << 24 | (b & 0xff) << 16 | (g & 0xff) << 8 | r & 0xff;
   }
 
   public static int GetPixelBGR555(final int colour) {

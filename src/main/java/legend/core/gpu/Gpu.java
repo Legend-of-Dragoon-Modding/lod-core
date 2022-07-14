@@ -2,8 +2,8 @@ package legend.core.gpu;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.longs.LongArrayList;
-import it.unimi.dsi.fastutil.longs.LongList;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
 import legend.core.Config;
 import legend.core.InterruptType;
 import legend.core.IoHelper;
@@ -84,8 +84,8 @@ public class Gpu implements Runnable {
   private Shader.UniformBuffer transforms2;
   private final Matrix4f transforms = new Matrix4f();
 
-  private final long[] vram24 = new long[VRAM_WIDTH * VRAM_HEIGHT];
-  private final long[] vram15 = new long[VRAM_WIDTH * VRAM_HEIGHT];
+  private final int[] vram24 = new int[VRAM_WIDTH * VRAM_HEIGHT];
+  private final int[] vram15 = new int[VRAM_WIDTH * VRAM_HEIGHT];
 
   private boolean isVramViewer = true;
 
@@ -184,7 +184,7 @@ public class Gpu implements Runnable {
         int i = 0;
         for(int y = 0; y < rect.h.get(); y++) {
           for(int x = 0; x < rect.w.get(); x++) {
-            final long packed = MEMORY.ref(2, address).offset(i * 2L).get();
+            final int packed = (int)MEMORY.get(address + i * 2, 2);
             final int index = offset + y * VRAM_WIDTH + x;
             this.vram24[index] = MathHelper.colour15To24(packed);
             this.vram15[index] = packed;
@@ -221,26 +221,25 @@ public class Gpu implements Runnable {
 
   public void uploadLinkedList(final long address) {
     MEMORY.waitForLock(() -> {
-      Value value;
+      long value;
       long a = address;
 
       do {
-        value = MEMORY.ref(4, a);
-
-        final long words = value.get(0xff00_0000L) >>> 24;
+        value = MEMORY.get(a, 4);
+        final long words = (value & 0xff00_0000L) >>> 24;
 
         for(int i = 1; i <= words; i++) {
-          this.queueGp0Command(value.offset(i * 4L).get());
+          this.queueGp0Command((int)MEMORY.get(a + i * 4L, 4));
         }
 
-        a = a & 0xff00_0000 | value.get(0xff_ffffL);
-      } while(value.get(0xff_ffffL) != 0xff_ffffL);
+        a = a & 0xff00_0000 | value & 0xff_ffffL;
+      } while((value & 0xff_ffffL) != 0xff_ffffL);
     });
 
     LOGGER.trace("GPU linked list uploaded");
   }
 
-  private void queueGp0Command(final long command) {
+  private void queueGp0Command(final int command) {
     if(this.currentCommand == null) {
       this.currentCommand = new Gp0CommandBuffer(command);
     } else {
@@ -521,7 +520,7 @@ public class Gpu implements Runnable {
 
                 synchronized(this.commandQueue) {
                   for(int n = 0; n < this.dma.getBlockSize() / 4; n++) {
-                    this.queueGp0Command(this.dma.MADR.deref(4).offset(n * 4L).get());
+                    this.queueGp0Command((int)this.dma.MADR.deref(4).offset(n * 4L).get());
                   }
 
                   while(!this.commandQueue.isEmpty()) {
@@ -546,7 +545,7 @@ public class Gpu implements Runnable {
               final long words = value.get(0xff00_0000L) >> 24;
 
               for(int i = 1; i < words; i++) {
-                this.queueGp0Command(value.offset(i * 4L).get());
+                this.queueGp0Command((int)value.offset(i * 4L).get());
               }
 
               if(value.get(0xff_ffffL) == 0xff_ffffL) {
@@ -623,9 +622,9 @@ public class Gpu implements Runnable {
       for(int y = yRangeOffset; y < this.status.verticalResolution.res - yRangeOffset; y++) {
         int offset = 0;
         for(int x = 0; x < (this.status.horizontalResolution2 == HORIZONTAL_RESOLUTION_2._368 ? 368 : this.status.horizontalResolution1.res); x += 2) {
-          final int p0rgb = (int)this.vram24[offset++ + this.displayStartX + (y - yRangeOffset + this.displayStartY) * 1024];
-          final int p1rgb = (int)this.vram24[offset++ + this.displayStartX + (y - yRangeOffset + this.displayStartY) * 1024];
-          final int p2rgb = (int)this.vram24[offset++ + this.displayStartX + (y - yRangeOffset + this.displayStartY) * 1024];
+          final int p0rgb = this.vram24[offset++ + this.displayStartX + (y - yRangeOffset + this.displayStartY) * 1024];
+          final int p1rgb = this.vram24[offset++ + this.displayStartX + (y - yRangeOffset + this.displayStartY) * 1024];
+          final int p2rgb = this.vram24[offset++ + this.displayStartX + (y - yRangeOffset + this.displayStartY) * 1024];
 
           final int p0bgr555 = GetPixelBGR555(p0rgb);
           final int p1bgr555 = GetPixelBGR555(p1rgb);
@@ -666,10 +665,7 @@ public class Gpu implements Runnable {
 
       final ByteBuffer vram = MemoryUtil.memAlloc(this.vram24.length * 4);
       final IntBuffer intVram = vram.asIntBuffer();
-
-      for(final long l : this.vram24) {
-        intVram.put((int)l);
-      }
+      intVram.put(this.vram24);
 
       final int size = this.displayTexture.width * this.displayTexture.height;
       final ByteBuffer pixels = MemoryUtil.memAlloc(size * 4);
@@ -730,11 +726,11 @@ public class Gpu implements Runnable {
     return 0;
   }
 
-  private static Runnable polygonRenderer(final LongList buffer, final Gpu gpu) {
+  private static Runnable polygonRenderer(final IntList buffer, final Gpu gpu) {
     int bufferIndex = 0;
-    final long cmd = buffer.getLong(bufferIndex++);
-    final int colour = (int)(cmd & 0xff_ffff);
-    final long command = cmd >>> 24;
+    final int cmd = buffer.getInt(bufferIndex++);
+    final int colour = cmd & 0xff_ffff;
+    final int command = cmd >>> 24;
     final boolean isRaw = (command & 0b1) != 0;
     final boolean isTranslucent = (command & 0b10) != 0;
     final boolean isTextured = (command & 0b100) != 0;
@@ -751,65 +747,65 @@ public class Gpu implements Runnable {
 
     Arrays.fill(c, colour);
 
-    final long vertex0 = buffer.getLong(bufferIndex++);
+    final int vertex0 = buffer.getInt(bufferIndex++);
     y[0] = (short)(vertex0 >>> 16 & 0xffff);
     x[0] = (short)(vertex0        & 0xffff);
 
     final int clut;
     if(isTextured) {
-      final long tex0 = buffer.getLong(bufferIndex++);
-      clut = (int)(tex0 >>> 16 & 0xffff);
-      ty[0] = (int)(tex0 >>> 8 & 0xff);
-      tx[0] = (int)(tex0 & 0xff);
+      final int tex0 = buffer.getInt(bufferIndex++);
+      clut = tex0 >>> 16 & 0xffff;
+      ty[0] = tex0 >>> 8 & 0xff;
+      tx[0] = tex0 & 0xff;
     } else {
       clut = 0;
     }
 
     if(isShaded) {
-      c[1] = (int)buffer.getLong(bufferIndex++);
+      c[1] = buffer.getInt(bufferIndex++);
     }
 
-    final long vertex1 = buffer.getLong(bufferIndex++);
+    final int vertex1 = buffer.getInt(bufferIndex++);
     y[1] = (short)(vertex1 >>> 16 & 0xffff);
     x[1] = (short)(vertex1        & 0xffff);
 
     final int page;
     if(isTextured) {
-      final long tex1 = buffer.getLong(bufferIndex++);
-      page = (int)(tex1 >>> 16 & 0xffff);
-      ty[1] = (int)(tex1 >>> 8 & 0xff);
-      tx[1] = (int)(tex1 & 0xff);
+      final int tex1 = buffer.getInt(bufferIndex++);
+      page = tex1 >>> 16 & 0xffff;
+      ty[1] = tex1 >>> 8 & 0xff;
+      tx[1] = tex1 & 0xff;
     } else {
       page = 0;
     }
 
     if(isShaded) {
-      c[2] = (int)buffer.getLong(bufferIndex++);
+      c[2] = buffer.getInt(bufferIndex++);
     }
 
-    final long vertex2 = buffer.getLong(bufferIndex++);
+    final int vertex2 = buffer.getInt(bufferIndex++);
     y[2] = (short)(vertex2 >>> 16 & 0xffff);
     x[2] = (short)(vertex2        & 0xffff);
 
     if(isTextured) {
-      final long tex2 = buffer.getLong(bufferIndex++);
-      ty[2] = (int)(tex2 >>> 8 & 0xff);
-      tx[2] = (int)(tex2 & 0xff);
+      final int tex2 = buffer.getInt(bufferIndex++);
+      ty[2] = tex2 >>> 8 & 0xff;
+      tx[2] = tex2 & 0xff;
     }
 
     if(isQuad) {
       if(isShaded) {
-        c[3] = (int)buffer.getLong(bufferIndex++);
+        c[3] = buffer.getInt(bufferIndex++);
       }
 
-      final long vertex3 = buffer.getLong(bufferIndex++);
+      final int vertex3 = buffer.getInt(bufferIndex++);
       y[3] = (short)(vertex3 >>> 16 & 0xffff);
       x[3] = (short)(vertex3        & 0xffff);
 
       if(isTextured) {
-        final long tex3 = buffer.getLong(bufferIndex);
-        ty[3] = (int)(tex3 >>> 8 & 0xff);
-        tx[3] = (int)(tex3 & 0xff);
+        final int tex3 = buffer.getInt(bufferIndex);
+        ty[3] = tex3 >>> 8 & 0xff;
+        tx[3] = tex3 & 0xff;
       }
     }
 
@@ -845,40 +841,40 @@ public class Gpu implements Runnable {
     };
   }
 
-  private static Runnable lineRenderer(final LongList buffer, final Gpu gpu) {
+  private static Runnable lineRenderer(final IntList buffer, final Gpu gpu) {
     int bufferIndex = 0;
-    final long cmd = buffer.getLong(bufferIndex++);
-    final int colour1 = (int)(cmd & 0xff_ffff);
-    final long command = cmd >>> 24;
+    final int cmd = buffer.getInt(bufferIndex++);
+    final int colour1 = cmd & 0xff_ffff;
+    final int command = cmd >>> 24;
 
-    final boolean isPoly = (command & 1 << 27) != 0;
-    final boolean isShaded = (command & 1 << 28) != 0;
-    final boolean isTransparent = (command & 1 << 25) != 0;
+    final boolean isPoly = (command & 1 << 3) != 0;
+    final boolean isShaded = (command & 1 << 4) != 0;
+    final boolean isTransparent = (command & 1 << 1) != 0;
 
     if(isPoly) {
       throw new RuntimeException("Polyline not supported");
     }
 
-    final long v1 = buffer.getLong(bufferIndex++);
+    final int v1 = buffer.getInt(bufferIndex++);
 
     final int colour2;
     if(isShaded) {
-      colour2 = (int)buffer.getLong(bufferIndex++);
+      colour2 = buffer.getInt(bufferIndex++);
     } else {
       colour2 = colour1;
     }
 
-    final long v2 = buffer.getLong(bufferIndex);
+    final int v2 = buffer.getInt(bufferIndex);
 
     return () -> gpu.rasterizeLine(v1, v2, colour1, colour2, isTransparent);
   }
 
-  private void rasterizeLine(final long v1, final long v2, final int colour1, final int colour2, final boolean transparent) {
-    short x = signed11bit((int)(v1 & 0xffff));
-    short y = signed11bit((int)(v1 >> 16));
+  private void rasterizeLine(final int v1, final int v2, final int colour1, final int colour2, final boolean transparent) {
+    short x = signed11bit(v1 & 0xffff);
+    short y = signed11bit(v1 >> 16);
 
-    short x2 = signed11bit((int)(v2 & 0xffff));
-    short y2 = signed11bit((int)(v2 >> 16));
+    short x2 = signed11bit(v2 & 0xffff);
+    short y2 = signed11bit(v2 >> 16);
 
     if(Math.abs(x - x2) > 0x3ff || Math.abs(y - y2) > 0x1ff) {
       return;
@@ -957,10 +953,10 @@ public class Gpu implements Runnable {
     }
   }
 
-  private Runnable untexturedRectangleBuilder(final long command, final long vertex, final long size) {
+  private Runnable untexturedRectangleBuilder(final int command, final int vertex, final int size) {
     final boolean isTranslucent = (command & 1 << 25) != 0;
 
-    final long colour = command & 0xff_ffffL;
+    final int colour = command & 0xff_ffff;
 
     final int vy = (short)((vertex & 0xffff0000) >>> 16);
     final int vx = (short)(vertex & 0xffff);
@@ -985,7 +981,7 @@ public class Gpu implements Runnable {
             }
           }
 
-          final long texel;
+          final int texel;
           if(isTranslucent) {
             texel = this.handleTranslucence(x, y, colour, this.status.semiTransparency);
           } else {
@@ -998,18 +994,18 @@ public class Gpu implements Runnable {
     };
   }
 
-  private Runnable texturedRectangleBuilder(final long command, final long vertex, final long tex, final long size) {
+  private Runnable texturedRectangleBuilder(final int command, final int vertex, final int tex, final int size) {
     final boolean isTranslucent = (command & 1 << 25) != 0;
     final boolean isRaw = (command & 1 << 24) != 0;
 
-    final long colour = command & 0xff_ffffL;
+    final int colour = command & 0xff_ffff;
 
     final int vy = (short)((vertex & 0xffff0000) >>> 16);
     final int vx = (short)(vertex & 0xffff);
 
-    final int clut = (int)((tex & 0xffff0000) >>> 16);
-    final int ty = (int)((tex & 0xff00) >>> 8);
-    final int tx = (int)(tex & 0xff);
+    final int clut = (tex & 0xffff0000) >>> 16;
+    final int ty = (tex & 0xff00) >>> 8;
+    final int tx = tex & 0xff;
 
     final int vh = (short)((size & 0xffff0000) >>> 16);
     final int vw = (short)(size & 0xffff);
@@ -1040,7 +1036,7 @@ public class Gpu implements Runnable {
             }
           }
 
-          long texel = this.getTexel(this.maskTexelAxis(u, this.preMaskX, this.postMaskX), this.maskTexelAxis(v, this.preMaskY, this.postMaskY), clutX, clutY, this.status.texturePageXBase, this.status.texturePageYBase.value, this.status.texturePageColours);
+          int texel = this.getTexel(this.maskTexelAxis(u, this.preMaskX, this.postMaskX), this.maskTexelAxis(v, this.preMaskY, this.postMaskY), clutX, clutY, this.status.texturePageXBase, this.status.texturePageYBase.value, this.status.texturePageColours);
           if(texel == 0) {
             continue;
           }
@@ -1049,7 +1045,7 @@ public class Gpu implements Runnable {
             texel = this.applyBlending(colour, texel);
           }
 
-          if(isTranslucent && (texel & 0xff00_0000L) != 0) {
+          if(isTranslucent && (texel & 0xff00_0000) != 0) {
             texel = this.handleTranslucence(x, y, texel, this.status.semiTransparency);
           }
 
@@ -1118,7 +1114,7 @@ public class Gpu implements Runnable {
     int w1_row = orient2d(vx2, vy2, vx0, vy0, minX, minY);
     int w2_row = orient2d(vx0, vy0, vx1, vy1, minX, minY);
 
-    final long baseColour = c0;
+    final int baseColour = c0;
 
     // Rasterize
     for(int y = minY; y < maxY; y++) {
@@ -1145,7 +1141,7 @@ public class Gpu implements Runnable {
           }
 
           // reset default color of the triangle calculated outside the for as it gets overwritten as follows...
-          long colour = baseColour;
+          int colour = baseColour;
 
           if(isShaded) {
             colour = this.getShadedColor(w0, w1, w2, c0, c1, c2, area);
@@ -1154,7 +1150,7 @@ public class Gpu implements Runnable {
           if(isTextured) {
             final int texelX = interpolateCoords(w0, w1, w2, tu0, tu1, tu2, area);
             final int texelY = interpolateCoords(w0, w1, w2, tv0, tv1, tv2, area);
-            long texel = this.getTexel(this.maskTexelAxis(texelX, this.preMaskX, this.postMaskX), this.maskTexelAxis(texelY, this.preMaskY, this.postMaskY), clutX, clutY, textureBaseX, textureBaseY, bpp);
+            int texel = this.getTexel(this.maskTexelAxis(texelX, this.preMaskX, this.postMaskX), this.maskTexelAxis(texelY, this.preMaskY, this.postMaskY), clutX, clutY, textureBaseX, textureBaseY, bpp);
             if(texel == 0) {
               w0 += A12;
               w1 += A20;
@@ -1169,7 +1165,7 @@ public class Gpu implements Runnable {
             colour = texel;
           }
 
-          if(isTranslucent && (!isTextured || (colour & 0xff00_0000L) != 0)) {
+          if(isTranslucent && (!isTextured || (colour & 0xff00_0000) != 0)) {
             colour = this.handleTranslucence(x, y, colour, translucencyMode);
           }
 
@@ -1191,15 +1187,15 @@ public class Gpu implements Runnable {
     }
   }
 
-  private long rgbToBgr(final long colour) {
-    final int m = (int)(colour >>> 24) & 0xff;
-    final int b = (int)(colour >>> 16) & 0xff;
-    final int g = (int)(colour >>>  8) & 0xff;
-    final int r = (int) colour         & 0xff;
+  private int rgbToBgr(final int colour) {
+    final int m = colour >>> 24 & 0xff;
+    final int b = colour >>> 16 & 0xff;
+    final int g = colour >>>  8 & 0xff;
+    final int r =  colour & 0xff;
     return m << 24 | r << 16 | g << 8 | b;
   }
 
-  private long applyBlending(final long colour, final long texel) {
+  private int applyBlending(final int colour, final int texel) {
     return
       texel & 0xff00_0000 |
       Math.min((colour >>> 16 & 0xff) * (texel >>> 16 & 0xff) >>> 7, 0xff) << 16 |
@@ -1207,15 +1203,15 @@ public class Gpu implements Runnable {
       Math.min((colour        & 0xff) * (texel        & 0xff) >>> 7, 0xff);
   }
 
-  private long getPixel(final int x, final int y) {
+  private int getPixel(final int x, final int y) {
     return this.vram24[y * VRAM_WIDTH + x];
   }
 
-  private long getPixel15(final int x, final int y) {
+  private int getPixel15(final int x, final int y) {
     return this.vram15[y * VRAM_WIDTH + x];
   }
 
-  private void setPixel(final int x, final int y, final long pixel) {
+  private void setPixel(final int x, final int y, final int pixel) {
     this.vram24[y * VRAM_WIDTH + x] = pixel;
   }
 
@@ -1247,7 +1243,7 @@ public class Gpu implements Runnable {
     return ay == by && bx > ax || by < ay;
   }
 
-  private long getTexel(final int x, final int y, final int clutX, final int clutY, final int textureBaseX, final int textureBaseY, final Bpp depth) {
+  private int getTexel(final int x, final int y, final int clutX, final int clutY, final int textureBaseX, final int textureBaseY, final Bpp depth) {
     if(depth == Bpp.BITS_4) {
       return this.get4bppTexel(x, y, clutX, clutY, textureBaseX, textureBaseY);
     }
@@ -1259,19 +1255,19 @@ public class Gpu implements Runnable {
     return this.get16bppTexel(x, y, textureBaseX, textureBaseY);
   }
 
-  private long get4bppTexel(final int x, final int y, final int clutX, final int clutY, final int textureBaseX, final int textureBaseY) {
-    final long index = this.getPixel15(x / 4 + textureBaseX, y + textureBaseY);
-    final int p = (int)(index >> (x & 3) * 4 & 0xf);
+  private int get4bppTexel(final int x, final int y, final int clutX, final int clutY, final int textureBaseX, final int textureBaseY) {
+    final int index = this.getPixel15(x / 4 + textureBaseX, y + textureBaseY);
+    final int p = index >> (x & 3) * 4 & 0xf;
     return this.getPixel(clutX + p, clutY);
   }
 
-  private long get8bppTexel(final int x, final int y, final int clutX, final int clutY, final int textureBaseX, final int textureBaseY) {
-    final long index = this.getPixel15(x / 2 + textureBaseX, y + textureBaseY);
-    final int p = (int)(index >> (x & 1) * 8 & 0xff);
+  private int get8bppTexel(final int x, final int y, final int clutX, final int clutY, final int textureBaseX, final int textureBaseY) {
+    final int index = this.getPixel15(x / 2 + textureBaseX, y + textureBaseY);
+    final int p = index >> (x & 1) * 8 & 0xff;
     return this.getPixel(clutX + p, clutY);
   }
 
-  private long get16bppTexel(final int x, final int y, final int textureBaseX, final int textureBaseY) {
+  private int get16bppTexel(final int x, final int y, final int textureBaseX, final int textureBaseY) {
     return this.getPixel(x + textureBaseX, y + textureBaseY);
   }
 
@@ -1279,15 +1275,15 @@ public class Gpu implements Runnable {
     return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
   }
 
-  private int handleTranslucence(final int x, final int y, final long texel, final SEMI_TRANSPARENCY mode) {
-    final long pixel = this.getPixel(x, y);
+  private int handleTranslucence(final int x, final int y, final int texel, final SEMI_TRANSPARENCY mode) {
+    final int pixel = this.getPixel(x, y);
 
-    final int br = (int)(pixel        & 0xff);
-    final int bg = (int)(pixel >>>  8 & 0xff);
-    final int bb = (int)(pixel >>> 16 & 0xff);
-    final int fr = (int)(texel        & 0xff);
-    final int fg = (int)(texel >>>  8 & 0xff);
-    final int fb = (int)(texel >>> 16 & 0xff);
+    final int br = pixel        & 0xff;
+    final int bg = pixel >>>  8 & 0xff;
+    final int bb = pixel >>> 16 & 0xff;
+    final int fr = texel        & 0xff;
+    final int fg = texel >>>  8 & 0xff;
+    final int fb = texel >>> 16 & 0xff;
     final int r;
     final int g;
     final int b;
@@ -1399,11 +1395,11 @@ public class Gpu implements Runnable {
 
   public void load(final ByteBuffer buf) {
     for(int i = 0; i < this.vram24.length; i++) {
-      this.vram24[i] = IoHelper.readLong(buf);
+      this.vram24[i] = IoHelper.readInt(buf);
     }
 
     for(int i = 0; i < this.vram15.length; i++) {
-      this.vram15[i] = IoHelper.readLong(buf);
+      this.vram15[i] = IoHelper.readInt(buf);
     }
 
     this.isVramViewer = IoHelper.readBool(buf);
@@ -1470,13 +1466,13 @@ public class Gpu implements Runnable {
     CLEAR_CACHE(0x01, 1, (buffer, gpu) -> () -> LOGGER.trace("GPU clear cache")),
 
     FILL_RECTANGLE_IN_VRAM(0x02, 3, (buffer, gpu) -> {
-      final long colour = buffer.getLong(0) & 0xff_ffffL;
+      final int colour = buffer.getInt(0) & 0xff_ffff;
 
-      final long vertex = buffer.getLong(1);
+      final int vertex = buffer.getInt(1);
       final int y = (short)((vertex & 0xffff0000) >>> 16);
       final int x = (short)(vertex & 0xffff);
 
-      final long size = buffer.getLong(2);
+      final int size = buffer.getInt(2);
       final int h = (short)((size & 0xffff0000) >>> 16);
       final int w = (short)(size & 0xffff);
 
@@ -1545,67 +1541,67 @@ public class Gpu implements Runnable {
     }),
 
     MONO_RECT_VAR_SIZE_OPAQUE(0x60, 3, (buffer, gpu) -> {
-      final long command = buffer.getLong(0);
-      final long vertex = buffer.getLong(1);
-      final long size = buffer.getLong(2);
+      final int command = buffer.getInt(0);
+      final int vertex = buffer.getInt(1);
+      final int size = buffer.getInt(2);
       return gpu.untexturedRectangleBuilder(command, vertex, size);
     }),
 
     MONOCHROME_RECT_VAR_SIZE_TRANS(0x62, 3, (buffer, gpu) -> {
-      final long command = buffer.getLong(0);
-      final long vertex = buffer.getLong(1);
-      final long size = buffer.getLong(2);
+      final int command = buffer.getInt(0);
+      final int vertex = buffer.getInt(1);
+      final int size = buffer.getInt(2);
       return gpu.untexturedRectangleBuilder(command, vertex, size);
     }),
 
     TEX_RECT_VAR_SIZE_OPAQUE_BLENDED(0x64, 4, (buffer, gpu) -> {
-      final long command = buffer.getLong(0);
-      final long vertex = buffer.getLong(1);
-      final long tex = buffer.getLong(2);
-      final long size = buffer.getLong(3);
+      final int command = buffer.getInt(0);
+      final int vertex = buffer.getInt(1);
+      final int tex = buffer.getInt(2);
+      final int size = buffer.getInt(3);
       return gpu.texturedRectangleBuilder(command, vertex, tex, size);
     }),
 
     TEX_RECT_VAR_SIZE_TRANSPARENT_BLENDED(0x66, 4, (buffer, gpu) -> {
-      final long command = buffer.getLong(0);
-      final long vertex = buffer.getLong(1);
-      final long tex = buffer.getLong(2);
-      final long size = buffer.getLong(3);
+      final int command = buffer.getInt(0);
+      final int vertex = buffer.getInt(1);
+      final int tex = buffer.getInt(2);
+      final int size = buffer.getInt(3);
       return gpu.texturedRectangleBuilder(command, vertex, tex, size);
     }),
 
     TEX_RECT_VAR_SIZE_TRANSPARENT_RAW(0x67, 4, (buffer, gpu) -> {
-      final long command = buffer.getLong(0);
-      final long vertex = buffer.getLong(1);
-      final long tex = buffer.getLong(2);
-      final long size = buffer.getLong(3);
+      final int command = buffer.getInt(0);
+      final int vertex = buffer.getInt(1);
+      final int tex = buffer.getInt(2);
+      final int size = buffer.getInt(3);
       return gpu.texturedRectangleBuilder(command, vertex, tex, size);
     }),
 
     TEX_RECT_16_OPAQUE_BLENDED(0x7c, 3, (buffer, gpu) -> {
-      final long command = buffer.getLong(0);
-      final long vertex = buffer.getLong(1);
-      final long tex = buffer.getLong(2);
-      return gpu.texturedRectangleBuilder(command, vertex, tex, 0x10_0010L);
+      final int command = buffer.getInt(0);
+      final int vertex = buffer.getInt(1);
+      final int tex = buffer.getInt(2);
+      return gpu.texturedRectangleBuilder(command, vertex, tex, 0x10_0010);
     }),
 
     TEX_RECT_16_TRANSPARENT_BLENDED(0x7e, 3, (buffer, gpu) -> {
-      final long command = buffer.getLong(0);
-      final long vertex = buffer.getLong(1);
-      final long tex = buffer.getLong(2);
-      return gpu.texturedRectangleBuilder(command, vertex, tex, 0x10_0010L);
+      final int command = buffer.getInt(0);
+      final int vertex = buffer.getInt(1);
+      final int tex = buffer.getInt(2);
+      return gpu.texturedRectangleBuilder(command, vertex, tex, 0x10_0010);
     }),
 
     COPY_RECT_VRAM_VRAM(0x80, 4, (buffer, gpu) -> {
-      final long source = buffer.getLong(1);
+      final int source = buffer.getInt(1);
       final int sourceY = (short)((source & 0xffff0000) >>> 16);
       final int sourceX = (short)(source & 0xffff);
 
-      final long dest = buffer.getLong(2);
+      final int dest = buffer.getInt(2);
       final int destY = (short)((dest & 0xffff0000) >>> 16);
       final int destX = (short)(dest & 0xffff);
 
-      final long size = buffer.getLong(3);
+      final int size = buffer.getInt(3);
       final int height = (short)((size & 0xffff0000) >>> 16);
       final int width = (short)(size & 0xffff);
 
@@ -1614,7 +1610,7 @@ public class Gpu implements Runnable {
 
         for(int y = 0; y < height; y++) {
           for(int x = 0; x < width; x++) {
-            long colour = gpu.getPixel(sourceX + x & 0x3FF, sourceY + y & 0x1FF);
+            int colour = gpu.getPixel(sourceX + x & 0x3FF, sourceY + y & 0x1FF);
 
             if(gpu.status.drawPixels == DRAW_PIXELS.NOT_TO_MASKED_AREAS) {
               if((gpu.getPixel(destX + x & 0x3FF, destY + y & 0x1FF) & 0xff00_0000L) != 0) {
@@ -1631,15 +1627,15 @@ public class Gpu implements Runnable {
     }),
 
     DRAW_MODE_SETTINGS(0xe1, 1, (buffer, gpu) -> {
-      final long settings = buffer.getLong(0);
+      final int settings = buffer.getInt(0);
 
       return () -> {
         LOGGER.trace("[GP0.e1] Draw mode set to %08x", settings);
 
-        gpu.status.texturePageXBase = (int)(settings & 0b1111) * 64;
+        gpu.status.texturePageXBase = (settings & 0b1111) * 64;
         gpu.status.texturePageYBase = (settings & 0b1_0000) != 0 ? TEXTURE_PAGE_Y_BASE.BASE_256 : TEXTURE_PAGE_Y_BASE.BASE_0;
-        gpu.status.semiTransparency = SEMI_TRANSPARENCY.values()[(int)((settings & 0b110_0000) >>> 5)];
-        gpu.status.texturePageColours = Bpp.values()[(int)((settings & 0b1_1000_0000) >>> 7)];
+        gpu.status.semiTransparency = SEMI_TRANSPARENCY.values()[(settings & 0b110_0000) >>> 5];
+        gpu.status.texturePageColours = Bpp.values()[(settings & 0b1_1000_0000) >>> 7];
         gpu.status.drawable = (settings & 0b100_0000_0000) != 0;
         gpu.status.disableTextures = (settings & 0b1000_0000_0000) != 0;
         gpu.texturedRectXFlip = (settings & 0b1_0000_0000_0000) != 0;
@@ -1648,13 +1644,13 @@ public class Gpu implements Runnable {
     }),
 
     TEXTURE_WINDOW_SETTINGS(0xe2, 1, (buffer, gpu) -> {
-      final long settings = buffer.getLong(0);
+      final int settings = buffer.getInt(0);
 
       return () -> {
-        gpu.textureWindowMaskX   = (int)( (settings & 0b0000_0000_0000_0001_1111)         * 8);
-        gpu.textureWindowMaskY   = (int)(((settings & 0b0000_0000_0011_1110_0000) >>>  5) * 8);
-        gpu.textureWindowOffsetX = (int)(((settings & 0b0000_0111_1100_0000_0000) >>> 10) * 8);
-        gpu.textureWindowOffsetY = (int)(((settings & 0b1111_1000_0000_0000_0000) >>> 15) * 8);
+        gpu.textureWindowMaskX   =  (settings & 0b0000_0000_0000_0001_1111)         * 8;
+        gpu.textureWindowMaskY   = ((settings & 0b0000_0000_0011_1110_0000) >>>  5) * 8;
+        gpu.textureWindowOffsetX = ((settings & 0b0000_0111_1100_0000_0000) >>> 10) * 8;
+        gpu.textureWindowOffsetY = ((settings & 0b1111_1000_0000_0000_0000) >>> 15) * 8;
 
         gpu.preMaskX = ~(gpu.textureWindowMaskX * 8);
         gpu.preMaskY = ~(gpu.textureWindowMaskY * 8);
@@ -1664,7 +1660,7 @@ public class Gpu implements Runnable {
     }),
 
     DRAWING_AREA_TOP_LEFT(0xe3, 1, (buffer, gpu) -> {
-      final long area = buffer.getLong(0);
+      final int area = buffer.getInt(0);
 
       final short x = (short)(area & 0b11_1111_1111);
       final short y = (short)(area >>> 10 & 0b1_1111_1111L);
@@ -1680,7 +1676,7 @@ public class Gpu implements Runnable {
     }),
 
     DRAWING_AREA_BOTTOM_RIGHT(0xe4, 1, (buffer, gpu) -> {
-      final long area = buffer.getLong(0);
+      final int area = buffer.getInt(0);
 
       final short x = (short)(area & 0b11_1111_1111);
       final short y = (short)(area >>> 10 & 0b1_1111_1111L);
@@ -1694,16 +1690,16 @@ public class Gpu implements Runnable {
     }),
 
     DRAWING_OFFSET(0xe5, 1, (buffer, gpu) -> {
-      final long offset = buffer.getLong(0);
+      final int offset = buffer.getInt(0);
 
       return () -> {
-        gpu.offsetX = signed11bit((int)offset & 0x7ff);
-        gpu.offsetY = signed11bit((int)offset >>> 11 & 0x7ff);
+        gpu.offsetX = signed11bit(offset & 0x7ff);
+        gpu.offsetY = signed11bit(offset >>> 11 & 0x7ff);
       };
     }),
 
     MASK_BIT(0xe6, 1, (buffer, gpu) -> {
-      final long val = buffer.getLong(0);
+      final int val = buffer.getInt(0);
 
       return () -> {
         gpu.status.setMaskBit = (val & 0x1) != 0;
@@ -1714,7 +1710,7 @@ public class Gpu implements Runnable {
     }),
     ;
 
-    public static GP0_COMMAND getCommand(final long command) {
+    public static GP0_COMMAND getCommand(final int command) {
       for(final GP0_COMMAND cmd : GP0_COMMAND.values()) {
         if(cmd.command == command) {
           return cmd;
@@ -1726,9 +1722,9 @@ public class Gpu implements Runnable {
 
     public final int command;
     public final int params;
-    private final BiFunction<LongList, Gpu, Runnable> factory;
+    private final BiFunction<IntList, Gpu, Runnable> factory;
 
-    GP0_COMMAND(final int command, final int params, final BiFunction<LongList, Gpu, Runnable> factory) {
+    GP0_COMMAND(final int command, final int params, final BiFunction<IntList, Gpu, Runnable> factory) {
       this.command = command;
       this.params = params;
       this.factory = factory;
@@ -1737,14 +1733,14 @@ public class Gpu implements Runnable {
 
   private static final class Gp0CommandBuffer {
     private final GP0_COMMAND command;
-    private final LongList buffer = new LongArrayList();
+    private final IntList buffer = new IntArrayList();
 
-    private Gp0CommandBuffer(final long command) {
-      this.command = GP0_COMMAND.getCommand((command & 0xff000000L) >>> 24);
+    private Gp0CommandBuffer(final int command) {
+      this.command = GP0_COMMAND.getCommand((command & 0xff000000) >>> 24);
       this.queueValue(command);
     }
 
-    private void queueValue(final long value) {
+    private void queueValue(final int value) {
       this.buffer.add(value);
     }
 
@@ -2007,12 +2003,12 @@ public class Gpu implements Runnable {
       }
 
       switch(offset & 0x4) {
-        case 0x0 -> this.onReg0Write(value);
-        case 0x4 -> this.onReg1Write(value);
+        case 0x0 -> this.onReg0Write((int)value);
+        case 0x4 -> this.onReg1Write((int)value);
       }
     }
 
-    private void onReg0Write(final long value) {
+    private void onReg0Write(final int value) {
       Gpu.this.status.readyToReceiveCommand = false;
 
       synchronized(Gpu.this.commandQueue) {
@@ -2026,8 +2022,8 @@ public class Gpu implements Runnable {
      *
      * These commands are executed immediately
      */
-    private void onReg1Write(final long value) {
-      final int command = (int)((value & 0xff000000) >>> 24);
+    private void onReg1Write(final int value) {
+      final int command = (value & 0xff000000) >>> 24;
 
       switch(command) {
         case 0x00: // Reset GPU
@@ -2070,7 +2066,7 @@ public class Gpu implements Runnable {
           return;
 
         case 0x04: // DMA type
-          switch((int)(value & 0b11)) {
+          switch(value & 0b11) {
             case 0:
               Gpu.this.dmaDirection(DMA_DIRECTION.OFF);
               break;
@@ -2096,8 +2092,8 @@ public class Gpu implements Runnable {
           return;
 
         case 0x05: // Start of display area (in VRAM)
-          Gpu.this.displayStartX = (int)(value & 0x3ff);
-          Gpu.this.displayStartY = (int)(value >> 10 & 0x3ff);
+          Gpu.this.displayStartX = value & 0x3ff;
+          Gpu.this.displayStartY = value >> 10 & 0x3ff;
 
           LOGGER.trace("Setting start of display area (in VRAM) to %d, %d", Gpu.this.displayStartX, Gpu.this.displayStartY);
           return;
@@ -2105,7 +2101,7 @@ public class Gpu implements Runnable {
         case 0x06: // Horizontal display range (on screen)
           // Both values are counted in 53.222400MHz units, relative to HSYNC
           // Note: 260h is the first visible pixel on normal CRT TV sets
-          final int x1 = (int)(value & 0xfff); // (260h + 0)
+          final int x1 = value & 0xfff; // (260h + 0)
           final int x2 = (int)(value >> 12 & 0xfffL); // (260h + 320 * 8)
 
           LOGGER.trace("Setting horizontal display range (on screen) to %d, %d", x1, x2);
@@ -2113,8 +2109,8 @@ public class Gpu implements Runnable {
           return;
 
         case 0x07: // Vertical display range (on screen)
-          final int y1 = (int)(value & 0x3ff);
-          final int y2 = (int)(value >> 10 & 0x3ff);
+          final int y1 = value & 0x3ff;
+          final int y2 = value >> 10 & 0x3ff;
 
           LOGGER.trace("Setting vertical display range (on screen) to %d, %d", y1, y2);
           Gpu.this.verticalDisplayRange(y1, y2);
@@ -2123,7 +2119,7 @@ public class Gpu implements Runnable {
         case 0x08: // Display mode
           LOGGER.trace("Setting display mode %02x", value);
 
-          final HORIZONTAL_RESOLUTION_1 hRes1 = HORIZONTAL_RESOLUTION_1.values()[(int)(value & 0b11)];
+          final HORIZONTAL_RESOLUTION_1 hRes1 = HORIZONTAL_RESOLUTION_1.values()[value & 0b11];
           final VERTICAL_RESOLUTION vRes = (value & 0b100) == 0 ? VERTICAL_RESOLUTION._240 : VERTICAL_RESOLUTION._480;
           final VIDEO_MODE videoMode = (value & 0b1000) == 0 ? VIDEO_MODE.NTSC : VIDEO_MODE.PAL;
           final DISPLAY_AREA_COLOUR_DEPTH colourDepth = (value & 0b1_0000) == 0 ? DISPLAY_AREA_COLOUR_DEPTH.BITS_15 : DISPLAY_AREA_COLOUR_DEPTH.BITS_24;
@@ -2135,7 +2131,7 @@ public class Gpu implements Runnable {
           return;
 
         case 0x10: // Get GPU Info
-          final int info = (int)(value & 0xffffff);
+          final int info = value & 0xffffff;
 
           switch(info) {
             case 0x03: // Draw area top left
