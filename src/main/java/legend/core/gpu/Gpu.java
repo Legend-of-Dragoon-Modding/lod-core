@@ -211,7 +211,7 @@ public class Gpu implements Runnable {
         for(int y = 0; y < rect.h.get(); y++) {
           for(int x = 0; x < rect.w.get(); x++) {
             final int index = offset + y * VRAM_WIDTH + x;
-            MEMORY.ref(2, address).offset(i * 2L).setu(this.vram15[index]);
+            MEMORY.set(address + i * 2, 2, this.vram15[index]);
             i++;
           }
         }

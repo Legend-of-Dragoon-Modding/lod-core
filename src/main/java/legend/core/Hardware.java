@@ -40,7 +40,7 @@ public final class Hardware {
   public static final Memory MEMORY = new Memory();
   public static final PrivilegeGate GATE = new PrivilegeGate();
 
-  public static final Cpu CPU = new Cpu();
+  public static final Cpu CPU;
   public static final InterruptController INTERRUPTS;
   public static final DmaManager DMA;
   public static final Gpu GPU;
@@ -224,6 +224,7 @@ public final class Hardware {
     MEMORY.addSegment(new MemoryControl2Segment(0x1f80_1060L));
     MEMORY.addSegment(new ExpansionRegion2Segment(0x1f80_2000L));
 
+    CPU = new Cpu();
     INTERRUPTS = new InterruptController(MEMORY);
     DMA = new DmaManager(MEMORY);
     GPU = new Gpu(MEMORY);

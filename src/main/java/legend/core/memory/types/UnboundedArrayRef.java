@@ -43,7 +43,7 @@ public class UnboundedArrayRef<T extends MemoryRef> implements MemoryRef {
       throw new IndexOutOfBoundsException("Index " + index + " is out of bounds (0 <= n < " + this.length.getAsInt() + ')');
     }
 
-    return this.elements.computeIfAbsent(index, key -> this.constructor.apply(this.ref.offset(this.stride, (long)key * this.stride)));
+    return this.elements.computeIfAbsent(index, key -> this.constructor.apply(this.ref.offset(this.ref.getSize(), (long)key * this.stride)));
   }
 
   public UnboundedArrayRef<T> slice(final int offset) {

@@ -13,9 +13,9 @@ public class GsCOORD2PARAM implements MemoryRef {
   public GsCOORD2PARAM(final Value ref) {
     this.ref = ref;
 
-    this.scale  = ref.offset(0x10, 0x00L).cast(VECTOR::new);
-    this.rotate = ref.offset(0x08, 0x10L).cast(SVECTOR::new);
-    this.trans  = ref.offset(0x10, 0x18L).cast(VECTOR::new);
+    this.scale  = ref.offset(4, 0x00L).cast(VECTOR::new);
+    this.rotate = ref.offset(2, 0x10L).cast(SVECTOR::new);
+    this.trans  = ref.offset(4, 0x18L).cast(VECTOR::new);
   }
 
   @Override

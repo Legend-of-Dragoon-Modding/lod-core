@@ -5,6 +5,7 @@ import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import legend.core.MathHelper;
+import legend.core.memory.segments.TempSegment;
 import legend.core.memory.types.QuadConsumer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -14,7 +15,6 @@ import javax.annotation.Nullable;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -43,12 +43,15 @@ public class Memory {
   public static final long TEMP_FLAG = 0xffff_0000L;
   private static final long TEMP_MASK = 0x0000_ffffL;
 
-  private final byte[] temp = new byte[0x1000];
-  private final BitSet tempUsage = new BitSet(0x1000);
+  private final TempSegment temp = new TempSegment();
 
   private final Set<Class<?>> overlays = new LinkedHashSet<>();
 
   public static final IntSet watches = new IntOpenHashSet();
+
+  public Memory() {
+    this.addSegment(this.temp);
+  }
 
   public static void addWatch(final long address) {
     watches.add((int)(address & 0xffffff));
@@ -121,20 +124,6 @@ public class Memory {
     this.checkAlignment(address, size);
 
     synchronized(this.lock) {
-      if((address & TEMP_FLAG) == TEMP_FLAG) {
-        final int tempIndex = (int)(address & TEMP_MASK);
-        if(!this.tempUsage.get(tempIndex)) {
-          throw new IllegalAddressException("There's no temp value reserved at " + Integer.toHexString(tempIndex));
-        }
-
-        long value = 0;
-        for(int i = 0; i < size; i++) {
-          value |= (this.temp[tempIndex + i] & 0xffL) << i * 8;
-        }
-
-        return value;
-      }
-
       final Segment segment = this.getSegment(address);
       return segment.get((int)(this.maskAddress(address) - segment.getAddress()), size);
     }
@@ -155,19 +144,6 @@ public class Memory {
     this.checkAlignment(address, size);
 
     synchronized(this.lock) {
-      if((address & TEMP_FLAG) == TEMP_FLAG) {
-        final int tempIndex = (int)(address & TEMP_MASK);
-        if(!this.tempUsage.get(tempIndex)) {
-          throw new IllegalAddressException("There's no temp value reserved at " + Integer.toHexString(tempIndex));
-        }
-
-        for(int i = 0; i < size; i++) {
-          this.temp[tempIndex + i] = (byte)(data >> i * 8 & 0xff);
-        }
-
-        return;
-      }
-
       final Segment segment = this.getSegment(address);
       final int addr = (int)(this.maskAddress(address) - segment.getAddress());
       segment.removeFunction(addr);
@@ -226,23 +202,11 @@ public class Memory {
   }
 
   public TemporaryReservation temp(final int length) {
-    outer:
-    for(int i = 0; i < this.temp.length; i++) {
-      for(int n = 0; n < length; n++) {
-        if(this.tempUsage.get(i + n)) {
-          continue outer;
-        }
-      }
-
-      this.tempUsage.set(i, i + length);
-      return new TemporaryReservation(TEMP_FLAG | i, length);
-    }
-
-    throw new RuntimeException("Ran out of temporary space");
+    return new TemporaryReservation(this.temp.allocate(length), length);
   }
 
   public void releaseTemp(final long address, final int length) {
-    this.tempUsage.clear((int)(address & TEMP_MASK), (int)(address & TEMP_MASK) + length);
+    this.temp.release((int)(address & TEMP_MASK), length);
   }
 
   public void dump(final ByteBuffer stream) {
@@ -318,6 +282,8 @@ public class Memory {
 
   public class MemoryValue extends Value {
     private final long address;
+    private Segment segment;
+    private int segmentOffset;
 
     public MemoryValue(final int byteSize, final long address) {
       super(byteSize);
@@ -329,13 +295,22 @@ public class Memory {
       this.setu(value);
     }
 
+    private Segment getSegment() {
+      if(this.segment == null) {
+        this.segment = Memory.this.getSegment(this.address);
+        this.segmentOffset = (int)(Memory.this.maskAddress(this.address) - this.segment.getAddress());
+      }
+
+      return this.segment;
+    }
+
     @Override
     public Value offset(final long offset) {
       if(offset == 0) {
         return this;
       }
 
-      return new MemoryValue(this.getSize(), this.address + offset);
+      return Memory.this.ref(this.getSize(), this.address + offset);
     }
 
     @Override
@@ -344,7 +319,7 @@ public class Memory {
         return this;
       }
 
-      return new MemoryValue(size, this.address + offset);
+      return Memory.this.ref(size, this.address + offset);
     }
 
     @Override
@@ -377,18 +352,20 @@ public class Memory {
 
     @Override
     public long get() {
-      return Memory.this.get(this.address, this.getSize());
+      synchronized(Memory.this.lock) {
+        return this.getSegment().get(this.segmentOffset, this.getSize());
+      }
     }
 
     @Override
     public long getSigned() {
-      return MathHelper.sign(Memory.this.get(this.address, this.getSize()), this.getSize());
+      return MathHelper.sign(this.get(), this.getSize());
     }
 
     @Override
     public Object call(final Object... params) {
       try {
-        final MethodBinding binding = Memory.this.getFunction(this.address);
+        final MethodBinding binding = this.getSegment().getFunction(this.segmentOffset);
         final java.lang.reflect.Method method = binding.method();
         final Object[] finalParams;
 
@@ -419,8 +396,15 @@ public class Memory {
 
     @Override
     public Value set(final long value) {
-      this.validateSigned(value);
-      Memory.this.set(this.address, this.getSize(), value);
+      synchronized(Memory.this.lock) {
+        this.getSegment().removeFunction(this.segmentOffset);
+        this.getSegment().set(this.segmentOffset, this.getSize(), value);
+      }
+
+      if(watches.contains((int)this.address & 0xffffff)) {
+        LOGGER.error(Long.toHexString(this.address) + " set to " + Long.toHexString(value), new Throwable());
+      }
+
       return this;
     }
 
@@ -428,14 +412,14 @@ public class Memory {
     public Value setu(long value) {
       value &= (0b1L << this.getSize() * 8) - 1;
       this.validateUnsigned(value);
-      Memory.this.set(this.address, this.getSize(), value);
+      this.set(value);
       return this;
     }
 
     @Override
     public Value set(final Runnable function) {
       try {
-        Memory.this.setFunction(this.address, function.getClass().getMethod("run"), function, false);
+        this.getSegment().setFunction(this.segmentOffset, function.getClass().getMethod("run"), function, false);
       } catch(final NoSuchMethodException e) {
         throw new RuntimeException(e);
       }
@@ -445,7 +429,7 @@ public class Memory {
     @Override
     public <T> Value set(final Consumer<T> function) {
       try {
-        Memory.this.setFunction(this.address, function.getClass().getMethod("accept", Object.class), function, false);
+        this.getSegment().setFunction(this.segmentOffset, function.getClass().getMethod("accept", Object.class), function, false);
       } catch(final NoSuchMethodException e) {
         throw new RuntimeException(e);
       }
@@ -455,7 +439,7 @@ public class Memory {
     @Override
     public <T, U> Value set(final BiConsumer<T, U> function) {
       try {
-        Memory.this.setFunction(this.address, function.getClass().getMethod("accept", Object.class, Object.class), function, false);
+        this.getSegment().setFunction(this.segmentOffset, function.getClass().getMethod("accept", Object.class, Object.class), function, false);
       } catch(final NoSuchMethodException e) {
         throw new RuntimeException(e);
       }
@@ -465,7 +449,7 @@ public class Memory {
     @Override
     public <T, U, V> Value set(final TriConsumer<T, U, V> function) {
       try {
-        Memory.this.setFunction(this.address, function.getClass().getMethod("accept", Object.class, Object.class, Object.class), function, false);
+        this.getSegment().setFunction(this.segmentOffset, function.getClass().getMethod("accept", Object.class, Object.class, Object.class), function, false);
       } catch(final NoSuchMethodException e) {
         throw new RuntimeException(e);
       }
@@ -475,7 +459,7 @@ public class Memory {
     @Override
     public <T, U, V, W> Value set(final QuadConsumer<T, U, V, W> function) {
       try {
-        Memory.this.setFunction(this.address, function.getClass().getMethod("accept", Object.class, Object.class, Object.class, Object.class), function, false);
+        this.getSegment().setFunction(this.segmentOffset, function.getClass().getMethod("accept", Object.class, Object.class, Object.class, Object.class), function, false);
       } catch(final NoSuchMethodException e) {
         throw new RuntimeException(e);
       }
@@ -485,7 +469,7 @@ public class Memory {
     @Override
     public Value set(final Function<?, ?> function) {
       try {
-        Memory.this.setFunction(this.address, function.getClass().getMethod("apply", Object.class), function, false);
+        this.getSegment().setFunction(this.segmentOffset, function.getClass().getMethod("apply", Object.class), function, false);
       } catch(final NoSuchMethodException e) {
         throw new RuntimeException(e);
       }
@@ -495,7 +479,7 @@ public class Memory {
     @Override
     public Value set(final BiFunction<?, ?, ?> function) {
       try {
-        Memory.this.setFunction(this.address, function.getClass().getMethod("apply", Object.class, Object.class), function, false);
+        this.getSegment().setFunction(this.segmentOffset, function.getClass().getMethod("apply", Object.class, Object.class), function, false);
       } catch(final NoSuchMethodException e) {
         throw new RuntimeException(e);
       }
@@ -505,7 +489,7 @@ public class Memory {
     @Override
     public Value set(final TriFunction<?, ?, ?, ?> function) {
       try {
-        Memory.this.setFunction(this.address, function.getClass().getMethod("apply", Object.class, Object.class, Object.class), function, false);
+        this.getSegment().setFunction(this.segmentOffset, function.getClass().getMethod("apply", Object.class, Object.class, Object.class), function, false);
       } catch(final NoSuchMethodException e) {
         throw new RuntimeException(e);
       }
@@ -515,7 +499,7 @@ public class Memory {
     @Override
     public Value set(final QuadFunction<?, ?, ?, ?, ?> function) {
       try {
-        Memory.this.setFunction(this.address, function.getClass().getMethod("apply", Object.class, Object.class, Object.class, Object.class), function, false);
+        this.getSegment().setFunction(this.segmentOffset, function.getClass().getMethod("apply", Object.class, Object.class, Object.class, Object.class), function, false);
       } catch(final NoSuchMethodException e) {
         throw new RuntimeException(e);
       }
@@ -525,7 +509,7 @@ public class Memory {
     @Override
     public <T> Value set(final Supplier<T> function) {
       try {
-        Memory.this.setFunction(this.address, function.getClass().getMethod("get"), function, false);
+        this.getSegment().setFunction(this.segmentOffset, function.getClass().getMethod("get"), function, false);
       } catch(final NoSuchMethodException e) {
         throw new RuntimeException(e);
       }
@@ -539,7 +523,7 @@ public class Memory {
     private boolean released;
 
     private TemporaryReservation(final long address, final int length) {
-      this.address = address;
+      this.address = address | TEMP_FLAG;
       this.length = length;
     }
 

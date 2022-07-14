@@ -23,7 +23,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
-import java.util.function.Function;
 
 import static legend.core.Hardware.CPU;
 import static legend.core.Hardware.GATE;
@@ -59,22 +58,19 @@ public final class Kernel {
 
   private static final Logger LOGGER = LogManager.getFormatterLogger(Kernel.class);
 
-  @SuppressWarnings({"unchecked", "rawtypes"})
-  private static final ArrayRef<Pointer<VariadicFunctionRef<Object>>> jumpTableA = (ArrayRef<Pointer<VariadicFunctionRef<Object>>>)MEMORY.ref(0x300, 0x200L, ArrayRef.of(Pointer.class, 192, 4, (Function)Pointer.of(4, VariadicFunctionRef::new)));
-  @SuppressWarnings({"unchecked", "rawtypes"})
-  private static final ArrayRef<Pointer<VariadicFunctionRef<Object>>> jumpTableB = (ArrayRef<Pointer<VariadicFunctionRef<Object>>>)MEMORY.ref(0x400, 0x874L, ArrayRef.of(Pointer.class, 256, 4, (Function)Pointer.of(4, VariadicFunctionRef::new)));
-  @SuppressWarnings({"unchecked", "rawtypes"})
-  private static final ArrayRef<Pointer<VariadicFunctionRef<Object>>> jumpTableC = (ArrayRef<Pointer<VariadicFunctionRef<Object>>>)MEMORY.ref(0x140, 0x674L, ArrayRef.of(Pointer.class,  80, 4, (Function)Pointer.of(4, VariadicFunctionRef::new)));
+  private static final ArrayRef<Pointer<VariadicFunctionRef<Object>>> jumpTableA = MEMORY.ref(4, 0x200L, ArrayRef.of(Pointer.classFor(VariadicFunctionRef.classFor(Object.class)), 192, 4, Pointer.of(4, VariadicFunctionRef::new)));
+  private static final ArrayRef<Pointer<VariadicFunctionRef<Object>>> jumpTableB = MEMORY.ref(4, 0x874L, ArrayRef.of(Pointer.classFor(VariadicFunctionRef.classFor(Object.class)), 256, 4, Pointer.of(4, VariadicFunctionRef::new)));
+  private static final ArrayRef<Pointer<VariadicFunctionRef<Object>>> jumpTableC = MEMORY.ref(4, 0x674L, ArrayRef.of(Pointer.classFor(VariadicFunctionRef.classFor(Object.class)),  80, 4, Pointer.of(4, VariadicFunctionRef::new)));
 
   private static final SupplierRef<Integer> exceptionVector_00000080 = MEMORY.ref(4, 0x00000080L, SupplierRef::new);
 
-  private static final Pointer<ArrayRef<Pointer<PriorityChainEntry>>> exceptionChainAddr_00000100 = (Pointer<ArrayRef<Pointer<PriorityChainEntry>>>)MEMORY.ref(4, 0x00000100L, Pointer.of(0x20, ArrayRef.of(Pointer.class, 4, 4, 8, (Function)Pointer.of(0x10, PriorityChainEntry::new))));
+  private static final Pointer<ArrayRef<Pointer<PriorityChainEntry>>> exceptionChainAddr_00000100 = MEMORY.ref(4, 0x00000100L, Pointer.of(4, ArrayRef.of(Pointer.classFor(PriorityChainEntry.class), 4, 4, 8, Pointer.of(4, PriorityChainEntry::new))));
 
   private static final Value _00000cf0 = MEMORY.ref(1, 0x00000cf0L);
 
   private static final Value _00006408 = MEMORY.ref(1, 0x00006408L);
 
-  private static final jmp_buf DefaultExceptionExitStruct_00006cf4 = MEMORY.ref(0x30, 0x00006cf4L, jmp_buf::new);
+  private static final jmp_buf DefaultExceptionExitStruct_00006cf4 = MEMORY.ref(4, 0x00006cf4L, jmp_buf::new);
 
   private static final Value systemMemoryInitialized_00006d30 = MEMORY.ref(4, 0x00006d30L);
 
@@ -119,7 +115,7 @@ public final class Kernel {
   /** This seems to get set when there's an issue writing to the memcard */
   private static final Value _00007520 = MEMORY.ref(4, 0x00007520L);
 
-  private static final ArrayRef<Pointer<SupplierRef<Long>>> memcardIoCallback_00007528 = (ArrayRef<Pointer<SupplierRef<Long>>>)MEMORY.ref(4, 0x00007528L, ArrayRef.of(Pointer.class, 2, 4, (Function)Pointer.of(4, SupplierRef::new)));
+  private static final ArrayRef<Pointer<SupplierRef<Long>>> memcardIoCallback_00007528 = MEMORY.ref(4, 0x00007528L, ArrayRef.of(Pointer.classFor(SupplierRef.classFor(Long.class)), 2, 4, Pointer.of(4, SupplierRef::new)));
 
   private static final PriorityChainEntry memcardIoPriorityChainEntry_00007540 = MEMORY.ref(4, 0x00007540L, PriorityChainEntry::new);
   private static final ArrayRef<UnsignedIntRef> memcardIoAddress_00007550 = MEMORY.ref(4, 0x00007550L, ArrayRef.of(UnsignedIntRef.class, 2, 4, UnsignedIntRef::new));

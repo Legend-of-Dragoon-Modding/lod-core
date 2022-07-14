@@ -15,7 +15,7 @@ public class DR_ENV implements MemoryRef {
     this.ref = ref;
 
     this.tag = new UnsignedIntRef(ref.offset(4, 0x0L));
-    this.code = ref.offset(60, 0x4L).cast(ArrayRef.of(UnsignedIntRef.class, 15, 4, UnsignedIntRef::new));
+    this.code = ref.offset(4, 0x4L).cast(ArrayRef.of(UnsignedIntRef.class, 15, 4, UnsignedIntRef::new));
   }
 
   public DR_ENV set(final DR_ENV other) {

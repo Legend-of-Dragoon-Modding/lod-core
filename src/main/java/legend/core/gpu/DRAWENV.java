@@ -67,9 +67,9 @@ public class DRAWENV implements MemoryRef {
   public DRAWENV(final Value ref) {
     this.ref = ref;
 
-    this.clip = new RECT(ref.offset(8, 0x0L));
-    this.ofs = ref.offset(4, 0x8L).cast(ArrayRef.of(ShortRef.class, 2, 2, ShortRef::new));
-    this.tw = new RECT(ref.offset(8, 0xcL));
+    this.clip = new RECT(ref.offset(2, 0x0L));
+    this.ofs = ref.offset(2, 0x8L).cast(ArrayRef.of(ShortRef.class, 2, 2, ShortRef::new));
+    this.tw = new RECT(ref.offset(2, 0xcL));
     this.tpage = new ShortRef(ref.offset(2, 0x14L));
     this.dtd = new ByteRef(ref.offset(1, 0x16L));
     this.dfe = new ByteRef(ref.offset(1, 0x17L));
@@ -77,7 +77,7 @@ public class DRAWENV implements MemoryRef {
     this.r0 = new ByteRef(ref.offset(1, 0x19L));
     this.g0 = new ByteRef(ref.offset(1, 0x1aL));
     this.b0 = new ByteRef(ref.offset(1, 0x1bL));
-    this.dr_env = new DR_ENV(ref.offset(64, 0x1cL));
+    this.dr_env = new DR_ENV(ref.offset(4, 0x1cL));
   }
 
   public DRAWENV set(final DRAWENV other) {

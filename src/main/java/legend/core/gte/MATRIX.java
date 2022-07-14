@@ -24,8 +24,8 @@ public class MATRIX implements MemoryRef {
 
   public MATRIX(final Value ref) {
     this.ref = ref;
-    this.data = ref.cast(ArrayRef.of(ShortRef.class, 9, 2, ShortRef::new));
-    this.transfer = ref.offset(0x14L).cast(VECTOR::new);
+    this.data = ref.offset(2, 0x00L).cast(ArrayRef.of(ShortRef.class, 9, 2, ShortRef::new));
+    this.transfer = ref.offset(4, 0x14L).cast(VECTOR::new);
   }
 
   public short get(final int x, final int y) {

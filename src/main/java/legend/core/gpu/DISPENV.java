@@ -43,8 +43,8 @@ public class DISPENV implements MemoryRef {
   public DISPENV(final Value ref) {
     this.ref = ref;
 
-    this.disp = new RECT(ref.offset(8, 0x0L));
-    this.screen = new RECT(ref.offset(8, 0x8L));
+    this.disp = new RECT(ref.offset(2, 0x0L));
+    this.screen = new RECT(ref.offset(2, 0x8L));
     this.isinter = new ByteRef(ref.offset(1, 0x10L));
     this.isrgb24 = new ByteRef(ref.offset(1, 0x11L));
     this.pad0 = new ByteRef(ref.offset(1, 0x12L));
