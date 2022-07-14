@@ -219,7 +219,10 @@ public class Gpu implements Runnable {
     });
   }
 
-  public void uploadLinkedList(final long address) {
+  private int tagsUploaded;
+  public int uploadLinkedList(final long address) {
+    this.tagsUploaded = 0;
+
     MEMORY.waitForLock(() -> {
       long value;
       long a = address;
@@ -232,11 +235,14 @@ public class Gpu implements Runnable {
           this.queueGp0Command((int)MEMORY.get(a + i * 4L, 4));
         }
 
+        this.tagsUploaded++;
         a = a & 0xff00_0000 | value & 0xff_ffffL;
       } while((value & 0xff_ffffL) != 0xff_ffffL);
     });
 
     LOGGER.trace("GPU linked list uploaded");
+
+    return this.tagsUploaded;
   }
 
   private void queueGp0Command(final int command) {
