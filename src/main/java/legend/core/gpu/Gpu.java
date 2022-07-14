@@ -590,15 +590,8 @@ public class Gpu implements Runnable {
     if(this.isVramViewer) {
       final int size = VRAM_WIDTH * VRAM_HEIGHT;
       final ByteBuffer pixels = MemoryUtil.memAlloc(size * 4);
-
-      for(int i = 0; i < size; i++) {
-        final long packed = this.vram24[i];
-
-        pixels.put((byte)(packed        & 0xff));
-        pixels.put((byte)(packed >>>  8 & 0xff));
-        pixels.put((byte)(packed >>> 16 & 0xff));
-        pixels.put((byte)(packed >>> 24 & 0xff));
-      }
+      final IntBuffer intPixels = pixels.asIntBuffer();
+      intPixels.put(this.vram24);
 
       pixels.flip();
 
