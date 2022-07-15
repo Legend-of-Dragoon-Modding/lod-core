@@ -360,6 +360,10 @@ public class Gpu implements Runnable {
   }
 
   private void displaySize(final int horizontalRes, final int verticalRes) {
+    if(this.displayTexture != null) {
+      this.displayTexture.delete();
+    }
+
     this.displayTexture = Texture.create(builder -> {
       builder.size(horizontalRes, verticalRes);
       builder.internalFormat(GL_RGBA);
@@ -367,6 +371,10 @@ public class Gpu implements Runnable {
       builder.minFilter(GL_NEAREST);
       builder.magFilter(GL_NEAREST);
     });
+
+    if(this.displayMesh != null) {
+      this.displayMesh.delete();
+    }
 
     this.displayMesh = new Mesh(GL_TRIANGLE_STRIP, new float[] {
       0,           0, 0, 0,

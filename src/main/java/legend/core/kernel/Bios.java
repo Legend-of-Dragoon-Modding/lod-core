@@ -1893,8 +1893,8 @@ public final class Bios {
 
     //LAB_bfc06c6c
     FUN_bfc0d570(_a000b870, 1, 0);
-    LOGGER.info("End of Main");
-    stop(0x38c);
+    LOGGER.info("Exiting");
+//    stop(0x38c);
   }
 
   @Method(0xbfc06980L)

@@ -26,6 +26,7 @@ import static org.lwjgl.opengl.GL11C.GL_TEXTURE_WRAP_S;
 import static org.lwjgl.opengl.GL11C.GL_TEXTURE_WRAP_T;
 import static org.lwjgl.opengl.GL11C.GL_UNSIGNED_BYTE;
 import static org.lwjgl.opengl.GL11C.glBindTexture;
+import static org.lwjgl.opengl.GL11C.glDeleteTextures;
 import static org.lwjgl.opengl.GL11C.glGenTextures;
 import static org.lwjgl.opengl.GL11C.glGetError;
 import static org.lwjgl.opengl.GL11C.glTexImage2D;
@@ -107,6 +108,10 @@ public final class Texture {
 
   public void use() {
     this.use(0);
+  }
+
+  public void delete() {
+    glDeleteTextures(this.id);
   }
 
   public static class Builder {

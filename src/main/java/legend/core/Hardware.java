@@ -265,6 +265,12 @@ public final class Hardware {
     }
   }
 
+  private static boolean running;
+
+  public static boolean isAlive() {
+    return running;
+  }
+
   public static void start() {
     codeThread.start();
     gpuThread.start();
@@ -272,7 +278,7 @@ public final class Hardware {
     spuThread.start();
     joyThread.start();
 
-    boolean running = true;
+    running = true;
     while(running) {
       if(CDROM.tick(100)) {
         INTERRUPTS.set(InterruptType.CDROM);
