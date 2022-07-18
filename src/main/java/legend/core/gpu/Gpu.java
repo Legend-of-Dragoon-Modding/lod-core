@@ -228,15 +228,19 @@ public class Gpu implements Runnable {
       long a = address;
 
       do {
-        value = MEMORY.get(a, 4);
-        final long words = (value & 0xff00_0000L) >>> 24;
+        try {
+          value = MEMORY.get(a, 4);
+          final long words = (value & 0xff00_0000L) >>> 24;
 
-        for(int i = 1; i <= words; i++) {
-          this.queueGp0Command((int)MEMORY.get(a + i * 4L, 4));
+          for(int i = 1; i <= words; i++) {
+            this.queueGp0Command((int)MEMORY.get(a + i * 4L, 4));
+          }
+
+          this.tagsUploaded++;
+          a = a & 0xff00_0000 | value & 0xff_ffffL;
+        } catch(final InvalidGp0CommandException e) {
+          throw new RuntimeException("Invalid GP0 packet at 0x%08x".formatted(a), e);
         }
-
-        this.tagsUploaded++;
-        a = a & 0xff00_0000 | value & 0xff_ffffL;
       } while((value & 0xff_ffffL) != 0xff_ffffL);
     });
 
@@ -245,7 +249,7 @@ public class Gpu implements Runnable {
     return this.tagsUploaded;
   }
 
-  private void queueGp0Command(final int command) {
+  private void queueGp0Command(final int command) throws InvalidGp0CommandException {
     if(this.currentCommand == null) {
       this.currentCommand = new Gp0CommandBuffer(command);
     } else {
@@ -534,7 +538,11 @@ public class Gpu implements Runnable {
 
                 synchronized(this.commandQueue) {
                   for(int n = 0; n < this.dma.getBlockSize() / 4; n++) {
-                    this.queueGp0Command((int)this.dma.MADR.deref(4).offset(n * 4L).get());
+                    try {
+                      this.queueGp0Command((int)this.dma.MADR.deref(4).offset(n * 4L).get());
+                    } catch(InvalidGp0CommandException e) {
+                      throw new RuntimeException("Invalid GP0 packet at 0x%08x".formatted(this.dma.MADR.deref(4).offset(n * 4L).get()), e);
+                    }
                   }
 
                   while(!this.commandQueue.isEmpty()) {
@@ -559,7 +567,11 @@ public class Gpu implements Runnable {
               final long words = value.get(0xff00_0000L) >> 24;
 
               for(int i = 1; i < words; i++) {
-                this.queueGp0Command((int)value.offset(i * 4L).get());
+                try {
+                  this.queueGp0Command((int)value.offset(i * 4L).get());
+                } catch(InvalidGp0CommandException e) {
+                  throw new RuntimeException("Invalid GP0 packet at 0x%08x".formatted(value.offset(i * 4L).get()), e);
+                }
               }
 
               if(value.get(0xff_ffffL) == 0xff_ffffL) {
@@ -1717,14 +1729,14 @@ public class Gpu implements Runnable {
     }),
     ;
 
-    public static GP0_COMMAND getCommand(final int command) {
+    public static GP0_COMMAND getCommand(final int command) throws InvalidGp0CommandException {
       for(final GP0_COMMAND cmd : GP0_COMMAND.values()) {
         if(cmd.command == command) {
           return cmd;
         }
       }
 
-      throw new IndexOutOfBoundsException("Invalid GP0 command " + Long.toString(command, 16));
+      throw new InvalidGp0CommandException("Invalid GP0 command " + Long.toString(command, 16));
     }
 
     public final int command;
@@ -1742,7 +1754,7 @@ public class Gpu implements Runnable {
     private final GP0_COMMAND command;
     private final IntList buffer = new IntArrayList();
 
-    private Gp0CommandBuffer(final int command) {
+    private Gp0CommandBuffer(final int command) throws InvalidGp0CommandException {
       this.command = GP0_COMMAND.getCommand((command & 0xff000000) >>> 24);
       this.queueValue(command);
     }
@@ -2019,7 +2031,11 @@ public class Gpu implements Runnable {
       Gpu.this.status.readyToReceiveCommand = false;
 
       synchronized(Gpu.this.commandQueue) {
-        Gpu.this.queueGp0Command(value);
+        try {
+          Gpu.this.queueGp0Command(value);
+        } catch(InvalidGp0CommandException e) {
+          throw new RuntimeException("Invalid GP0 packet at 0x%08x".formatted(value), e);
+        }
         Gpu.this.processGp0Command();
       }
     }
