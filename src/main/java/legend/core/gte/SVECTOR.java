@@ -188,6 +188,20 @@ public class SVECTOR implements MemoryRef {
     return this;
   }
 
+  public SVECTOR and(final int value) {
+    this.x.and(value);
+    this.y.and(value);
+    this.z.and(value);
+    return this;
+  }
+
+  public SVECTOR or(final int value) {
+    this.x.or(value);
+    this.y.or(value);
+    this.z.or(value);
+    return this;
+  }
+
   @Override
   public long getAddress() {
     if(this.ref == null) {
