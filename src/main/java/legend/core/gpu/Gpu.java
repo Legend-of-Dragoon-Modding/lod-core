@@ -172,18 +172,23 @@ public class Gpu implements Runnable {
   public void commandA0CopyRectFromCpuToVram(final RECT rect, final long address) {
     assert address != 0;
 
-    assert rect.x.get() + rect.w.get() <= this.vramTexture.width  : "Rect right (" + (rect.x.get() + rect.w.get()) + ") overflows VRAM width (" + this.vramTexture.width + ')';
-    assert rect.y.get() + rect.h.get() <= this.vramTexture.height : "Rect bottom (" + (rect.y.get() + rect.h.get()) + ") overflows VRAM height (" + this.vramTexture.height + ')';
+    final short rectX = rect.x.get();
+    final short rectY = rect.y.get();
+    final short rectW = rect.w.get();
+    final short rectH = rect.h.get();
+
+    assert rectX + rectW <= this.vramTexture.width  : "Rect right (" + (rectX + rectW) + ") overflows VRAM width (" + this.vramTexture.width + ')';
+    assert rectY + rectH <= this.vramTexture.height : "Rect bottom (" + (rectY + rectH) + ") overflows VRAM height (" + this.vramTexture.height + ')';
 
     this.commandQueue.add(() -> {
-      LOGGER.debug("Copying %s from CPU to VRAM (address: %08x)", rect, address);
+      LOGGER.debug("Copying (%d, %d, %d, %d) from CPU to VRAM (address: %08x)", rectX, rectY, rectW, rectH, address);
 
-      final int offset = rect.y.get() * VRAM_WIDTH + rect.x.get();
+      final int offset = rectY * VRAM_WIDTH + rectX;
 
       MEMORY.waitForLock(() -> {
         int i = 0;
-        for(int y = 0; y < rect.h.get(); y++) {
-          for(int x = 0; x < rect.w.get(); x++) {
+        for(int y = 0; y < rectH; y++) {
+          for(int x = 0; x < rectW; x++) {
             final int packed = (int)MEMORY.get(address + i * 2, 2);
             final int index = offset + y * VRAM_WIDTH + x;
             this.vram24[index] = MathHelper.colour15To24(packed);
@@ -198,18 +203,23 @@ public class Gpu implements Runnable {
   public void commandC0CopyRectFromVramToCpu(final RECT rect, final long address) {
     assert address != 0;
 
-    assert rect.x.get() + rect.w.get() <= this.vramTexture.width  : "Rect right (" + (rect.x.get() + rect.w.get()) + ") overflows VRAM width (" + this.vramTexture.width + ')';
-    assert rect.y.get() + rect.h.get() <= this.vramTexture.height : "Rect bottom (" + (rect.y.get() + rect.h.get()) + ") overflows VRAM height (" + this.vramTexture.height + ')';
+    final short rectX = rect.x.get();
+    final short rectY = rect.y.get();
+    final short rectW = rect.w.get();
+    final short rectH = rect.h.get();
+
+    assert rectX + rectW <= this.vramTexture.width  : "Rect right (" + (rectX + rectW) + ") overflows VRAM width (" + this.vramTexture.width + ')';
+    assert rectY + rectH <= this.vramTexture.height : "Rect bottom (" + (rectY + rectH) + ") overflows VRAM height (" + this.vramTexture.height + ')';
 
     this.commandQueue.add(() -> {
-      LOGGER.debug("Copying %s from VRAM to CPU (address: %08x)", rect, address);
+      LOGGER.debug("Copying (%d, %d, %d, %d) from VRAM to CPU (address: %08x)", rectX, rectY, rectW, rectH, address);
 
-      final int offset = rect.y.get() * VRAM_WIDTH + rect.x.get();
+      final int offset = rectY * VRAM_WIDTH + rectX;
 
       MEMORY.waitForLock(() -> {
         int i = 0;
-        for(int y = 0; y < rect.h.get(); y++) {
-          for(int x = 0; x < rect.w.get(); x++) {
+        for(int y = 0; y < rectH; y++) {
+          for(int x = 0; x < rectW; x++) {
             final int index = offset + y * VRAM_WIDTH + x;
             MEMORY.set(address + i * 2, 2, this.vram15[index]);
             i++;
