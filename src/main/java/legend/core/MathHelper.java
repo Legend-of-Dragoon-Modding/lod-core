@@ -24,7 +24,7 @@ public final class MathHelper {
     return (a & 0xff) << 24 | (b & 0xff) << 16 | (g & 0xff) << 8 | r & 0xff;
   }
 
-  public static int GetPixelBGR555(final int colour) {
+  public static int colour24To15(final int colour) {
     final byte m = (byte)((colour & 0xff000000) >>> 24);
     final byte r = (byte)((colour & 0x00ff0000) >>> 16 + 3);
     final byte g = (byte)((colour & 0x0000ff00) >>> 8 + 3);

@@ -44,7 +44,7 @@ import static legend.core.Hardware.CONTROLLER;
 import static legend.core.Hardware.DMA;
 import static legend.core.Hardware.INTERRUPTS;
 import static legend.core.Hardware.MEMORY;
-import static legend.core.MathHelper.GetPixelBGR555;
+import static legend.core.MathHelper.colour24To15;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_1;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_3;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_A;
@@ -655,9 +655,9 @@ public class Gpu implements Runnable {
           final int p1rgb = this.vram24[offset++ + this.displayStartX + (y - yRangeOffset + this.displayStartY) * 1024];
           final int p2rgb = this.vram24[offset++ + this.displayStartX + (y - yRangeOffset + this.displayStartY) * 1024];
 
-          final int p0bgr555 = GetPixelBGR555(p0rgb);
-          final int p1bgr555 = GetPixelBGR555(p1rgb);
-          final int p2bgr555 = GetPixelBGR555(p2rgb);
+          final int p0bgr555 = colour24To15(p0rgb);
+          final int p1bgr555 = colour24To15(p1rgb);
+          final int p2bgr555 = colour24To15(p2rgb);
 
           //[(G0R0][R1)(B0][B1G1)]
           //   RG    B - R   GB
@@ -1241,7 +1241,9 @@ public class Gpu implements Runnable {
   }
 
   private void setPixel(final int x, final int y, final int pixel) {
-    this.vram24[y * VRAM_WIDTH + x] = pixel;
+    final int index = y * VRAM_WIDTH + x;
+    this.vram24[index] = pixel;
+    this.vram15[index] = colour24To15(pixel);
   }
 
   private static int interpolateCoords(final int w0, final int w1, final int w2, final int t0, final int t1, final int t2, final int area) {
@@ -1510,7 +1512,7 @@ public class Gpu implements Runnable {
 
         for(int posY = y; posY < y + h; posY++) {
           for(int posX = x; posX < x + w; posX++) {
-            gpu.setPixel(x, y, colour);
+            gpu.setPixel(posX, posY, colour);
           }
         }
       };
