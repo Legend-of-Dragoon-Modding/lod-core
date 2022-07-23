@@ -249,19 +249,30 @@ public final class Hardware {
     joyThread = new Thread(JOYPAD);
     joyThread.setName("Joypad");
 
-    LOGGER.info("Scanning for entry point class...");
-    final Reflections reflections = new Reflections(ClasspathHelper.forClassLoader());
-    final Set<Class<?>> entryPoints = reflections.getTypesAnnotatedWith(EntryPoint.class);
-    if(entryPoints.size() > 1) {
-      throw new IllegalStateException("Multiple classes marked as entry points were found!");
-    }
+    final String entryPointClassName = System.getProperty("entrypoint", "");
+    if(entryPointClassName.isEmpty()) {
+      LOGGER.info("Scanning for entry point class...");
+      final Reflections reflections = new Reflections(ClasspathHelper.forClassLoader());
+      final Set<Class<?>> entryPoints = reflections.getTypesAnnotatedWith(EntryPoint.class);
+      if(entryPoints.size() > 1) {
+        throw new IllegalStateException("Multiple classes marked as entry points were found!");
+      }
 
-    if(entryPoints.isEmpty()) {
-      LOGGER.warn("No entry point found - launch will fail once bootstrapping is complete!");
-      ENTRY_POINT = null;
+      if(entryPoints.isEmpty()) {
+        LOGGER.warn("No entry point found - launch will fail once bootstrapping is complete!");
+        ENTRY_POINT = null;
+      } else {
+        ENTRY_POINT = entryPoints.iterator().next();
+        LOGGER.info("Found entry point %s", ENTRY_POINT);
+      }
     } else {
-      ENTRY_POINT = entryPoints.iterator().next();
-      LOGGER.info("Found entry point %s", ENTRY_POINT);
+      LOGGER.info("Using entrypoint %s", entryPointClassName);
+
+      try {
+        ENTRY_POINT = Class.forName(entryPointClassName);
+      } catch(final ClassNotFoundException e) {
+        throw new RuntimeException("Could not find entrypoint class " + entryPointClassName, e);
+      }
     }
   }
 
