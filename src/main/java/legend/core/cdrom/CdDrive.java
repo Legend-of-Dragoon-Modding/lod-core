@@ -133,7 +133,11 @@ public class CdDrive {
     this.commandCallbacks.put(CdlCOMMAND.SET_LOC_02, this::setLoc);
     this.commandCallbacks.put(CdlCOMMAND.READ_N_06, this::read);
     this.commandCallbacks.put(CdlCOMMAND.PAUSE_09, this::pause);
-    this.commandCallbacks.put(CdlCOMMAND.INIT_0A, this::init);
+    this.commandCallbacks.put(CdlCOMMAND.INIT_0A, () -> {
+      this.init();
+      this.queueResponse(0x3, this.status.pack());
+      this.queueResponse(0x2, this.status.pack());
+    });
     this.commandCallbacks.put(CdlCOMMAND.DEMUTE_0C, this::demute);
     this.commandCallbacks.put(CdlCOMMAND.SET_MODE_0E, this::setMode);
     this.commandCallbacks.put(CdlCOMMAND.GET_TN_13, this::getTN);
@@ -502,6 +506,10 @@ public class CdDrive {
     this.acknowledgeInterrupts(0x7L);
   }
 
+  public void clearParamBuffer() {
+    this.onRegister3Index1Write(0x0b100_0000L);
+  }
+
   public void enableInterrupts(final long interrupts) {
     this.onRegister2Index1Write(interrupts);
   }
@@ -563,7 +571,7 @@ public class CdDrive {
     this.queueResponse(0x2, this.status.pack());
   }
 
-  private void init() {
+  public void init() {
     LOGGER.info(DRIVE_MARKER, "[CDROM] Initializing CDROM...");
 
     this.status.clear();
@@ -577,9 +585,6 @@ public class CdDrive {
       this.dataBuffer.clear();
       this.cdBuffer.clear();
     }
-
-    this.queueResponse(0x3, this.status.pack());
-    this.queueResponse(0x2, this.status.pack());
   }
 
   private void demute() {

@@ -918,13 +918,12 @@ public final class Bios {
     DMA_DPCR.setu(0x9099L);
     DMA_DICR.setu(0x0800_0000L | DMA_DICR.get(0xff_ffffL));
 
-    _a0009154.setu(0xcccL);
+    _a0009154.setu(0xffffL);
     _a0009158.setu(0xffffL);
     _a000915c.setu(0);
     _a0009160.setu(0);
 
-    FUN_bfc05120();
-    FUN_bfc050fc();
+    acknowledgeCdromInterruptsAndClearParamBuffer();
 
     I_STAT.setu(0xfffffffbL);
     I_MASK.oru(0x4L);
@@ -932,25 +931,8 @@ public final class Bios {
 
     ExitCriticalSection();
 
-    CDROM_REG0.setu(0);
-    CDROM_REG1.setu(0xaL); // Init
-
-    //LAB_bfc04a48
-    long attempts = 30000L;
-    do {
-      if(_a00091c4.get() == 0x1L) {
-        return true;
-      }
-
-      //LAB_bfc04a64
-      if(attempts == 0 || _a00091c4.get() == 0x2L) {
-        //LAB_bfc04a80
-        return false;
-      }
-
-      //LAB_bfc04a88
-      attempts--;
-    } while(true);
+    CDROM.init();
+    return true;
   }
 
   @Method(0xbfc04abcL)
@@ -1164,9 +1146,9 @@ public final class Bios {
   }
 
   @Method(0xbfc05120L)
-  public static void FUN_bfc05120() {
-    CDROM_REG0.setu(0x1L);
-    CDROM_REG3.setu(0x1fL);
+  public static void acknowledgeCdromInterruptsAndClearParamBuffer() {
+    CDROM.acknowledgeInterrupts();
+    CDROM.clearParamBuffer();
   }
 
   @Method(0xbfc05194L)
@@ -2019,10 +2001,7 @@ public final class Bios {
   @Method(0xbfc07330L)
   public static void cdromPreInit() {
     registerCdromEvents();
-
-    while(!CdInitSubFunc()) {
-      DebugHelper.sleep(1);
-    }
+    CdInitSubFunc();
   }
 
   @Method(0xbfc073a0L)
