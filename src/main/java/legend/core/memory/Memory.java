@@ -184,6 +184,30 @@ public class Memory {
     }
   }
 
+  public void memcpy(final long dest, final long src, final int length) {
+    synchronized(this.lock) {
+      final Segment srcSegment = this.getSegment(src);
+      Segment destSegment = this.getSegment(dest);
+
+      if(destSegment == srcSegment) {
+        srcSegment.memcpy((int)(this.maskAddress(dest) - srcSegment.getAddress()), (int)(this.maskAddress(src) - srcSegment.getAddress()), length);
+      } else {
+        final byte[] data = srcSegment.getBytes((int)(this.maskAddress(src) - srcSegment.getAddress()), length);
+
+        int offset = 0;
+        while(offset < data.length) {
+          final int copyLen = Math.min(data.length, destSegment.getLength());
+          destSegment.setBytes((int)(this.maskAddress(dest + offset) - destSegment.getAddress()), data, offset, copyLen);
+          offset += copyLen;
+
+          if(offset < data.length) {
+            destSegment = this.getSegment(dest + offset);
+          }
+        }
+      }
+    }
+  }
+
   public Value ref(final int byteSize, final long address) {
     this.checkAlignment(address, byteSize);
     return new MemoryValue(byteSize, address);

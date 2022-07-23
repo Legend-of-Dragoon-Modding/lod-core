@@ -50,6 +50,7 @@ import static legend.core.kernel.Bios.EventControlBlockSize_a0000124;
 import static legend.core.kernel.Bios.ExceptionChainPtr_a0000100;
 import static legend.core.kernel.Bios.FUN_bfc0bff0;
 import static legend.core.kernel.Bios.ProcessControlBlockPtr_a0000108;
+import static legend.core.kernel.Bios.bzero_Impl_A28;
 import static legend.core.kernel.Bios.memcardOkay_a000b9d0;
 import static legend.core.kernel.Bios.setBootStatus;
 
@@ -275,9 +276,7 @@ public final class Kernel {
 
   @Method(0x598L)
   public static void FUN_00000598() {
-    for(int i = 0; i < 0x530; i++) {
-      systemMemoryAddr_00007460.offset(i * 4).setu(0);
-    }
+    bzero_Impl_A28(systemMemoryAddr_00007460.getAddress(), 0x530);
   }
 
   @Method(0x5c4L)
@@ -958,18 +957,7 @@ public final class Kernel {
 
   @Method(0x2150L)
   public static long clearMemory(final long addr, final int size) {
-    if(addr == 0 || size <= 0) {
-      //LAB_00002160
-      return 0;
-    }
-
-    //LAB_00002170
-    for(int i = 0; i < size; i++) {
-      MEMORY.ref(1, addr).offset(i).setu(0);
-    }
-
-    //LAB_00002180
-    return addr;
+    return bzero_Impl_A28(addr, size);
   }
 
   @Method(0x2458L)

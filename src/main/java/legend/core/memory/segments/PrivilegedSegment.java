@@ -80,6 +80,12 @@ public class PrivilegedSegment extends Segment {
   }
 
   @Override
+  public void memcpy(final int dest, final int src, final int length) {
+    this.gate.test(this.getAddress() + dest);
+    this.segment.memcpy(dest, src, length);
+  }
+
+  @Override
   protected void setFunction(final int offset, final Method function, @Nullable final Object instance, final boolean ignoreExtraParams) {
     this.gate.test(this.getAddress() + offset);
     super.setFunction(offset, function, instance, ignoreExtraParams);

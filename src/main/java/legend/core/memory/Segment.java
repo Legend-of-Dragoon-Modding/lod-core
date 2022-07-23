@@ -51,6 +51,10 @@ public abstract class Segment {
     throw new UnsupportedOperationException("This memory segment does not support direct writes (address: " + Long.toHexString(this.getAddress() + offset) + ')');
   }
 
+  public void memcpy(final int dest, final int src, final int length) {
+    throw new UnsupportedOperationException("This memory segment does not support memcpy (address: " + Long.toHexString(this.getAddress() + dest) + ')');
+  }
+
   protected void setFunction(final int offset, final Method function, @Nullable final Object instance, final boolean ignoreExtraParams) {
     function.setAccessible(true);
 

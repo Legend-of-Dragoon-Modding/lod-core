@@ -298,16 +298,8 @@ public final class Bios {
    */
   @Method(0xbfc00420L)
   public static void copyKernelSegment2() {
-    long offset = 0;
-    long bytesRemaining = 0x8bf0L;
-
     //LAB_bfc00434
-    do {
-      kernelStart_a0000500.offset(offset).setu(kernelStartRom_bfc10000.offset(offset));
-      offset += 0x4L;
-      bytesRemaining -= 0x4L;
-    } while(bytesRemaining != 0);
-
+    MEMORY.memcpy(kernelStart_a0000500.getAddress(), kernelStartRom_bfc10000.getAddress(), 0x8bf0);
     MEMORY.addFunctions(Kernel.class);
     kernelStart_a0000500.cast(RunnableRef::new).run();
   }
@@ -523,9 +515,19 @@ public final class Bios {
       return 0;
     }
 
-    for(int i = 0; i < size; i++) {
-      MEMORY.ref(1, dst).offset(i).setu(0);
-    }
+    MEMORY.waitForLock(() -> {
+      long dest = dst;
+      long s = size;
+      MEMORY.disableAlignmentChecks();
+      for(; s >= 8; s -= 8, dest += 8) {
+        MEMORY.set(dest, 8, 0);
+      }
+      MEMORY.enableAlignmentChecks();
+
+      for(int i = 0; i < s; i++) {
+        MEMORY.set(dst, (byte)0);
+      }
+    });
 
     return dst;
   }
@@ -568,12 +570,7 @@ public final class Bios {
       return dst;
     }
 
-    MEMORY.waitForLock(() -> {
-      for(int i = 0; i < size; i++) {
-        MEMORY.ref(1, dst).offset(i).setu(MEMORY.ref(1, src).offset(i));
-      }
-    });
-
+    MEMORY.memcpy(dst, src, size);
     return dst;
   }
 
@@ -789,18 +786,13 @@ public final class Bios {
 
   @Method(0xbfc042a0L)
   public static void copyAbcFunctionVectors_Impl_A45() {
-    for(int i = 0; i < 0x30; i += 4) {
-      MEMORY.ref(4, functionVectorA_000000a0.getAddress()).offset(i).setu(abcFunctionVectorsStart_a0000510.offset(i));
-    }
-
+    MEMORY.memcpy(functionVectorA_000000a0.getAddress(), abcFunctionVectorsStart_a0000510.getAddress(), 0x30);
     MEMORY.addFunctions(FunctionVectors.class);
   }
 
   @Method(0xbfc042d0L)
   public static void copyJumpTableA() {
-    for(int i = 0; i < 0x300; i += 4) {
-      jumpTableA_00000200.offset(i).setu(jumpTableARom_bfc04300.offset(i));
-    }
+    MEMORY.memcpy(jumpTableA_00000200.getAddress(), jumpTableARom_bfc04300.getAddress(), 0x300);
   }
 
   @Method(0xbfc04610L)
@@ -2036,11 +2028,6 @@ public final class Bios {
   @Method(0xbfc073a0L)
   public static void CdInit_Impl_A54() {
     cdromPreInit();
-
-    // There's an empty loop here (50k iterations)
-    // Dunno how long of a wait that'd be
-    DebugHelper.sleep(50);
-
     cdromPostInit();
   }
 

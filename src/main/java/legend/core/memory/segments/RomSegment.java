@@ -52,6 +52,18 @@ public class RomSegment extends Segment {
   }
 
   @Override
+  public byte[] getBytes(final int offset, final int size) {
+    final byte[] data = new byte[size];
+    System.arraycopy(this.data, offset, data, 0, size);
+    return data;
+  }
+
+  @Override
+  public void getBytes(final int offset, final byte[] dest, final int dataOffset, final int dataSize) {
+    System.arraycopy(this.data, offset, dest, dataOffset, dataSize);
+  }
+
+  @Override
   public void dump(final ByteBuffer stream) {
     // Don't need to dump ROM
   }
