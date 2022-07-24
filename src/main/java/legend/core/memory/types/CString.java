@@ -55,6 +55,14 @@ public class CString implements MemoryRef {
     return (char)this.ref.offset(1, index).get();
   }
 
+  public void charAt(final int index, final char chr) {
+    if(index >= this.ref.getSize() - 1) {
+      throw new IndexOutOfBoundsException("String buffer overrun - index " + index + ", length " + this.ref.getSize());
+    }
+
+    this.ref.offset(1, index).setu(chr);
+  }
+
   @Override
   public long getAddress() {
     return this.ref.getAddress();
