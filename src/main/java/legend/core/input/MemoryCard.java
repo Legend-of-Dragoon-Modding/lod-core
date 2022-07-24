@@ -148,6 +148,7 @@ public class MemoryCard {
 
   public void directWrite(final int sector, final long src) {
     MEMORY.getBytes(src, this.memory, sector * 0x80, 0x80);
+    this.handleSave();
   }
 
   /*  Reading Data from Memory Card
