@@ -1128,7 +1128,7 @@ public final class Kernel {
 
   @Method(0x2a64L)
   public static int FileSeek_Impl_B33(final int fd, final long offset, final int seektype) {
-    final long v0 = FUN_000030c8(fd);
+    final long v0 = getFcb(fd);
     if(v0 == 0 || MEMORY.ref(4, v0).get() == 0) {
       //LAB_2a98
       _00008640.setu(0x9L);
@@ -1163,7 +1163,7 @@ public final class Kernel {
 
   @Method(0x2b28L)
   public static int FileRead_Impl_B34(final int fd, final long dest, final int length) {
-    final long fcb = FUN_000030c8(fd);
+    final long fcb = getFcb(fd);
     if(fcb == 0 || MEMORY.ref(4, fcb).get() == 0) {
       //LAB_00002b54
       _00008640.setu(0x9L);
@@ -1212,9 +1212,58 @@ public final class Kernel {
     return ret;
   }
 
+  @Method(0x2c94L)
+  public static int FileWrite_Impl_B35(final int fd, final long src, final int length) {
+    final long fcb = getFcb(fd);
+    if(fcb == 0 || MEMORY.ref(4, fcb).offset(0x0L).get() == 0) {
+      //LAB_2cc0
+      _00008640.setu(0x9L);
+      return -1;
+    }
+
+    //LAB_2cd4
+    tty_cdevscan_Impl_C16();
+
+    final long t0 = MEMORY.ref(4, fcb).offset(0x1cL).get();
+
+    final int v0;
+    if((MEMORY.ref(4, fcb).offset(0x14L).get() & 0x10L) == 0) {
+      //LAB_2d24
+      MEMORY.ref(4, fcb).offset(0x8L).setu(src);
+      MEMORY.ref(4, fcb).offset(0xcL).setu(length);
+
+      if((MEMORY.ref(4, t0).offset(0x4L).get() & 0x4L) != 0) {
+        //LAB_2d6c
+        if(MEMORY.ref(4, fcb).offset(0x10L).get() % MEMORY.ref(4, t0).offset(0x8L).get() != 0) {
+          throw new RuntimeException("Offset not on block boundary");
+        }
+
+        //LAB_2d88
+        MEMORY.ref(4, fcb).offset(0xcL).setu(MEMORY.ref(4, fcb).offset(0xcL).get() / MEMORY.ref(4, t0).offset(0x8L).get());
+      }
+
+      //LAB_2da8
+      v0 = (int)MEMORY.ref(4, t0).offset(0x18L).deref(4).call(fcb, 0x2L);
+
+      if(v0 > 0) {
+        MEMORY.ref(4, fcb).offset(0x10L).addu(v0);
+      }
+    } else {
+      v0 = (int)MEMORY.ref(4, t0).offset(0x28L).deref(4).call(fcb, src, length);
+    }
+
+    //LAB_2dd8
+    if(v0 < 0) {
+      _00008640.setu(MEMORY.ref(4, fcb).offset(0x18L).get());
+    }
+
+    //LAB_2df0
+    return v0;
+  }
+
   @Method(0x2e00L)
   public static int FileClose_Impl_B36(final int fd) {
-    final long v0 = FUN_000030c8(fd);
+    final long v0 = getFcb(fd);
     if(v0 == 0 || MEMORY.ref(4, v0).get() == 0) {
       //LAB_00002e30
       _00008640.setu(0x9L);
@@ -1238,7 +1287,7 @@ public final class Kernel {
 
   @Method(0x2efcL)
   public static int FileIoctl_Impl_B37(final int fd, final int cmd, final int arg) {
-    final long v0 = FUN_000030c8(fd);
+    final long v0 = getFcb(fd);
     if(v0 != 0) {
       if(MEMORY.ref(4, v0).get() != 0) {
         //LAB_00002f70
@@ -1298,7 +1347,7 @@ public final class Kernel {
   }
 
   @Method(0x30c8L)
-  public static long FUN_000030c8(final int fd) {
+  public static long getFcb(final int fd) {
     if(fd < 0 || fd >= 0x10L) {
       return 0;
     }

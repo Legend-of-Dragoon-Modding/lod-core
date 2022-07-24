@@ -81,11 +81,11 @@ public class Memory {
     }
 
     // Don't check alignment for temps - they use special storage
-    if((address & TEMP_FLAG) == TEMP_FLAG) {
+    if(size > 4 || (address & TEMP_FLAG) == TEMP_FLAG) {
       return;
     }
 
-    if((address & Math.min(size, 4) - 1) != 0) {
+    if((address & size - 1) != 0) {
       throw new MisalignedAccessException("Misaligned memory access at address " + Long.toHexString(address) + " for size " + size);
     }
   }
