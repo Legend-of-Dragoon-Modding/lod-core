@@ -57,14 +57,4 @@ public class ExpansionRegion2Segment extends Segment {
 
     throw new IllegalAddressException("Expansion region 2 not supported");
   }
-
-  @Override
-  public void dump(final ByteBuffer stream) {
-    IoHelper.write(stream, this.bootStatus);
-  }
-
-  @Override
-  public void load(final ByteBuffer stream) {
-    this.bootStatus = IoHelper.readByte(stream);
-  }
 }

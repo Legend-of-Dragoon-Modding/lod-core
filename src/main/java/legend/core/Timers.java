@@ -359,6 +359,8 @@ public class Timers implements Runnable {
     @Override
     @Deprecated
     public void dump(final ByteBuffer stream) {
+      super.dump(stream);
+
       IoHelper.write(stream, this.val);
       IoHelper.write(stream, this.max);
 
@@ -386,7 +388,9 @@ public class Timers implements Runnable {
     }
 
     @Override
-    public void load(final ByteBuffer stream) {
+    public void load(final ByteBuffer stream) throws ClassNotFoundException {
+      super.load(stream);
+
       this.val = IoHelper.readLong(stream);
       this.max = IoHelper.readLong(stream);
 

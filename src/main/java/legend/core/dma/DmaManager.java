@@ -9,7 +9,6 @@ import legend.core.memory.Value;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.EnumMap;
 import java.util.Map;
@@ -285,16 +284,6 @@ public class DmaManager {
           DmaManager.this.updateInterruptFlag();
         }
       }
-    }
-
-    @Override
-    public void dump(final ByteBuffer stream) {
-
-    }
-
-    @Override
-    public void load(final ByteBuffer stream) {
-
     }
   }
 }

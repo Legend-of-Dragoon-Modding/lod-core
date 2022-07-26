@@ -115,7 +115,7 @@ public class PrivilegedSegment extends Segment {
   }
 
   @Override
-  public void load(final ByteBuffer stream) {
+  public void load(final ByteBuffer stream) throws ClassNotFoundException {
     this.segment.load(stream);
   }
 }

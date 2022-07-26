@@ -2199,15 +2199,5 @@ public class Gpu implements Runnable {
     private long onReg1Read() {
       return Gpu.this.status.pack();
     }
-
-    @Override
-    public void dump(final ByteBuffer stream) {
-
-    }
-
-    @Override
-    public void load(final ByteBuffer stream) {
-
-    }
   }
 }

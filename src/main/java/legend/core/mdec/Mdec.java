@@ -462,15 +462,5 @@ public class Mdec {
         }
       }
     }
-
-    @Override
-    public void dump(final ByteBuffer stream) {
-
-    }
-
-    @Override
-    public void load(final ByteBuffer stream) {
-
-    }
   }
 }

@@ -875,15 +875,5 @@ public class Spu implements Runnable, MemoryRef {
         }
       }
     }
-
-    @Override
-    public void dump(final ByteBuffer stream) {
-
-    }
-
-    @Override
-    public void load(final ByteBuffer stream) {
-
-    }
   }
 }

@@ -91,15 +91,5 @@ public class InterruptController {
         default -> throw new IllegalAddressException("There is no interrupt control port at " + Long.toHexString(offset));
       }
     }
-
-    @Override
-    public void dump(final ByteBuffer stream) {
-
-    }
-
-    @Override
-    public void load(final ByteBuffer stream) {
-
-    }
   }
 }

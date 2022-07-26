@@ -99,12 +99,6 @@ public final class Hardware {
     SPU.dump(stream);
     JOYPAD.dump(stream);
 
-    final Set<Class<?>> overlays = MEMORY.getOverlays();
-    IoHelper.write(stream, overlays.size());
-    for(final Class<?> cls : overlays) {
-      IoHelper.write(stream, cls.getName());
-    }
-
     dumpUnlock();
   }
 
@@ -121,6 +115,8 @@ public final class Hardware {
       LOGGER.error("Failed to load state: invalid version");
     }
 
+    // Need to acquire gate to load kernel/bios functions
+    GATE.acquire();
     MEMORY.load(stream);
     CPU.load(stream);
     INTERRUPTS.load(stream);
@@ -130,13 +126,6 @@ public final class Hardware {
     CDROM.load(stream);
     SPU.load(stream);
     JOYPAD.load(stream);
-
-    // Need to acquire gate to load kernel/bios functions
-    GATE.acquire();
-    final int overlayCount = IoHelper.readInt(stream);
-    for(int i = 0; i < overlayCount; i++) {
-      MEMORY.addFunctions(Class.forName(IoHelper.readString(stream)));
-    }
     GATE.release();
 
     dumpUnlock();

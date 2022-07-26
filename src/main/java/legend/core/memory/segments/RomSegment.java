@@ -4,7 +4,6 @@ import legend.core.MathHelper;
 import legend.core.memory.Segment;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -61,16 +60,6 @@ public class RomSegment extends Segment {
   @Override
   public void getBytes(final int offset, final byte[] dest, final int dataOffset, final int dataSize) {
     System.arraycopy(this.data, offset, dest, dataOffset, dataSize);
-  }
-
-  @Override
-  public void dump(final ByteBuffer stream) {
-    // Don't need to dump ROM
-  }
-
-  @Override
-  public void load(final ByteBuffer stream) {
-    // Don't need to load ROM
   }
 
   public static class ReadOnlyMemoryException extends RuntimeException {

@@ -385,15 +385,5 @@ public class Voice implements MemoryRef {
         default -> throw new MisalignedAccessException("SPU voice port " + Long.toHexString(offset) + " does not exist");
       }
     }
-
-    @Override
-    public void dump(final ByteBuffer stream) {
-
-    }
-
-    @Override
-    public void load(final ByteBuffer stream) {
-
-    }
   }
 }

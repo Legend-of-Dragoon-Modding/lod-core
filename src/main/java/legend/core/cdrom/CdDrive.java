@@ -913,15 +913,5 @@ public class CdDrive {
 
       this.set(offset, (byte)value);
     }
-
-    @Override
-    public void dump(final ByteBuffer stream) {
-
-    }
-
-    @Override
-    public void load(final ByteBuffer stream) {
-
-    }
   }
 }

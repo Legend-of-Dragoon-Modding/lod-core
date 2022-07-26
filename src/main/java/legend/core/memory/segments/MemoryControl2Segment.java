@@ -64,11 +64,13 @@ public class MemoryControl2Segment extends Segment {
 
   @Override
   public void dump(final ByteBuffer stream) {
+    super.dump(stream);
     IoHelper.write(stream, this.ramSize);
   }
 
   @Override
-  public void load(final ByteBuffer stream) {
+  public void load(final ByteBuffer stream) throws ClassNotFoundException {
+    super.load(stream);
     this.ramSize = IoHelper.readLong(stream);
   }
 }

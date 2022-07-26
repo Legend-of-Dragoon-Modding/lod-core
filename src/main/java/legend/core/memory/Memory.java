@@ -239,7 +239,7 @@ public class Memory {
     }
   }
 
-  public void load(final ByteBuffer stream) {
+  public void load(final ByteBuffer stream) throws ClassNotFoundException {
     for(final Segment segment : this.segments) {
       segment.load(stream);
     }
@@ -421,7 +421,6 @@ public class Memory {
     @Override
     public Value set(final long value) {
       synchronized(Memory.this.lock) {
-        this.getSegment().removeFunction(this.segmentOffset);
         this.getSegment().set(this.segmentOffset, this.getSize(), value);
       }
 

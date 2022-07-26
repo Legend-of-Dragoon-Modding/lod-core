@@ -342,15 +342,5 @@ public class DmaChannel {
         default -> throw new IllegalAddressException("There is no DMA channel port at " + Long.toHexString(this.getAddress() + offset));
       }
     }
-
-    @Override
-    public void dump(final ByteBuffer stream) {
-
-    }
-
-    @Override
-    public void load(final ByteBuffer stream) {
-
-    }
   }
 }

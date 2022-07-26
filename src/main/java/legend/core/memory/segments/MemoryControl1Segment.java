@@ -124,6 +124,7 @@ public class MemoryControl1Segment extends Segment {
 
   @Override
   public void dump(final ByteBuffer stream) {
+    super.dump(stream);
     IoHelper.write(stream, this.expansion1BaseAddress);
     IoHelper.write(stream, this.expansion2BaseAddress);
     IoHelper.write(stream, this.expansion1Delay);
@@ -136,7 +137,8 @@ public class MemoryControl1Segment extends Segment {
   }
 
   @Override
-  public void load(final ByteBuffer stream) {
+  public void load(final ByteBuffer stream) throws ClassNotFoundException {
+    super.load(stream);
     this.expansion1BaseAddress = IoHelper.readLong(stream);
     this.expansion2BaseAddress = IoHelper.readLong(stream);
     this.expansion1Delay = IoHelper.readLong(stream);

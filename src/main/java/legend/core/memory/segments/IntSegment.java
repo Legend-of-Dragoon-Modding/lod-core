@@ -48,11 +48,13 @@ public class IntSegment extends Segment {
 
   @Override
   public void dump(final ByteBuffer stream) {
+    super.dump(stream);
     IoHelper.write(stream, this.value);
   }
 
   @Override
-  public void load(final ByteBuffer stream) {
+  public void load(final ByteBuffer stream) throws ClassNotFoundException {
+    super.load(stream);
     this.value = IoHelper.readInt(stream);
   }
 }

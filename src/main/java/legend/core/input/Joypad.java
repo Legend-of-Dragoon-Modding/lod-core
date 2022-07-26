@@ -480,15 +480,5 @@ public class Joypad implements Runnable {
         throw new MisalignedAccessException("Peripheral IO port " + Long.toHexString(this.getAddress() + offset) + " may not be accessed with 32-bit reads or writes");
       }
     }
-
-    @Override
-    public void dump(final ByteBuffer stream) {
-
-    }
-
-    @Override
-    public void load(final ByteBuffer stream) {
-
-    }
   }
 }
