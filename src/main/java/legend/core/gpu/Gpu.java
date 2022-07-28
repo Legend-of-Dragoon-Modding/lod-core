@@ -87,7 +87,7 @@ public class Gpu implements Runnable {
   private final int[] vram24 = new int[VRAM_WIDTH * VRAM_HEIGHT];
   private final int[] vram15 = new int[VRAM_WIDTH * VRAM_HEIGHT];
 
-  private boolean isVramViewer = true;
+  private boolean isVramViewer;
 
   private Shader vramShader;
   private Texture vramTexture;
