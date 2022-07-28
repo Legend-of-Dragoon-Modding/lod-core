@@ -30,6 +30,8 @@ import org.reflections8.util.ClasspathHelper;
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 public final class Hardware {
@@ -67,6 +69,7 @@ public final class Hardware {
   public static boolean timerWaiting;
   public static boolean spuWaiting;
   public static boolean joyWaiting;
+  private static final List<Runnable> loadStateListeners = new ArrayList<>();
 
   private static void dumpLock() {
     dumping = true;
@@ -128,7 +131,13 @@ public final class Hardware {
     JOYPAD.load(stream);
     GATE.release();
 
+    loadStateListeners.forEach(Runnable::run);
+
     dumpUnlock();
+  }
+
+  public static void registerLoadStateListener(final Runnable listener) {
+    loadStateListeners.add(listener);
   }
 
   static {
@@ -195,7 +204,7 @@ public final class Hardware {
 
     // --- User memory ------------------------
 
-    MEMORY.addSegment(new RamSegment(0x0001_0000L, 0x1f_0000));
+    MEMORY.addSegment(new RamSegment(0x0001_0000L, 0x2f_0000));
     MEMORY.addSegment(new RamSegment(0x1f80_0000L, 0x400));
 
     // --- Bios ROM ---------------------------
