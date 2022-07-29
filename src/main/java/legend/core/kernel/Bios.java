@@ -1867,6 +1867,7 @@ public final class Bios {
     //LAB_bfc06c6c
     FUN_bfc0d570(_a000b870, 1, 0);
     LOGGER.info("Exiting");
+    System.exit(0);
 //    stop(0x38c);
   }
 
