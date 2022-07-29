@@ -58,12 +58,16 @@ public class Font {
   private final ByteBuffer ttf; // This buffer MUST be kept in memory!
 
   public Font(final String font) throws IOException {
+    this(font, 18);
+  }
+
+  public Font(final String font, final int size) throws IOException {
     this.ttf = ioResourceToByteBuffer(font, 512 * 1024);
 
     final int BITMAP_W = 1024;
     final int BITMAP_H = 1024;
 
-    final int FONT_HEIGHT = 18;
+    final int FONT_HEIGHT = size;
     final int fontTexID = glGenTextures();
 
     final STBTTFontinfo fontInfo = STBTTFontinfo.create();
