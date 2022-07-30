@@ -67,6 +67,12 @@ public class Memory {
     }
   }
 
+  public <T> T waitForLock(final Supplier<T> callback) {
+    synchronized(this.lock) {
+      return callback.get();
+    }
+  }
+
   public void disableAlignmentChecks() {
     this.alignmentChecks = false;
   }
