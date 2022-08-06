@@ -204,7 +204,7 @@ public final class Hardware {
 
     // --- User memory ------------------------
 
-    MEMORY.addSegment(new RamSegment(0x0001_0000L, 0x2f_0000));
+    MEMORY.addSegment(new RamSegment(0x0001_0000L, 0x4f_0000));
     MEMORY.addSegment(new RamSegment(0x1f80_0000L, 0x400));
 
     // --- Bios ROM ---------------------------
