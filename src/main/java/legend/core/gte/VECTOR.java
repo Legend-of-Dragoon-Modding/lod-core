@@ -117,6 +117,13 @@ public class VECTOR implements MemoryRef {
     return this;
   }
 
+  public VECTOR add(final int x, final int y, final int z) {
+    this.x.add(x);
+    this.y.add(y);
+    this.z.add(z);
+    return this;
+  }
+
   public VECTOR sub(final VECTOR other) {
     this.x.sub(other.x);
     this.y.sub(other.y);
@@ -135,6 +142,13 @@ public class VECTOR implements MemoryRef {
     this.x.sub(value);
     this.y.sub(value);
     this.z.sub(value);
+    return this;
+  }
+
+  public VECTOR sub(final int x, final int y, final int z) {
+    this.x.sub(x);
+    this.y.sub(y);
+    this.z.sub(z);
     return this;
   }
 
@@ -159,6 +173,13 @@ public class VECTOR implements MemoryRef {
     return this;
   }
 
+  public VECTOR mul(final int x, final int y, final int z) {
+    this.x.mul(x);
+    this.y.mul(y);
+    this.z.mul(z);
+    return this;
+  }
+
   public VECTOR div(final VECTOR divisor) {
     this.x.div(divisor.x);
     this.y.div(divisor.y);
@@ -180,6 +201,13 @@ public class VECTOR implements MemoryRef {
     return this;
   }
 
+  public VECTOR div(final int x, final int y, final int z) {
+    this.x.div(x);
+    this.y.div(y);
+    this.z.div(z);
+    return this;
+  }
+
   public VECTOR mod(final VECTOR divisor) {
     this.x.mod(divisor.x);
     this.y.mod(divisor.y);
@@ -198,6 +226,13 @@ public class VECTOR implements MemoryRef {
     this.x.mod(divisor);
     this.y.mod(divisor);
     this.z.mod(divisor);
+    return this;
+  }
+
+  public VECTOR mod(final int x, final int y, final int z) {
+    this.x.mod(x);
+    this.y.mod(y);
+    this.z.mod(z);
     return this;
   }
 
