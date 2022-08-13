@@ -1,10 +1,12 @@
 package legend.core.memory.types;
 
+import legend.core.Hardware;
 import legend.core.memory.Memory;
 import legend.core.memory.MisalignedAccessException;
 import legend.core.memory.Value;
 
 import javax.annotation.Nullable;
+import java.lang.reflect.InvocationTargetException;
 import java.util.function.Function;
 
 public class Pointer<T extends MemoryRef> implements MemoryRef {
@@ -151,6 +153,14 @@ public class Pointer<T extends MemoryRef> implements MemoryRef {
     this.ref.setu(address);
     this.cache = null;
     return this;
+  }
+
+  public Pointer<T> set(final long address, final Class<? extends T> type) {
+    try {
+      return this.set(type.getConstructor(Value.class).newInstance(Hardware.MEMORY.ref(this.size, address)));
+    } catch(final InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   public Pointer<T> clear() {
