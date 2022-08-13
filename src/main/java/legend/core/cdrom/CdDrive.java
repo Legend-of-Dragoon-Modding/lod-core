@@ -51,6 +51,9 @@ public class CdDrive {
   private final CdlLOC seekLoc = new CdlLOC();
   private final CdlLOC readLoc = new CdlLOC();
 
+  private byte filterFile;
+  private byte filterChannel;
+
   private final Deque<Integer> parameterBuffer = new ArrayDeque<>(16);
   private final Deque<Integer> responseBuffer = new ArrayDeque<>(16);
   private final Deque<Byte> interruptQueue = new ArrayDeque<>();
@@ -139,6 +142,7 @@ public class CdDrive {
       this.queueResponse(0x2, this.status.pack());
     });
     this.commandCallbacks.put(CdlCOMMAND.DEMUTE_0C, this::demute);
+    this.commandCallbacks.put(CdlCOMMAND.SET_FILTER_0D, this::setFilter);
     this.commandCallbacks.put(CdlCOMMAND.SET_MODE_0E, this::setMode);
     this.commandCallbacks.put(CdlCOMMAND.GET_TN_13, this::getTN);
     this.commandCallbacks.put(CdlCOMMAND.SEEK_L_15, this::seekL);
@@ -253,7 +257,11 @@ public class CdDrive {
 
         this.readLoc.advance(1);
 
-        //TODO do we need to handle CDDA?
+        if(this.state == State.PLAY && !this.mutedAudio) {
+          this.applyVolume(rawSector);
+          SPU.pushCdBufferSamples(rawSector);
+          return false; // CDDA isn't delivered to CPU and doesn't raise interrupt
+        }
 
         final SectorSubHeader sectorSubHeader = new SectorSubHeader();
         sectorSubHeader.file = rawSector[16];
@@ -273,9 +281,8 @@ public class CdDrive {
           }
 
           if(sectorSubHeader.isRealTime() && sectorSubHeader.isAudio()) {
-            if(this.mode.isXaFilter() /*TODO && (filterFile != sectorSubHeader.file || filterChannel != sectorSubHeader.channel)*/) {
+            if(this.mode.isXaFilter() && (this.filterFile != sectorSubHeader.file || this.filterChannel != sectorSubHeader.channel)) {
               LOGGER.info(DRIVE_MARKER, "[CDROM] XA Filter: file || channel");
-              assert false : "CDDA not yet supported";
               return false;
             }
 
@@ -317,6 +324,64 @@ public class CdDrive {
     }
 
     return false;
+  }
+
+  public void playXaAudio(final CdlLOC locIn, final int filterFile, final int filterChannel, final Runnable onCompletion) {
+    final CdlLOC loc = new CdlLOC().set(locIn);
+
+    final Runnable player = () -> {
+      LOGGER.info("[ASYNC XA] Uploading XA file %d channel %d to SPU", filterFile, filterChannel);
+
+      final IsoReader reader;
+      try {
+        reader = new IsoReader(Paths.get("isos/1.iso"));
+        reader.seekSectorRaw(loc);
+      } catch(final IOException e) {
+        LOGGER.error("[ASYNC XA] Failed to open ISO");
+        return;
+      }
+
+      final SectorSubHeader sectorSubHeader = new SectorSubHeader();
+      while(true) {
+        final byte[] rawSector = new byte[2352];
+        try {
+          reader.read(rawSector);
+        } catch(final IOException e) {
+          throw new RuntimeException(e);
+        }
+
+        loc.advance(1);
+
+        sectorSubHeader.file = rawSector[16];
+        sectorSubHeader.channel = rawSector[17];
+        sectorSubHeader.subMode = rawSector[18];
+        sectorSubHeader.codingInfo = rawSector[19];
+
+        if(sectorSubHeader.isForm2()) {
+          if(sectorSubHeader.isEndOfFile()) {
+            break;
+          }
+
+          if(sectorSubHeader.isRealTime() && sectorSubHeader.isAudio()) {
+            if(filterFile != sectorSubHeader.file || filterChannel != sectorSubHeader.channel) {
+              continue;
+            }
+
+            LOGGER.info(DRIVE_MARKER, "[ASYNC XA] Sending sector %d to SPU", loc.pack());
+
+            final byte[] decodedXaAdpcm = XaAdpcm.decode(rawSector, sectorSubHeader.codingInfo);
+            this.applyVolume(decodedXaAdpcm);
+            SPU.pushCdBufferSamples(decodedXaAdpcm);
+          }
+        }
+      }
+
+      LOGGER.info("[ASYNC XA] XA upload complete");
+
+      onCompletion.run();
+    };
+
+    new Thread(player).start();
   }
 
   private void onRegister0Write(final long value) {
@@ -522,6 +587,14 @@ public class CdDrive {
     this.onRegister1Index0Write(command.command);
   }
 
+  public void setAudioMix(final int cdLeftToSpuLeft, final int cdLeftToSpuRight, final int cdRightToSpuRight, final int cdRightToSpuLeft) {
+    LOGGER.info(COMMAND_MARKER, "[CDROM] Committing CDROM audio volume settings {LL: %x, LR: %x, RL: %x, RR: %x}", this.audioCdLeftToSpuLeft, this.audioCdLeftToSpuRight, this.audioCdRightToSpuLeft, this.audioCdRightToSpuRight);
+    this.audioCdLeftToSpuLeft = cdLeftToSpuLeft;
+    this.audioCdLeftToSpuRight = cdLeftToSpuRight;
+    this.audioCdRightToSpuLeft = cdRightToSpuLeft;
+    this.audioCdRightToSpuRight = cdRightToSpuRight;
+  }
+
   private void getStat() {
     LOGGER.info(DRIVE_MARKER, "[CDROM] Running GetSTAT...");
 
@@ -591,6 +664,15 @@ public class CdDrive {
     LOGGER.info(DRIVE_MARKER, "[CDROM] Unmuting CDROM...");
     this.mode.sendAdpcmToSpu().readCddaSectors();
     this.mutedAudio = false;
+
+    this.queueResponse(0x3, this.status.pack());
+  }
+
+  private void setFilter() {
+    LOGGER.info(DRIVE_MARKER, "[CDROM] Setting CDROM filter...");
+
+    this.filterFile = this.parameterBuffer.remove().byteValue();
+    this.filterChannel = this.parameterBuffer.remove().byteValue();
 
     this.queueResponse(0x3, this.status.pack());
   }
