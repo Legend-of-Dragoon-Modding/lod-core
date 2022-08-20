@@ -10,7 +10,7 @@ import legend.core.memory.types.UnsignedIntRef;
 public class TmdObjTable implements MemoryRef {
   private final Value ref;
 
-  public final UnsignedIntRef vert_top_00;
+  public final Pointer<UnboundedArrayRef<SVECTOR>> vert_top_00;
   public final UnsignedIntRef n_vert_04;
   public final UnsignedIntRef normal_top_08;
   public final UnsignedIntRef n_normal_0c;
@@ -21,7 +21,7 @@ public class TmdObjTable implements MemoryRef {
   public TmdObjTable(final Value ref) {
     this.ref = ref;
 
-    this.vert_top_00 = ref.offset(4, 0x00L).cast(UnsignedIntRef::new);
+    this.vert_top_00 = ref.offset(4, 0x00L).cast(Pointer.deferred(4, UnboundedArrayRef.of(8, SVECTOR::new)));
     this.n_vert_04 = ref.offset(4, 0x04L).cast(UnsignedIntRef::new);
     this.normal_top_08 = ref.offset(4, 0x08L).cast(UnsignedIntRef::new);
     this.n_normal_0c = ref.offset(4, 0x0cL).cast(UnsignedIntRef::new);

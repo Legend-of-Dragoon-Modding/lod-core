@@ -51,6 +51,24 @@ public class SVECTOR implements MemoryRef {
     return this.setX(x).setY(y).setZ(z);
   }
 
+  public int get(final int element) {
+    return switch(element) {
+      case 0 -> this.getX();
+      case 1 -> this.getY();
+      case 2 -> this.getZ();
+      default -> throw new IllegalArgumentException("Invalid element");
+    };
+  }
+
+  public ShortRef component(final int element) {
+    return switch(element) {
+      case 0 -> this.x;
+      case 1 -> this.y;
+      case 2 -> this.z;
+      default -> throw new IllegalArgumentException("Invalid element");
+    };
+  }
+
   public short getX() {
     return this.x.get();
   }
