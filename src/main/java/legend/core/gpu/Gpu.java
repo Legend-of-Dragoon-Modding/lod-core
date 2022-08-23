@@ -731,30 +731,6 @@ public class Gpu implements Runnable {
     return (short)(n << 21 >> 21);
   }
 
-  private int clipX(final int x) {
-    if(x < this.drawingArea.x.get()) {
-      return this.drawingArea.x.get() - x;
-    }
-
-    if(x > this.drawingArea.w.get()) {
-      return this.drawingArea.w.get() - x;
-    }
-
-    return 0;
-  }
-
-  private int clipY(final int y) {
-    if(y < this.drawingArea.y.get()) {
-      return this.drawingArea.y.get() - y;
-    }
-
-    if(y > this.drawingArea.h.get()) {
-      return this.drawingArea.h.get() - y;
-    }
-
-    return 0;
-  }
-
   private static Runnable polygonRenderer(final IntList buffer, final Gpu gpu) {
     int bufferIndex = 0;
     final int cmd = buffer.getInt(bufferIndex++);
@@ -850,16 +826,8 @@ public class Gpu implements Runnable {
       final Bpp texturePageColours = Bpp.values()[page >>> 7 & 0b11];
 
       for(int i = 0; i < vertices; i++) {
-        final int vx = gpu.offsetX + x[i];
-        final int vy = gpu.offsetY + y[i];
-
-        final int clipXOffset = gpu.clipX(vx);
-        final int clipYOffset = gpu.clipY(vy);
-
-        x[i] = vx + clipXOffset;
-        y[i] = vy + clipYOffset;
-        tx[i] += clipXOffset;
-        ty[i] += clipYOffset;
+        x[i] += gpu.offsetX;
+        y[i] += gpu.offsetY;
       }
 
       gpu.rasterizeTriangle(x[0], y[0], x[1], y[1], x[2], y[2], tx[0], ty[0], tx[1], ty[1], tx[2], ty[2], c[0], c[1], c[2], clutX, clutY, texturePageXBase, texturePageYBase, texturePageColours, isTextured, isShaded, isTranslucent, isRaw, translucency);
