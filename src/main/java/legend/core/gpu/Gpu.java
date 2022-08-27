@@ -830,6 +830,11 @@ public class Gpu implements Runnable {
         y[i] += gpu.offsetY;
       }
 
+      gpu.status.texturePageXBase = texturePageXBase;
+      gpu.status.texturePageYBase = texturePageYBase == 256 ? TEXTURE_PAGE_Y_BASE.BASE_256 : TEXTURE_PAGE_Y_BASE.BASE_0;
+      gpu.status.semiTransparency = translucency;
+      gpu.status.texturePageColours = texturePageColours;
+
       gpu.rasterizeTriangle(x[0], y[0], x[1], y[1], x[2], y[2], tx[0], ty[0], tx[1], ty[1], tx[2], ty[2], c[0], c[1], c[2], clutX, clutY, texturePageXBase, texturePageYBase, texturePageColours, isTextured, isShaded, isTranslucent, isRaw, translucency);
 
       if(isQuad) {
@@ -1058,6 +1063,7 @@ public class Gpu implements Runnable {
       return;
     }
 
+    // Reorient triangle so it has clockwise winding
     if(area < 0) {
       final int tempVX = vx1;
       final int tempVY = vy1;
@@ -1111,8 +1117,6 @@ public class Gpu implements Runnable {
     int w1_row = orient2d(vx2, vy2, vx0, vy0, minX, minY);
     int w2_row = orient2d(vx0, vy0, vx1, vy1, minX, minY);
 
-    final int baseColour = c0;
-
     // Rasterize
     for(int y = minY; y < maxY; y++) {
       // Barycentric coordinates at start of row
@@ -1121,13 +1125,13 @@ public class Gpu implements Runnable {
       int w2 = w2_row;
 
       for(int x = minX; x < maxX; x++) {
-        // If p is on or inside all edges, render pixel.
+        // If p is on or inside all edges, render pixel
         if((w0 + bias0 | w1 + bias1 | w2 + bias2) >= 0) {
           // Adjustments per triangle instead of per pixel can be done at area level
-          // but it still does some little by 1 error appreciable on some textured quads
-          // I assume it could be handled recalculating AXX and BXX offsets but those maths are beyond my scope
+          // but it still has small off-by-1 error appreciable on some textured quads
+          // I assume it could be handled recalculating AXX and BXX offsets but the math is beyond my scope
 
-          //Check background mask
+          // Check background mask
           if(this.status.drawPixels == DRAW_PIXELS.NOT_TO_MASKED_AREAS) {
             if((this.getPixel(x, y) & 0xff00_0000L) != 0) {
               w0 += A12;
@@ -1137,8 +1141,8 @@ public class Gpu implements Runnable {
             }
           }
 
-          // reset default color of the triangle calculated outside the for as it gets overwritten as follows...
-          int colour = baseColour;
+          // Reset default colour of the triangle calculated outside the for as it gets overwritten as follows...
+          int colour = c0;
 
           if(isShaded) {
             colour = this.getShadedColor(w0, w1, w2, c0, c1, c2, area);
@@ -1171,25 +1175,17 @@ public class Gpu implements Runnable {
           this.setPixel(x, y, colour);
         }
 
-        // One step to the right
+        // One step right
         w0 += A12;
         w1 += A20;
         w2 += A01;
       }
 
-      // One row step
+      // One step down
       w0_row += B12;
       w1_row += B20;
       w2_row += B01;
     }
-  }
-
-  private int rgbToBgr(final int colour) {
-    final int m = colour >>> 24 & 0xff;
-    final int b = colour >>> 16 & 0xff;
-    final int g = colour >>>  8 & 0xff;
-    final int r =  colour & 0xff;
-    return m << 24 | r << 16 | g << 8 | b;
   }
 
   private int applyBlending(final int colour, final int texel) {
@@ -1270,6 +1266,9 @@ public class Gpu implements Runnable {
     return this.getPixel(x + textureBaseX, y + textureBaseY);
   }
 
+  /**
+   * Returns positive value for clockwise winding, negative value for counter-clockwise. 0 if vertices are collinear. Value is roughly twice the area of the triangle.
+   */
   private static int orient2d(final int ax, final int ay, final int bx, final int by, final int cx, final int cy) {
     return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
   }
