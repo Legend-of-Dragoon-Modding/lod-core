@@ -50,6 +50,10 @@ public class UnboundedArrayRef<T extends MemoryRef> implements MemoryRef {
     return this.ref.offset(offset * this.stride).cast(UnboundedArrayRef.of(this.stride, this.constructor, this.length));
   }
 
+  public ArrayRef<T> bound(final Class<T> cls, final int length) {
+    return this.reinterpret(ArrayRef.of(cls, length, this.stride, this.constructor));
+  }
+
   @Override
   public long getAddress() {
     return this.ref.getAddress();

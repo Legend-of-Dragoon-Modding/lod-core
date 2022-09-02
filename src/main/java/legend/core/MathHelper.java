@@ -83,4 +83,12 @@ public final class MathHelper {
   public static long toBcd(final long x) {
     return x / 10L << 4L | x % 10L;
   }
+
+  public static int roundUp(final int val, final int step) {
+    return val + step - 1 & -step;
+  }
+
+  public static long roundUp(final long val, final long step) {
+    return val + step - 1 & -step;
+  }
 }
