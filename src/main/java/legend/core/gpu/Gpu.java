@@ -898,11 +898,11 @@ public class Gpu implements Runnable {
       return;
     }
 
-    x += this.drawingArea.x.get();
-    y += this.drawingArea.y.get();
+    x += this.offsetX;
+    y += this.offsetY;
 
-    x2 += this.drawingArea.x.get();
-    y2 += this.drawingArea.y.get();
+    x2 += this.offsetX;
+    y2 += this.offsetY;
 
     final int w = x2 - x;
     final int h = y2 - y;
