@@ -91,4 +91,26 @@ public final class MathHelper {
   public static long roundUp(final long val, final long step) {
     return val + step - 1 & -step;
   }
+
+  /**
+   * Handles /0 like the PS1 - if num is positive, result will be -1; if num is negative, result will be +1; if num is 0, result will be 0
+   */
+  public static long safeDiv(final long num, final long div) {
+    if(div == 0) {
+      return Long.compare(0, num);
+    }
+
+    return num / div;
+  }
+
+  /**
+   * Handles /0 like the PS1 - if num is positive, result will be -1; if num is negative, result will be +1; if num is 0, result will be 0
+   */
+  public static int safeDiv(final int num, final int div) {
+    if(div == 0) {
+      return Integer.compare(0, num);
+    }
+
+    return num / div;
+  }
 }
