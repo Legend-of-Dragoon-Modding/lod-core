@@ -448,7 +448,7 @@ public class Gpu implements Runnable {
   public void run() {
     this.camera = new Camera(0.0f, 0.0f);
     this.window = new Window(Config.GAME_NAME, Config.WINDOW_WIDTH, Config.WINDOW_HEIGHT);
-//    this.window.setFpsLimit(30);
+    this.window.setFpsLimit(60);
     this.ctx = new Context(this.window, this.camera);
 
     this.window.events.onKeyPress((window, key, scancode, mods) -> {
