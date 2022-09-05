@@ -161,6 +161,10 @@ public class Gpu implements Runnable {
     return this.window.events;
   }
 
+  public Window window() {
+    return this.window;
+  }
+
   public void command00Nop() {
     LOGGER.trace("GPU NOP");
   }
