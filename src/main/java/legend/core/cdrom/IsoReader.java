@@ -5,13 +5,16 @@ import java.io.RandomAccessFile;
 import java.nio.file.Path;
 
 public class IsoReader {
-  private static final long SECTOR_SIZE = 2352L;
-  private static final long SYNC_PATTER_SIZE = 12L;
+  private static final int SECTOR_SIZE = 2352;
+  private static final int SYNC_PATTER_SIZE = 12;
 
   private final RandomAccessFile file;
 
+  public final int lba;
+
   public IsoReader(final Path path) throws IOException {
     this.file = new RandomAccessFile(path.toFile(), "r");
+    this.lba = (int)(this.file.length() / SECTOR_SIZE);
   }
 
   public long getPos() throws IOException {

@@ -16,6 +16,7 @@ import org.apache.logging.log4j.MarkerManager;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayDeque;
 import java.util.Arrays;
@@ -42,8 +43,8 @@ public class CdDrive {
   private static final Marker COMMAND_MARKER = MarkerManager.getMarker("CDROM_COMMAND").setParents(DRIVE_MARKER);
   private static final Marker DMA_MARKER = MarkerManager.getMarker("CDROM_DMA").setParents(DRIVE_MARKER);
 
-  private final IsoReader diskAsync;
-  private final IsoReader diskSync;
+  private IsoReader diskAsync;
+  private IsoReader diskSync;
 
   private final Status status = new Status();
   private final CdlMODE mode = new CdlMODE();
@@ -125,16 +126,12 @@ public class CdDrive {
   private final Deque<Byte> cdBuffer = new ArrayDeque<>();
 
   public CdDrive(final Memory memory) {
-    try {
-      this.diskAsync = new IsoReader(Paths.get("isos/1.iso"));
-      this.diskSync = new IsoReader(Paths.get("isos/1.iso"));
-    } catch(final IOException e) {
-      throw new RuntimeException("Failed to load disk 1", e);
-    }
+    this.loadDisk(1);
 
     this.commandCallbacks.put(CdlCOMMAND.GET_STAT_01, this::getStat);
     this.commandCallbacks.put(CdlCOMMAND.SET_LOC_02, this::setLoc);
     this.commandCallbacks.put(CdlCOMMAND.READ_N_06, this::read);
+    this.commandCallbacks.put(CdlCOMMAND.STOP_08, this::stop);
     this.commandCallbacks.put(CdlCOMMAND.PAUSE_09, this::pause);
     this.commandCallbacks.put(CdlCOMMAND.INIT_0A, () -> {
       this.init();
@@ -169,6 +166,19 @@ public class CdDrive {
 
     for(final Register register : this.registers) {
       memory.addSegment(register);
+    }
+  }
+
+  public void loadDisk(final int index) {
+    LOGGER.info(DRIVE_MARKER, "Loading disk %d", index);
+
+    final Path path = Paths.get("isos/%d.iso".formatted(index));
+
+    try {
+      this.diskAsync = new IsoReader(path);
+      this.diskSync = new IsoReader(path);
+    } catch(final IOException e) {
+      throw new RuntimeException("Failed to load disk " + index, e);
     }
   }
 
@@ -631,6 +641,17 @@ public class CdDrive {
     this.state = State.READ;
 
     this.queueResponse(0x3, this.status.pack());
+  }
+
+  public void stop() {
+    LOGGER.info(DRIVE_MARKER, "[CDROM] Running stop...");
+
+    this.status.clear();
+
+    this.queueResponse(0x3, this.status.pack());
+    this.queueResponse(0x2, this.status.pack());
+
+    this.state = State.IDLE;
   }
 
   private void pause() {
