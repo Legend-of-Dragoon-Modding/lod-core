@@ -365,7 +365,7 @@ public class Joypad implements Runnable {
     IoHelper.write(stream, this.counter2);
   }
 
-  public void load(final ByteBuffer stream) {
+  public void load(final ByteBuffer stream, final int version) {
     this.JOY_TX_DATA = IoHelper.readByte(stream);
     this.JOY_RX_DATA = IoHelper.readByte(stream);
 

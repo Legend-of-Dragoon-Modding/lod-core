@@ -254,7 +254,7 @@ public class Cpu {
     IoHelper.write(stream, this.exceptionHandled);
   }
 
-  public void load(final ByteBuffer stream) {
+  public void load(final ByteBuffer stream, final int version) {
     for(final Register reg : this.registers.values()) {
       reg.load(stream);
     }

@@ -245,7 +245,7 @@ public class Memory {
     }
   }
 
-  public void load(final ByteBuffer stream) throws ClassNotFoundException {
+  public void load(final ByteBuffer stream, final int version) throws ClassNotFoundException {
     for(final Segment segment : this.segments) {
       segment.load(stream);
     }

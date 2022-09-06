@@ -1411,7 +1411,7 @@ public class Gpu implements Runnable {
     IoHelper.write(stream, this.isOddLine);
   }
 
-  public void load(final ByteBuffer buf) {
+  public void load(final ByteBuffer buf, final int version) {
     for(int i = 0; i < this.vram24.length; i++) {
       this.vram24[i] = IoHelper.readInt(buf);
     }

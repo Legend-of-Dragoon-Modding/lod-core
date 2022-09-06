@@ -594,7 +594,7 @@ public class Spu implements Runnable, MemoryRef {
     XaAdpcm.dump(stream);
   }
 
-  public void load(final ByteBuffer stream) {
+  public void load(final ByteBuffer stream, final int version) {
     this.spuOutput.clear();
     final int spuOutputSize = IoHelper.readInt(stream);
     for(int i = 0; i < spuOutputSize; i++) {

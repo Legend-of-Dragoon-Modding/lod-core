@@ -45,6 +45,7 @@ public class CdDrive {
 
   private IsoReader diskAsync;
   private IsoReader diskSync;
+  private int diskIndex;
 
   private final Status status = new Status();
   private final CdlMODE mode = new CdlMODE();
@@ -180,6 +181,8 @@ public class CdDrive {
     } catch(final IOException e) {
       throw new RuntimeException("Failed to load disk " + index, e);
     }
+
+    this.diskIndex = index;
   }
 
   private byte[] processDmaLoad(final int size) {
@@ -778,7 +781,11 @@ public class CdDrive {
     }
   }
 
-  public void dump(final ByteBuffer stream) {
+  public void dump(final ByteBuffer stream) throws IOException {
+    IoHelper.write(stream, (byte)this.diskIndex);
+    IoHelper.write(stream, this.diskAsync.getPos());
+    IoHelper.write(stream, this.diskSync.getPos());
+
     IoHelper.write(stream, this.status.error);
     IoHelper.write(stream, this.status.spindleMotor);
     IoHelper.write(stream, this.status.seekError);
@@ -816,7 +823,13 @@ public class CdDrive {
     IoHelper.write(stream, this.index);
   }
 
-  public void load(final ByteBuffer stream) {
+  public void load(final ByteBuffer stream, final int version) throws IOException {
+    if(version >= 1) {
+      this.loadDisk(IoHelper.readByte(stream));
+      this.diskAsync.setPos(IoHelper.readLong(stream));
+      this.diskSync.setPos(IoHelper.readLong(stream));
+    }
+
     this.status.error = IoHelper.readBool(stream);
     this.status.spindleMotor = IoHelper.readBool(stream);
     this.status.seekError = IoHelper.readBool(stream);

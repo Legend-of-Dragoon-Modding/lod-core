@@ -38,7 +38,7 @@ public class InterruptController {
     IoHelper.write(stream, this.mask);
   }
 
-  public void load(final ByteBuffer stream) {
+  public void load(final ByteBuffer stream, final int version) {
     this.stat = IoHelper.readLong(stream);
     this.mask = IoHelper.readLong(stream);
   }

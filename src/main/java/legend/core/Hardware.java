@@ -28,6 +28,7 @@ import org.reflections8.Reflections;
 import org.reflections8.util.ClasspathHelper;
 
 import javax.annotation.Nullable;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -83,14 +84,14 @@ public final class Hardware {
     dumping = false;
   }
 
-  public static void dump(final ByteBuffer stream) {
+  public static void dump(final ByteBuffer stream) throws IOException {
     dumpLock();
 
     stream.put((byte)'d');
     stream.put((byte)'d');
     stream.put((byte)'m');
     stream.put((byte)'p');
-    stream.put((byte)0x00);
+    stream.put((byte)0x01);
 
     MEMORY.dump(stream);
     CPU.dump(stream);
@@ -105,7 +106,7 @@ public final class Hardware {
     dumpUnlock();
   }
 
-  public static void load(final ByteBuffer stream) throws ClassNotFoundException {
+  public static void load(final ByteBuffer stream) throws ClassNotFoundException, IOException {
     dumpLock();
 
     if(stream.get() != 'd' || stream.get() != 'd' || stream.get() != 'm' || stream.get() != 'p') {
@@ -114,21 +115,23 @@ public final class Hardware {
       return;
     }
 
-    if(stream.get() != 0) {
-      LOGGER.error("Failed to load state: invalid version");
+    final int version = stream.get();
+
+    if(version != 0 && version != 1) {
+      LOGGER.error("Failed to load state: invalid version %d", version);
     }
 
     // Need to acquire gate to load kernel/bios functions
     GATE.acquire();
-    MEMORY.load(stream);
-    CPU.load(stream);
-    INTERRUPTS.load(stream);
-    DMA.load(stream);
-    GPU.load(stream);
-    MDEC.load(stream);
-    CDROM.load(stream);
-    SPU.load(stream);
-    JOYPAD.load(stream);
+    MEMORY.load(stream, version);
+    CPU.load(stream, version);
+    INTERRUPTS.load(stream, version);
+    DMA.load(stream, version);
+    GPU.load(stream, version);
+    MDEC.load(stream, version);
+    CDROM.load(stream, version);
+    SPU.load(stream, version);
+    JOYPAD.load(stream, version);
     GATE.release();
 
     loadStateListeners.forEach(Runnable::run);

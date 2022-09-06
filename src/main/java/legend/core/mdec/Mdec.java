@@ -338,7 +338,7 @@ public class Mdec {
     //TODO
   }
 
-  public void load(final ByteBuffer stream) {
+  public void load(final ByteBuffer stream, final int version) {
     //TODO
   }
 

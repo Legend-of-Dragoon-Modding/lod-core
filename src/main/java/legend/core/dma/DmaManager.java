@@ -159,7 +159,7 @@ public class DmaManager {
     IoHelper.write(stream, this.edgeTrigger);
   }
 
-  public void load(final ByteBuffer stream) {
+  public void load(final ByteBuffer stream, final int version) {
     for(final DmaChannel channel : this.channels.values()) {
       channel.load(stream);
     }

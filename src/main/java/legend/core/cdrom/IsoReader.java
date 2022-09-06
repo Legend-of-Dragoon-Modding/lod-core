@@ -21,6 +21,10 @@ public class IsoReader {
     return this.file.getFilePointer();
   }
 
+  public void setPos(final long pos) throws IOException {
+    this.file.seek(pos);
+  }
+
   public void seekSector(final long sector) throws IOException {
     this.file.seek(sector * SECTOR_SIZE + SYNC_PATTER_SIZE);
   }
