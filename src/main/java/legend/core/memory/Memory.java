@@ -120,6 +120,10 @@ public class Memory {
   }
 
   public byte get(final long address) {
+    if(watches.contains((int)address & 0xffffff)) {
+      LOGGER.error(Long.toHexString(address) + " read", new Throwable());
+    }
+
     synchronized(this.lock) {
       final Segment segment = this.getSegment(address);
       return segment.get((int)(this.maskAddress(address) - segment.getAddress()));
@@ -128,6 +132,10 @@ public class Memory {
 
   public long get(final long address, final int size) {
     this.checkAlignment(address, size);
+
+    if(watches.contains((int)address & 0xffffff)) {
+      LOGGER.error(Long.toHexString(address) + " read", new Throwable());
+    }
 
     synchronized(this.lock) {
       final Segment segment = this.getSegment(address);
@@ -169,6 +177,10 @@ public class Memory {
   }
 
   public void getBytes(final long address, final byte[] dest, final int offset, final int size) {
+    if(watches.contains((int)address & 0xffffff)) {
+      LOGGER.error(Long.toHexString(address) + " read", new Throwable());
+    }
+
     synchronized(this.lock) {
       final Segment segment = this.getSegment(address);
       segment.getBytes((int)(this.maskAddress(address) - segment.getAddress()), dest, offset, size);
@@ -382,6 +394,10 @@ public class Memory {
 
     @Override
     public long get() {
+      if(watches.contains((int)this.address & 0xffffff)) {
+        LOGGER.error(Long.toHexString(this.address) + " read", new Throwable());
+      }
+
       synchronized(Memory.this.lock) {
         return this.getSegment().get(this.segmentOffset, this.getSize());
       }
