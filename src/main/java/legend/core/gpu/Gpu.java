@@ -1700,7 +1700,7 @@ public class Gpu implements Runnable {
 
             colour |= (gpu.status.setMaskBit ? 1 : 0) << 24;
 
-            gpu.setPixel(destX + x, destY, colour);
+            gpu.setPixel(destX + x, destY + y, colour);
           }
         }
       };
