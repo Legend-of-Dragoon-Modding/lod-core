@@ -447,6 +447,7 @@ public class Gpu implements Runnable {
     return new Timers.Sync(dot, hBlank, vBlank);
   }
 
+  private long lastFrame;
   public Runnable r = () -> { };
 
   @Override
@@ -565,10 +566,16 @@ public class Gpu implements Runnable {
       }
     });
 
+    this.lastFrame = System.nanoTime();
+
     this.ctx.onDraw(() -> {
       this.r.run();
       this.tick();
       this.guiManager.draw(this.ctx.getWidth(), this.ctx.getHeight(), this.ctx.getWidth() / this.window.getScale(), this.ctx.getHeight() / this.window.getScale());
+
+      final float fps = 1.0f / ((System.nanoTime() - this.lastFrame) / (1_000_000_000 / 30.0f)) * 30.0f;
+      this.window.setTitle(Config.GAME_NAME + " - FPS: %.5f".formatted(fps));
+      this.lastFrame = System.nanoTime();
     });
 
     this.window.show();
