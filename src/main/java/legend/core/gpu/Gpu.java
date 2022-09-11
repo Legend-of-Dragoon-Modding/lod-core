@@ -78,7 +78,7 @@ public class Gpu implements Runnable {
   public static final Value GPU_REG0 = MEMORY.ref(4, 0x1f801810L);
   public static final Value GPU_REG1 = MEMORY.ref(4, 0x1f801814L);
 
-  private static final int RENDER_SCALE = 3;
+  private static final int RENDER_SCALE = Config.renderScale();
 
   private static final int VRAM_WIDTH = 1024 * RENDER_SCALE;
   private static final int VRAM_HEIGHT = 512 * RENDER_SCALE;
@@ -456,7 +456,7 @@ public class Gpu implements Runnable {
   @Override
   public void run() {
     this.camera = new Camera(0.0f, 0.0f);
-    this.window = new Window(Config.GAME_NAME, Config.WINDOW_WIDTH * RENDER_SCALE, Config.WINDOW_HEIGHT * RENDER_SCALE);
+    this.window = new Window("Legend of Dragoon", Config.windowWidth() * RENDER_SCALE, Config.windowHeight() * RENDER_SCALE);
     this.window.setFpsLimit(60);
     this.ctx = new Context(this.window, this.camera);
     this.guiManager = new GuiManager(this.window);
@@ -466,7 +466,7 @@ public class Gpu implements Runnable {
     try {
       font = new Font("gfx/fonts/Consolas.ttf");
     } catch(final IOException e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException("Failed to load font", e);
     }
     this.guiManager.setFont(font);
 
@@ -577,7 +577,7 @@ public class Gpu implements Runnable {
       this.guiManager.draw(this.ctx.getWidth(), this.ctx.getHeight(), this.ctx.getWidth() / this.window.getScale(), this.ctx.getHeight() / this.window.getScale());
 
       final float fps = 1.0f / ((System.nanoTime() - this.lastFrame) / (1_000_000_000 / 30.0f)) * 30.0f;
-      this.window.setTitle(Config.GAME_NAME + " - FPS: %.5f".formatted(fps));
+      this.window.setTitle("Legend of Dragoon - FPS: %.5f".formatted(fps));
       this.lastFrame = System.nanoTime();
     });
 

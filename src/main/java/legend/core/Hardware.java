@@ -144,6 +144,16 @@ public final class Hardware {
   }
 
   static {
+    try {
+      if(!Config.exists()) {
+        Config.save();
+      } else {
+        Config.load();
+      }
+    } catch(final IOException e) {
+      LOGGER.warn("Failed to load config", e);
+    }
+
     // --- BIOS memory ------------------------
 
     // 0x00 (0x10) - garbage area
