@@ -483,40 +483,42 @@ public class Gpu implements Runnable {
     });
 
     this.window.events.onResize((window1, width, height) -> {
-      this.windowWidth = width;
-      this.windowHeight = height;
+      if(!this.isVramViewer) {
+        final float windowScale = this.window.getScale();
+        final float unscaledWidth = width / windowScale;
+        final float unscaledHeight = height / windowScale;
 
-      if(this.displayMesh != null) {
-        this.displayMesh.delete();
+        this.windowWidth = (int)unscaledWidth;
+        this.windowHeight = (int)unscaledHeight;
+
+        if(this.displayMesh != null) {
+          this.displayMesh.delete();
+        }
+
+        final float aspect = (float)this.displayTexture.width / this.displayTexture.height;
+
+        float w = unscaledWidth;
+        float h = w / aspect;
+
+        if(h > unscaledHeight) {
+          h = unscaledHeight;
+          w = h * aspect;
+        }
+
+        final float l = (unscaledWidth - w) / 2;
+        final float t = (unscaledHeight - h) / 2;
+        final float r = l + w;
+        final float b = t + h;
+
+        this.displayMesh = new Mesh(GL_TRIANGLE_STRIP, new float[] {
+          l, t, 0, 0,
+          l, b, 0, 1,
+          r, t, 1, 0,
+          r, b, 1, 1,
+        }, 4);
+        this.displayMesh.attribute(0, 0L, 2, 4);
+        this.displayMesh.attribute(1, 2L, 2, 4);
       }
-
-      final float aspect = (float)this.displayTexture.width / this.displayTexture.height;
-
-      final float windowScale = this.window.getScale();
-      final float unscaledWidth = width / windowScale;
-      final float unscaledHeight = height / windowScale;
-
-      float w = unscaledWidth;
-      float h = w / aspect;
-
-      if(h > unscaledHeight) {
-        h = unscaledHeight;
-        w = h * aspect;
-      }
-
-      final float l = (unscaledWidth - w) / 2;
-      final float t = (unscaledHeight - h) / 2;
-      final float r = l + w;
-      final float b = t + h;
-
-      this.displayMesh = new Mesh(GL_TRIANGLE_STRIP, new float[] {
-        l, t, 0, 0,
-        l, b, 0, 1,
-        r, t, 1, 0,
-        r, b, 1, 1,
-      }, 4);
-      this.displayMesh.attribute(0, 0L, 2, 4);
-      this.displayMesh.attribute(1, 2L, 2, 4);
     });
 
     final FloatBuffer transform2Buffer = BufferUtils.createFloatBuffer(4 * 4);
