@@ -41,6 +41,8 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.function.BiFunction;
+import java.util.stream.IntStream;
+import java.util.stream.StreamSupport;
 
 import static legend.core.Hardware.CONTROLLER;
 import static legend.core.Hardware.DMA;
@@ -75,8 +77,13 @@ public class Gpu implements Runnable {
   public static final Value GPU_REG0 = MEMORY.ref(4, 0x1f801810L);
   public static final Value GPU_REG1 = MEMORY.ref(4, 0x1f801814L);
 
-  private static final int VRAM_WIDTH = 1024;
-  private static final int VRAM_HEIGHT = 512;
+  private static final int STANDARD_VRAM_WIDTH = 1024;
+  private static final int STANDARD_VRAM_HEIGHT = 512;
+
+  private int renderScale = Config.renderScale();
+
+  private int vramWidth = STANDARD_VRAM_WIDTH * this.renderScale;
+  private int vramHeight = STANDARD_VRAM_HEIGHT * this.renderScale;
 
   private static final int[] dotClockDiv = { 10, 8, 5, 4, 7 };
 
@@ -87,8 +94,8 @@ public class Gpu implements Runnable {
   private Shader.UniformBuffer transforms2;
   private final Matrix4f transforms = new Matrix4f();
 
-  private final int[] vram24 = new int[VRAM_WIDTH * VRAM_HEIGHT];
-  private final int[] vram15 = new int[VRAM_WIDTH * VRAM_HEIGHT];
+  private int[] vram24 = new int[this.vramWidth * this.vramHeight];
+  private int[] vram15 = new int[this.vramWidth * this.vramHeight];
 
   private boolean isVramViewer;
 
@@ -98,6 +105,9 @@ public class Gpu implements Runnable {
 
   private Texture displayTexture;
   private Mesh displayMesh;
+
+  private int windowWidth;
+  private int windowHeight;
 
   public final Status status = new Status();
   private int gpuInfo;
@@ -183,28 +193,33 @@ public class Gpu implements Runnable {
   public void commandA0CopyRectFromCpuToVram(final RECT rect, final long address) {
     assert address != 0;
 
-    final short rectX = rect.x.get();
-    final short rectY = rect.y.get();
-    final short rectW = rect.w.get();
-    final short rectH = rect.h.get();
+    final int rectX = rect.x.get() * this.renderScale;
+    final int rectY = rect.y.get() * this.renderScale;
+    final int rectW = rect.w.get() * this.renderScale;
+    final int rectH = rect.h.get() * this.renderScale;
 
-    assert rectX + rectW <= this.vramTexture.width  : "Rect right (" + (rectX + rectW) + ") overflows VRAM width (" + this.vramTexture.width + ')';
-    assert rectY + rectH <= this.vramTexture.height : "Rect bottom (" + (rectY + rectH) + ") overflows VRAM height (" + this.vramTexture.height + ')';
+    assert rectX + rectW <= this.vramWidth : "Rect right (" + (rectX + rectW) + ") overflows VRAM width (" + this.vramWidth + ')';
+    assert rectY + rectH <= this.vramHeight : "Rect bottom (" + (rectY + rectH) + ") overflows VRAM height (" + this.vramHeight + ')';
 
     synchronized(this.commandQueue) {
       this.commandQueue.add(() -> {
         LOGGER.debug("Copying (%d, %d, %d, %d) from CPU to VRAM (address: %08x)", rectX, rectY, rectW, rectH, address);
 
-        final int offset = rectY * VRAM_WIDTH + rectX;
-
         MEMORY.waitForLock(() -> {
           int i = 0;
-          for(int y = 0; y < rectH; y++) {
-            for(int x = 0; x < rectW; x++) {
+          for(int y = rectY; y < rectY + rectH; y += this.renderScale) {
+            for(int x = rectX; x < rectX + rectW; x += this.renderScale) {
               final int packed = (int)MEMORY.get(address + i * 2, 2);
-              final int index = offset + y * VRAM_WIDTH + x;
-              this.vram24[index] = MathHelper.colour15To24(packed);
-              this.vram15[index] = packed;
+              final int unpacked = MathHelper.colour15To24(packed);
+
+              for(int y1 = y; y1 < y + this.renderScale; y1++) {
+                for(int x1 = x; x1 < x + this.renderScale; x1++) {
+                  final int index = y1 * this.vramWidth + x1;
+                  this.vram24[index] = unpacked;
+                  this.vram15[index] = packed;
+                }
+              }
+
               i++;
             }
           }
@@ -216,25 +231,23 @@ public class Gpu implements Runnable {
   public void commandC0CopyRectFromVramToCpu(final RECT rect, final long address) {
     assert address != 0;
 
-    final short rectX = rect.x.get();
-    final short rectY = rect.y.get();
-    final short rectW = rect.w.get();
-    final short rectH = rect.h.get();
+    final int rectX = rect.x.get() * this.renderScale;
+    final int rectY = rect.y.get() * this.renderScale;
+    final int rectW = rect.w.get() * this.renderScale;
+    final int rectH = rect.h.get() * this.renderScale;
 
-    assert rectX + rectW <= this.vramTexture.width  : "Rect right (" + (rectX + rectW) + ") overflows VRAM width (" + this.vramTexture.width + ')';
-    assert rectY + rectH <= this.vramTexture.height : "Rect bottom (" + (rectY + rectH) + ") overflows VRAM height (" + this.vramTexture.height + ')';
+    assert rectX + rectW <= this.vramWidth : "Rect right (" + (rectX + rectW) + ") overflows VRAM width (" + this.vramWidth + ')';
+    assert rectY + rectH <= this.vramHeight : "Rect bottom (" + (rectY + rectH) + ") overflows VRAM height (" + this.vramHeight + ')';
 
     synchronized(this.commandQueue) {
       this.commandQueue.add(() -> {
         LOGGER.debug("Copying (%d, %d, %d, %d) from VRAM to CPU (address: %08x)", rectX, rectY, rectW, rectH, address);
 
-        final int offset = rectY * VRAM_WIDTH + rectX;
-
         MEMORY.waitForLock(() -> {
           int i = 0;
-          for(int y = 0; y < rectH; y++) {
-            for(int x = 0; x < rectW; x++) {
-              final int index = offset + y * VRAM_WIDTH + x;
+          for(int y = rectY; y < rectY + rectH; y += this.renderScale) {
+            for(int x = rectX; x < rectX + rectW; x += this.renderScale) {
+              final int index = y * this.vramWidth + x;
               MEMORY.set(address + i * 2, 2, this.vram15[index]);
               i++;
             }
@@ -342,8 +355,8 @@ public class Gpu implements Runnable {
    * Upper/left Display source address in VRAM. The size and target position on screen is set via Display Range registers; target=X1,Y2; size=(X2-X1/cycles_per_pix), (Y2-Y1).
    */
   private void displayStart(final int x, final int y) {
-    this.displayStartX = x;
-    this.displayStartY = y;
+    this.displayStartX = x * this.renderScale;
+    this.displayStartY = y * this.renderScale;
   }
 
   /**
@@ -355,8 +368,8 @@ public class Gpu implements Runnable {
    * The 260h value is the first visible pixel on normal TV Sets, this value is used by MOST NTSC games, and SOME PAL games (see below notes on Mis-Centered PAL games).
    */
   private void horizontalDisplayRange(final int x1, final int x2) {
-    this.displayRangeX1 = x1;
-    this.displayRangeX2 = x2;
+    this.displayRangeX1 = x1 * this.renderScale;
+    this.displayRangeX2 = x2 * this.renderScale;
   }
 
   /**
@@ -367,8 +380,8 @@ public class Gpu implements Runnable {
    * The 224/264 values are for fullscreen pictures. Many NTSC games display 240 lines (overscan with hidden lines). Many PAL games display only 256 lines (underscan with black borders).
    */
   private void verticalDisplayRange(final int y1, final int y2) {
-    this.displayRangeY1 = y1;
-    this.displayRangeY2 = y2;
+    this.displayRangeY1 = y1 * this.renderScale;
+    this.displayRangeY2 = y2 * this.renderScale;
   }
 
   /**
@@ -401,34 +414,20 @@ public class Gpu implements Runnable {
   }
 
   private void displaySize(final int horizontalRes, final int verticalRes) {
+    final int hr = horizontalRes * this.renderScale;
+    final int vr = verticalRes * this.renderScale;
+
     if(this.displayTexture != null) {
       this.displayTexture.delete();
     }
 
     this.displayTexture = Texture.create(builder -> {
-      builder.size(horizontalRes, verticalRes);
+      builder.size(hr, vr);
       builder.internalFormat(GL_RGBA);
       builder.dataFormat(GL_RGBA);
       builder.minFilter(GL_NEAREST);
       builder.magFilter(GL_NEAREST);
     });
-
-    if(this.displayMesh != null) {
-      this.displayMesh.delete();
-    }
-
-    this.displayMesh = new Mesh(GL_TRIANGLE_STRIP, new float[] {
-      0,           0, 0, 0,
-      0, verticalRes, 0, 1,
-      horizontalRes,           0, 1, 0,
-      horizontalRes, verticalRes, 1, 1,
-    }, 4);
-    this.displayMesh.attribute(0, 0L, 2, 4);
-    this.displayMesh.attribute(1, 2L, 2, 4);
-
-    if(!this.isVramViewer) {
-      this.window.resize(horizontalRes, verticalRes);
-    }
   }
 
   private Shader loadShader(final Path vsh, final Path fsh) {
@@ -453,12 +452,13 @@ public class Gpu implements Runnable {
     return new Timers.Sync(dot, hBlank, vBlank);
   }
 
+  private long lastFrame;
   public Runnable r = () -> { };
 
   @Override
   public void run() {
     this.camera = new Camera(0.0f, 0.0f);
-    this.window = new Window(Config.GAME_NAME, Config.WINDOW_WIDTH, Config.WINDOW_HEIGHT);
+    this.window = new Window("Legend of Dragoon", Config.windowWidth() * this.renderScale, Config.windowHeight() * this.renderScale);
     this.window.setFpsLimit(60);
     this.ctx = new Context(this.window, this.camera);
     this.guiManager = new GuiManager(this.window);
@@ -468,7 +468,7 @@ public class Gpu implements Runnable {
     try {
       font = new Font("gfx/fonts/Consolas.ttf");
     } catch(final IOException e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException("Failed to load font", e);
     }
     this.guiManager.setFont(font);
 
@@ -483,22 +483,64 @@ public class Gpu implements Runnable {
         if(this.isVramViewer) {
           this.window.resize(this.vramTexture.width, this.vramTexture.height);
         } else {
-          this.window.resize(this.displayTexture.width, this.displayTexture.height);
+          this.window.resize(this.windowWidth, this.windowHeight);
         }
+      }
+    });
+
+    this.window.events.onResize((window1, width, height) -> {
+      if(!this.isVramViewer) {
+        final float windowScale = this.window.getScale();
+        final float unscaledWidth = width / windowScale;
+        final float unscaledHeight = height / windowScale;
+
+        this.windowWidth = (int)unscaledWidth;
+        this.windowHeight = (int)unscaledHeight;
+
+        if(this.displayMesh != null) {
+          this.displayMesh.delete();
+        }
+
+        final float aspect = (float)this.displayTexture.width / this.displayTexture.height;
+
+        float w = unscaledWidth;
+        float h = w / aspect;
+
+        if(h > unscaledHeight) {
+          h = unscaledHeight;
+          w = h * aspect;
+        }
+
+        final float l = (unscaledWidth - w) / 2;
+        final float t = (unscaledHeight - h) / 2;
+        final float r = l + w;
+        final float b = t + h;
+
+        this.displayMesh = new Mesh(GL_TRIANGLE_STRIP, new float[] {
+          l, t, 0, 0,
+          l, b, 0, 1,
+          r, t, 1, 0,
+          r, b, 1, 1,
+        }, 4);
+        this.displayMesh.attribute(0, 0L, 2, 4);
+        this.displayMesh.attribute(1, 2L, 2, 4);
       }
     });
 
     final FloatBuffer transform2Buffer = BufferUtils.createFloatBuffer(4 * 4);
     this.transforms2 = new Shader.UniformBuffer((long)transform2Buffer.capacity() * Float.BYTES, Shader.UniformBuffer.TRANSFORM2);
 
+    final int hr = this.vramWidth;
+    final int vr = this.vramHeight;
+
     this.vramShader = this.loadShader(Paths.get("gfx", "shaders", "vram.vsh"), Paths.get("gfx", "shaders", "vram.fsh"));
-    this.vramTexture = Texture.empty(1024, 512);
+    this.vramTexture = Texture.empty(hr, vr);
 
     this.vramMesh = new Mesh(GL_TRIANGLE_STRIP, new float[] {
-         0,   0, 0, 0,
-         0, 512, 0, 1,
-      1024,   0, 1, 0,
-      1024, 512, 1, 1,
+       0,  0, 0, 0,
+       0, vr, 0, 1,
+      hr,  0, 1, 0,
+      hr, vr, 1, 1,
     }, 4);
     this.vramMesh.attribute(0, 0L, 2, 4);
     this.vramMesh.attribute(1, 2L, 2, 4);
@@ -529,10 +571,16 @@ public class Gpu implements Runnable {
       }
     });
 
+    this.lastFrame = System.nanoTime();
+
     this.ctx.onDraw(() -> {
       this.r.run();
       this.tick();
       this.guiManager.draw(this.ctx.getWidth(), this.ctx.getHeight(), this.ctx.getWidth() / this.window.getScale(), this.ctx.getHeight() / this.window.getScale());
+
+      final float fps = 1.0f / ((System.nanoTime() - this.lastFrame) / (1_000_000_000 / 30.0f)) * 30.0f;
+      this.window.setTitle("Legend of Dragoon - scale: %d - FPS: %.2f/%d".formatted(this.renderScale, fps, this.window.getFpsLimit()));
+      this.lastFrame = System.nanoTime();
     });
 
     this.window.show();
@@ -591,7 +639,7 @@ public class Gpu implements Runnable {
                   for(int n = 0; n < this.dma.getBlockSize() / 4; n++) {
                     try {
                       this.queueGp0Command((int)this.dma.MADR.deref(4).offset(n * 4L).get());
-                    } catch(InvalidGp0CommandException e) {
+                    } catch(final InvalidGp0CommandException e) {
                       throw new RuntimeException("Invalid GP0 packet at 0x%08x".formatted(this.dma.MADR.deref(4).offset(n * 4L).get()), e);
                     }
                   }
@@ -620,7 +668,7 @@ public class Gpu implements Runnable {
               for(int i = 1; i < words; i++) {
                 try {
                   this.queueGp0Command((int)value.offset(i * 4L).get());
-                } catch(InvalidGp0CommandException e) {
+                } catch(final InvalidGp0CommandException e) {
                   throw new RuntimeException("Invalid GP0 packet at 0x%08x".formatted(value.offset(i * 4L).get()), e);
                 }
               }
@@ -665,14 +713,14 @@ public class Gpu implements Runnable {
     }
 
     if(this.isVramViewer) {
-      final int size = VRAM_WIDTH * VRAM_HEIGHT;
+      final int size = this.vramWidth * this.vramHeight;
       final ByteBuffer pixels = MemoryUtil.memAlloc(size * 4);
       final IntBuffer intPixels = pixels.asIntBuffer();
       intPixels.put(this.vram24);
 
       pixels.flip();
 
-      this.vramTexture.data(new RECT((short)0, (short)0, (short)VRAM_WIDTH, (short)VRAM_HEIGHT), pixels);
+      this.vramTexture.data(new RECT((short)0, (short)0, (short)this.vramWidth, (short)this.vramHeight), pixels);
 
       this.vramShader.use();
       this.vramTexture.use();
@@ -680,7 +728,7 @@ public class Gpu implements Runnable {
 
       MemoryUtil.memFree(pixels);
     } else if(this.status.displayAreaColourDepth == DISPLAY_AREA_COLOUR_DEPTH.BITS_24) {
-      int yRangeOffset = 240 - (this.displayRangeY2 - this.displayRangeY1) >> (this.status.verticalResolution == VERTICAL_RESOLUTION._480 ? 0 : 1);
+      int yRangeOffset = 240 * this.renderScale - (this.displayRangeY2 - this.displayRangeY1) >> (this.status.verticalResolution == VERTICAL_RESOLUTION._480 ? 0 : 1);
       if(yRangeOffset < 0) {
         yRangeOffset = 0;
       }
@@ -689,12 +737,12 @@ public class Gpu implements Runnable {
       final ByteBuffer pixels = MemoryUtil.memAlloc(size * 4);
       final IntBuffer pixelsInt = pixels.asIntBuffer();
 
-      for(int y = yRangeOffset; y < this.status.verticalResolution.res - yRangeOffset; y++) {
+      for(int y = yRangeOffset; y < this.status.verticalResolution.res * this.renderScale - yRangeOffset; y++) {
         int offset = 0;
-        for(int x = 0; x < (this.status.horizontalResolution2 == HORIZONTAL_RESOLUTION_2._368 ? 368 : this.status.horizontalResolution1.res); x += 2) {
-          final int p0rgb = this.vram24[offset++ + this.displayStartX + (y - yRangeOffset + this.displayStartY) * 1024];
-          final int p1rgb = this.vram24[offset++ + this.displayStartX + (y - yRangeOffset + this.displayStartY) * 1024];
-          final int p2rgb = this.vram24[offset++ + this.displayStartX + (y - yRangeOffset + this.displayStartY) * 1024];
+        for(int x = 0; x < (this.status.horizontalResolution2 == HORIZONTAL_RESOLUTION_2._368 ? 368 : this.status.horizontalResolution1.res) * this.renderScale; x += 2) {
+          final int p0rgb = this.vram24[offset++ + this.displayStartX + (y - yRangeOffset + this.displayStartY) * this.vramWidth];
+          final int p1rgb = this.vram24[offset++ + this.displayStartX + (y - yRangeOffset + this.displayStartY) * this.vramWidth];
+          final int p2rgb = this.vram24[offset++ + this.displayStartX + (y - yRangeOffset + this.displayStartY) * this.vramWidth];
 
           final int p0bgr555 = colour24To15(p0rgb);
           final int p1bgr555 = colour24To15(p1rgb);
@@ -728,7 +776,7 @@ public class Gpu implements Runnable {
 
       MemoryUtil.memFree(pixels);
     } else { // 15bpp
-      int yRangeOffset = 240 - (this.displayRangeY2 - this.displayRangeY1) >> (this.status.verticalResolution == VERTICAL_RESOLUTION._480 ? 0 : 1);
+      int yRangeOffset = 240 * this.renderScale - (this.displayRangeY2 - this.displayRangeY1) >> (this.status.verticalResolution == VERTICAL_RESOLUTION._480 ? 0 : 1);
       if(yRangeOffset < 0) {
         yRangeOffset = 0;
       }
@@ -741,7 +789,7 @@ public class Gpu implements Runnable {
       final ByteBuffer pixels = MemoryUtil.memAlloc(size * 4);
       final byte[] from = new byte[this.displayTexture.width * 4];
 
-      for(int y = yRangeOffset; y < this.status.verticalResolution.res - yRangeOffset; y++) {
+      for(int y = yRangeOffset; y < this.status.verticalResolution.res * this.renderScale - yRangeOffset; y++) {
         vram.get((this.displayStartX + (y - yRangeOffset + this.displayStartY) * this.vramTexture.width) * 4, from);
         pixels.put(from, 0, from.length);
       }
@@ -766,6 +814,93 @@ public class Gpu implements Runnable {
 
     //TODO in 240-line vertical resolution mode, this changes per scanline. We don't do scanlines. Not sure of the implications.
     this.status.drawingLine = this.status.drawingLine.flip();
+  }
+
+  public int getRenderScale() {
+    return this.renderScale;
+  }
+
+  public void rescaleVram(final int newScale) {
+    if(newScale == this.renderScale) {
+      return;
+    }
+
+    if(this.renderScale > 1) {
+      // Scale down to 1
+
+      this.displayStartX /= this.renderScale;
+      this.displayStartY /= this.renderScale;
+      this.displayRangeX1 /= this.renderScale;
+      this.displayRangeY1 /= this.renderScale;
+      this.displayRangeX2 /= this.renderScale;
+      this.displayRangeY2 /= this.renderScale;
+      this.status.texturePageXBase /= this.renderScale;
+
+      this.vramWidth = STANDARD_VRAM_WIDTH;
+      this.vramHeight = STANDARD_VRAM_HEIGHT;
+
+      final int[] vram15 = new int[this.vramWidth * this.vramHeight];
+      final int[] vram24 = new int[this.vramWidth * this.vramHeight];
+
+      int newIndex = 0;
+      for(int oldY = 0; oldY < this.vramHeight * this.renderScale; oldY += this.renderScale) {
+        for(int oldX = 0; oldX < this.vramWidth * this.renderScale; oldX += this.renderScale) {
+          final int oldIndex = oldY * this.vramWidth * this.renderScale + oldX;
+          vram15[newIndex] = this.vram15[oldIndex];
+          vram24[newIndex] = this.vram24[oldIndex];
+          newIndex++;
+        }
+      }
+
+      this.vram15 = vram15;
+      this.vram24 = vram24;
+      this.renderScale = 1;
+    }
+
+    if(newScale > 1) {
+      // Scale back up if necessary
+
+      this.renderScale = newScale;
+
+      this.displayStartX *= this.renderScale;
+      this.displayStartY *= this.renderScale;
+      this.displayRangeX1 *= this.renderScale;
+      this.displayRangeY1 *= this.renderScale;
+      this.displayRangeX2 *= this.renderScale;
+      this.displayRangeY2 *= this.renderScale;
+      this.status.texturePageXBase *= this.renderScale;
+
+      this.vramWidth = STANDARD_VRAM_WIDTH * this.renderScale;
+      this.vramHeight = STANDARD_VRAM_HEIGHT * this.renderScale;
+
+      final int[] vram15 = new int[this.vramWidth * this.vramHeight];
+      final int[] vram24 = new int[this.vramWidth * this.vramHeight];
+
+      int oldIndex = 0;
+      for(int y = 0; y < this.vramHeight; y += this.renderScale) {
+        for(int x = 0; x < this.vramWidth; x += this.renderScale) {
+          for(int y1 = y; y1 < y + this.renderScale; y1++) {
+            for(int x1 = x; x1 < x + this.renderScale; x1++) {
+              final int newIndex = y1 * this.vramWidth + x1;
+              vram15[newIndex] = this.vram15[oldIndex];
+              vram24[newIndex] = this.vram24[oldIndex];
+            }
+          }
+
+          oldIndex++;
+        }
+      }
+
+      this.vram15 = vram15;
+      this.vram24 = vram24;
+    }
+
+    this.vramTexture.delete();
+    this.vramTexture = Texture.empty(this.vramWidth, this.vramHeight);
+
+    final int horizontalRes = this.status.horizontalResolution2 == HORIZONTAL_RESOLUTION_2._368 ? 368 : this.status.horizontalResolution1.res;
+    final int verticalRes = this.status.verticalResolution.res;
+    this.displaySize(horizontalRes, verticalRes);
   }
 
   private static short signed11bit(final int n) {
@@ -855,14 +990,21 @@ public class Gpu implements Runnable {
       }
     }
 
-    final int clutX = (short)((clut & 0x3f) * 16);
-    final int clutY = (short)(clut >>> 6 & 0x1ff);
+    final int clutX = (short)((clut & 0x3f) * 16) * gpu.renderScale;
+    final int clutY = (short)(clut >>> 6 & 0x1ff) * gpu.renderScale;
+
+    for(int i = 0; i < vertices; i++) {
+      x[i] *= gpu.renderScale;
+      y[i] *= gpu.renderScale;
+      tx[i] *= gpu.renderScale;
+      ty[i] *= gpu.renderScale;
+    }
 
     return () -> {
       LOGGER.trace("[GP0.%02x] Drawing textured %d-point poly offset %d %d, XYUV0 %d %d %d %d, XYUV1 %d %d %d %d, XYUV2 %d %d %d %d, XYUV3 %d %d %d %d, Clut(XY) %04x (%d %d), Page %04x, RGB %06x", command, vertices, gpu.offsetX, gpu.offsetY, x[0], y[0], tx[0], ty[0], x[1], y[1], tx[1], ty[1], x[2], y[2], tx[2], ty[2], x[3], y[3], tx[3], ty[3], clut, clutX, clutY, page, colour);
 
-      final int texturePageXBase = (page       & 0b1111) *  64;
-      final int texturePageYBase = (page >>> 4 & 0b0001) * 256;
+      final int texturePageXBase = (page       & 0b1111) *  64 * gpu.renderScale;
+      final int texturePageYBase = (page >>> 4 & 0b0001) * 256 * gpu.renderScale;
       final SEMI_TRANSPARENCY translucency = SEMI_TRANSPARENCY.values()[page >>> 5 & 0b11];
       final Bpp texturePageColours = Bpp.values()[page >>> 7 & 0b11];
 
@@ -872,7 +1014,7 @@ public class Gpu implements Runnable {
       }
 
       gpu.status.texturePageXBase = texturePageXBase;
-      gpu.status.texturePageYBase = texturePageYBase == 256 ? TEXTURE_PAGE_Y_BASE.BASE_256 : TEXTURE_PAGE_Y_BASE.BASE_0;
+      gpu.status.texturePageYBase = texturePageYBase / gpu.renderScale == 256 ? TEXTURE_PAGE_Y_BASE.BASE_256 : TEXTURE_PAGE_Y_BASE.BASE_0;
       gpu.status.semiTransparency = translucency;
       gpu.status.texturePageColours = texturePageColours;
 
@@ -913,13 +1055,13 @@ public class Gpu implements Runnable {
   }
 
   private void rasterizeLine(final int v1, final int v2, final int colour1, final int colour2, final boolean transparent) {
-    short x = signed11bit(v1 & 0xffff);
-    short y = signed11bit(v1 >> 16);
+    int x = signed11bit(v1 & 0xffff) * this.renderScale;
+    int y = signed11bit(v1 >> 16) * this.renderScale;
 
-    short x2 = signed11bit(v2 & 0xffff);
-    short y2 = signed11bit(v2 >> 16);
+    int x2 = signed11bit(v2 & 0xffff) * this.renderScale;
+    int y2 = signed11bit(v2 >> 16) * this.renderScale;
 
-    if(Math.abs(x - x2) > 0x3ff || Math.abs(y - y2) > 0x1ff) {
+    if(Math.abs(x - x2) >= this.vramWidth || Math.abs(y - y2) >= this.vramHeight) {
       return;
     }
 
@@ -981,7 +1123,11 @@ public class Gpu implements Runnable {
 
         color |= (this.status.setMaskBit ? 1 : 0) << 24;
 
-        this.setPixel(x, y, color);
+        for(int y1 = 0; y1 < this.renderScale; y1++) {
+          for(int x1 = 0; x1 < this.renderScale; x1++) {
+            this.setPixel(x + x1, y + y1, color);
+          }
+        }
       }
 
       numerator += shortest;
@@ -1001,11 +1147,11 @@ public class Gpu implements Runnable {
 
     final int colour = command & 0xff_ffff;
 
-    final int vy = (short)((vertex & 0xffff0000) >>> 16);
-    final int vx = (short)(vertex & 0xffff);
+    final int vy = (short)((vertex & 0xffff0000) >>> 16) * this.renderScale;
+    final int vx = (short)(vertex & 0xffff) * this.renderScale;
 
-    final int vh = (short)((size & 0xffff0000) >>> 16);
-    final int vw = (short)(size & 0xffff);
+    final int vh = (short)((size & 0xffff0000) >>> 16) * this.renderScale;
+    final int vw = (short)(size & 0xffff) * this.renderScale;
 
     return () -> {
       LOGGER.trace("[GP0.%02x] Drawing variable-sized untextured quad offset %d %d, XYWH %d %d %d %d RGB %06x", command >>> 24, this.offsetX, this.offsetY, vx, vy, vw, vh, colour);
@@ -1019,7 +1165,7 @@ public class Gpu implements Runnable {
         for(int x = x1; x < x2; x++) {
           // Check background mask
           if(this.status.drawPixels == DRAW_PIXELS.NOT_TO_MASKED_AREAS) {
-            if((this.getPixel(x & 0x3ff, y & 0x1ff) & 0xff00_0000L) != 0) {
+            if((this.getPixel(x, y) & 0xff00_0000L) != 0) {
               continue;
             }
           }
@@ -1043,21 +1189,21 @@ public class Gpu implements Runnable {
 
     final int colour = command & 0xff_ffff;
 
-    final int vy = (short)((vertex & 0xffff0000) >>> 16);
-    final int vx = (short)(vertex & 0xffff);
+    final int vy = (short)((vertex & 0xffff0000) >>> 16) * this.renderScale;
+    final int vx = (short)(vertex & 0xffff) * this.renderScale;
 
     final int clut = (tex & 0xffff0000) >>> 16;
-    final int ty = (tex & 0xff00) >>> 8;
-    final int tx = tex & 0xff;
+    final int ty = ((tex & 0xff00) >>> 8) * this.renderScale;
+    final int tx = (tex & 0xff) * this.renderScale;
 
-    final int vh = (short)((size & 0xffff0000) >>> 16);
-    final int vw = (short)(size & 0xffff);
+    final int vh = (short)((size & 0xffff0000) >>> 16) * this.renderScale;
+    final int vw = (short)(size & 0xffff) * this.renderScale;
 
-    final int clutX = (short)((clut & 0x3f) * 16);
-    final int clutY = (short)(clut >>> 6 & 0x1ff);
+    final int clutX = (short)((clut & 0x3f) * 16) * this.renderScale;
+    final int clutY = (short)(clut >>> 6 & 0x1ff) * this.renderScale;
 
     return () -> {
-      LOGGER.trace("[GP0.%02x] Drawing variable-sized textured quad offset %d %d, texpage XY %d %d, XYWH %d %d %d %d, UV %d %d, Clut(XY) %04x (%d %d), RGB %06x", command >>> 24, this.offsetX, this.offsetY, this.status.texturePageXBase, this.status.texturePageYBase.value, vx, vy, vw, vh, tx, ty, clut, clutX, clutY, colour);
+      LOGGER.trace("[GP0.%02x] Drawing variable-sized textured quad offset %d %d, texpage XY %d %d, XYWH %d %d %d %d, UV %d %d, Clut(XY) %04x (%d %d), RGB %06x", command >>> 24, this.offsetX, this.offsetY, this.status.texturePageXBase, this.status.texturePageYBase.value * this.renderScale, vx, vy, vw, vh, tx, ty, clut, clutX, clutY, colour);
 
       final int x1 = Math.max(vx + this.offsetX, this.drawingArea.x.get());
       final int y1 = Math.max(vy + this.offsetY, this.drawingArea.y.get());
@@ -1074,12 +1220,12 @@ public class Gpu implements Runnable {
         for(int x = x1, u = u1; x < x2; x++, u++) {
           // Check background mask
           if(this.status.drawPixels == DRAW_PIXELS.NOT_TO_MASKED_AREAS) {
-            if((this.getPixel(x & 0x3ff, y & 0x1ff) & 0xff00_0000L) != 0) {
+            if((this.getPixel(x, y) & 0xff00_0000L) != 0) {
               continue;
             }
           }
 
-          int texel = this.getTexel(this.maskTexelAxis(u, this.preMaskX, this.postMaskX), this.maskTexelAxis(v, this.preMaskY, this.postMaskY), clutX, clutY, this.status.texturePageXBase, this.status.texturePageYBase.value, this.status.texturePageColours);
+          int texel = this.getTexel(this.maskTexelAxis(u, this.preMaskX, this.postMaskX), this.maskTexelAxis(v, this.preMaskY, this.postMaskY), clutX, clutY, this.status.texturePageXBase, this.status.texturePageYBase.value * this.renderScale, this.status.texturePageColours);
           if(texel == 0) {
             continue;
           }
@@ -1133,7 +1279,7 @@ public class Gpu implements Runnable {
     int maxX = Math.max(vx0, Math.max(vx1, vx2));
     int maxY = Math.max(vy0, Math.max(vy1, vy2));
 
-    if(maxX - minX > 1024 || maxY - minY > 512) {
+    if(maxX - minX > this.vramWidth || maxY - minY > this.vramHeight) {
       return;
     }
 
@@ -1154,18 +1300,29 @@ public class Gpu implements Runnable {
     final int bias1 = isTopLeft(vx2, vy2, vx0, vy0) ? 0 : -1;
     final int bias2 = isTopLeft(vx0, vy0, vx1, vy1) ? 0 : -1;
 
-    int w0_row = orient2d(vx1, vy1, vx2, vy2, minX, minY);
-    int w1_row = orient2d(vx2, vy2, vx0, vy0, minX, minY);
-    int w2_row = orient2d(vx0, vy0, vx1, vy1, minX, minY);
+    final int w0_row = orient2d(vx1, vy1, vx2, vy2, minX, minY);
+    final int w1_row = orient2d(vx2, vy2, vx0, vy0, minX, minY);
+    final int w2_row = orient2d(vx0, vy0, vx1, vy1, minX, minY);
+
+    final int minX1 = minX;
+    final int minY1 = minY;
+    final int maxX1 = maxX;
+    final int c11 = c1;
+    final int c21 = c2;
+    final int area1 = area;
+    final int tu11 = tu1;
+    final int tu21 = tu2;
+    final int tv11 = tv1;
+    final int tv21 = tv2;
 
     // Rasterize
-    for(int y = minY; y < maxY; y++) {
+    StreamSupport.intStream(IntStream.range(minY, maxY).spliterator(), true).forEach(y -> {
       // Barycentric coordinates at start of row
-      int w0 = w0_row;
-      int w1 = w1_row;
-      int w2 = w2_row;
+      int w0 = w0_row + (y - minY1) * B12;
+      int w1 = w1_row + (y - minY1) * B20;
+      int w2 = w2_row + (y - minY1) * B01;
 
-      for(int x = minX; x < maxX; x++) {
+      for(int x = minX1; x < maxX1; x++) {
         // If p is on or inside all edges, render pixel
         if((w0 + bias0 | w1 + bias1 | w2 + bias2) >= 0) {
           // Adjustments per triangle instead of per pixel can be done at area level
@@ -1173,8 +1330,8 @@ public class Gpu implements Runnable {
           // I assume it could be handled recalculating AXX and BXX offsets but the math is beyond my scope
 
           // Check background mask
-          if(this.status.drawPixels == DRAW_PIXELS.NOT_TO_MASKED_AREAS) {
-            if((this.getPixel(x, y) & 0xff00_0000L) != 0) {
+          if(Gpu.this.status.drawPixels == DRAW_PIXELS.NOT_TO_MASKED_AREAS) {
+            if((Gpu.this.getPixel(x, y) & 0xff00_0000L) != 0) {
               w0 += A12;
               w1 += A20;
               w2 += A01;
@@ -1186,13 +1343,13 @@ public class Gpu implements Runnable {
           int colour = c0;
 
           if(isShaded) {
-            colour = this.getShadedColor(w0, w1, w2, c0, c1, c2, area);
+            colour = Gpu.this.getShadedColor(w0, w1, w2, c0, c11, c21, area1);
           }
 
           if(isTextured) {
-            final int texelX = interpolateCoords(w0, w1, w2, tu0, tu1, tu2, area);
-            final int texelY = interpolateCoords(w0, w1, w2, tv0, tv1, tv2, area);
-            int texel = this.getTexel(this.maskTexelAxis(texelX, this.preMaskX, this.postMaskX), this.maskTexelAxis(texelY, this.preMaskY, this.postMaskY), clutX, clutY, textureBaseX, textureBaseY, bpp);
+            final int texelX = interpolateCoords(w0, w1, w2, tu0, tu11, tu21, area1);
+            final int texelY = interpolateCoords(w0, w1, w2, tv0, tv11, tv21, area1);
+            int texel = Gpu.this.getTexel(Gpu.this.maskTexelAxis(texelX, Gpu.this.preMaskX, Gpu.this.postMaskX), Gpu.this.maskTexelAxis(texelY, Gpu.this.preMaskY, Gpu.this.postMaskY), clutX, clutY, textureBaseX, textureBaseY, bpp);
             if(texel == 0) {
               w0 += A12;
               w1 += A20;
@@ -1201,19 +1358,19 @@ public class Gpu implements Runnable {
             }
 
             if(!isRaw) {
-              texel = this.applyBlending(colour, texel);
+              texel = Gpu.this.applyBlending(colour, texel);
             }
 
             colour = texel;
           }
 
           if(isTranslucent && (!isTextured || (colour & 0xff00_0000) != 0)) {
-            colour = this.handleTranslucence(x, y, colour, translucencyMode);
+            colour = Gpu.this.handleTranslucence(x, y, colour, translucencyMode);
           }
 
-          colour |= (this.status.setMaskBit ? 1 : 0) << 24;
+          colour |= (Gpu.this.status.setMaskBit ? 1 : 0) << 24;
 
-          this.setPixel(x, y, colour);
+          Gpu.this.setPixel(x, y, colour);
         }
 
         // One step right
@@ -1221,12 +1378,7 @@ public class Gpu implements Runnable {
         w1 += A20;
         w2 += A01;
       }
-
-      // One step down
-      w0_row += B12;
-      w1_row += B20;
-      w2_row += B01;
-    }
+    });
   }
 
   private int applyBlending(final int colour, final int texel) {
@@ -1238,15 +1390,15 @@ public class Gpu implements Runnable {
   }
 
   private int getPixel(final int x, final int y) {
-    return this.vram24[y * VRAM_WIDTH + x];
+    return this.vram24[y * this.vramWidth + x];
   }
 
   private int getPixel15(final int x, final int y) {
-    return this.vram15[y * VRAM_WIDTH + x];
+    return this.vram15[y * this.vramWidth + x];
   }
 
   private void setPixel(final int x, final int y, final int pixel) {
-    final int index = y * VRAM_WIDTH + x;
+    final int index = y * this.vramWidth + x;
     this.vram24[index] = pixel;
     this.vram15[index] = colour24To15(pixel);
   }
@@ -1272,7 +1424,7 @@ public class Gpu implements Runnable {
   }
 
   private int maskTexelAxis(final int axis, final int preMaskAxis, final int postMaskAxis) {
-    return axis & 0xff & preMaskAxis | postMaskAxis;
+    return axis & preMaskAxis | postMaskAxis;
   }
 
   private static boolean isTopLeft(final int ax, final int ay, final int bx, final int by) {
@@ -1293,14 +1445,14 @@ public class Gpu implements Runnable {
 
   private int get4bppTexel(final int x, final int y, final int clutX, final int clutY, final int textureBaseX, final int textureBaseY) {
     final int index = this.getPixel15(x / 4 + textureBaseX, y + textureBaseY);
-    final int p = index >> (x & 3) * 4 & 0xf;
-    return this.getPixel(clutX + p, clutY);
+    final int p = index >> (x / this.renderScale & 3) * 4 & 0xf;
+    return this.getPixel(clutX + p * this.renderScale, clutY);
   }
 
   private int get8bppTexel(final int x, final int y, final int clutX, final int clutY, final int textureBaseX, final int textureBaseY) {
     final int index = this.getPixel15(x / 2 + textureBaseX, y + textureBaseY);
-    final int p = index >> (x & 1) * 8 & 0xff;
-    return this.getPixel(clutX + p, clutY);
+    final int p = index >> (x / this.renderScale & 1) * 8 & 0xff;
+    return this.getPixel(clutX + p * this.renderScale, clutY);
   }
 
   private int get16bppTexel(final int x, final int y, final int textureBaseX, final int textureBaseY) {
@@ -1367,6 +1519,8 @@ public class Gpu implements Runnable {
   }
 
   public void dump(final ByteBuffer stream) {
+    IoHelper.write(stream, this.renderScale);
+
     for(final long pixel : this.vram24) {
       IoHelper.write(stream, pixel);
     }
@@ -1376,6 +1530,8 @@ public class Gpu implements Runnable {
     }
 
     IoHelper.write(stream, this.isVramViewer);
+    IoHelper.write(stream, this.windowWidth);
+    IoHelper.write(stream, this.windowHeight);
 
     IoHelper.write(stream, this.status.texturePageXBase);
     IoHelper.write(stream, this.status.texturePageYBase);
@@ -1433,6 +1589,10 @@ public class Gpu implements Runnable {
   }
 
   public void load(final ByteBuffer buf, final int version) {
+    final int renderScale = version >= 2 ? IoHelper.readInt(buf) : 1;
+
+    this.rescaleVram(renderScale);
+
     for(int i = 0; i < this.vram24.length; i++) {
       this.vram24[i] = IoHelper.readInt(buf);
     }
@@ -1442,6 +1602,11 @@ public class Gpu implements Runnable {
     }
 
     this.isVramViewer = IoHelper.readBool(buf);
+
+    if(version >= 2) {
+      this.windowWidth = IoHelper.readInt(buf);
+      this.windowHeight = IoHelper.readInt(buf);
+    }
 
     this.status.texturePageXBase = IoHelper.readInt(buf);
     this.status.texturePageYBase = IoHelper.readEnum(buf, TEXTURE_PAGE_Y_BASE.class);
@@ -1496,6 +1661,19 @@ public class Gpu implements Runnable {
     this.videoCycles = IoHelper.readInt(buf);
     this.scanLine = IoHelper.readInt(buf);
     this.isOddLine = IoHelper.readBool(buf);
+
+    final int horizontalRes = this.status.horizontalResolution2 == HORIZONTAL_RESOLUTION_2._368 ? 368 : this.status.horizontalResolution1.res;
+    final int verticalRes = this.status.verticalResolution.res;
+
+    this.displaySize(horizontalRes, verticalRes);
+
+    if(this.isVramViewer) {
+      this.window.resize(this.vramTexture.width, this.vramTexture.height);
+    } else {
+      this.window.resize(this.windowWidth, this.windowHeight);
+    }
+
+    this.commandQueue.clear();
   }
 
   public enum GP0_COMMAND {
@@ -1508,12 +1686,12 @@ public class Gpu implements Runnable {
       final int colour = buffer.getInt(0) & 0xff_ffff;
 
       final int vertex = buffer.getInt(1);
-      final int y = (short)((vertex & 0xffff0000) >>> 16);
-      final int x = (short)(vertex & 0xffff);
+      final int y = (short)((vertex & 0xffff0000) >>> 16) * gpu.renderScale;
+      final int x = (short)(vertex & 0xffff) * gpu.renderScale;
 
       final int size = buffer.getInt(2);
-      final int h = (short)((size & 0xffff0000) >>> 16);
-      final int w = (short)(size & 0xffff);
+      final int h = (short)((size & 0xffff0000) >>> 16) * gpu.renderScale;
+      final int w = (short)(size & 0xffff) * gpu.renderScale;
 
       return () -> {
         LOGGER.trace("Fill rectangle in VRAM XYWH %d %d %d %d, RGB %06x", x, y, w, h, colour);
@@ -1633,33 +1811,33 @@ public class Gpu implements Runnable {
 
     COPY_RECT_VRAM_VRAM(0x80, 4, (buffer, gpu) -> {
       final int source = buffer.getInt(1);
-      final int sourceY = (short)((source & 0xffff0000) >>> 16);
-      final int sourceX = (short)(source & 0xffff);
+      final int sourceY = (short)((source & 0xffff0000) >>> 16) * gpu.renderScale;
+      final int sourceX = (short)(source & 0xffff) * gpu.renderScale;
 
       final int dest = buffer.getInt(2);
-      final int destY = (short)((dest & 0xffff0000) >>> 16);
-      final int destX = (short)(dest & 0xffff);
+      final int destY = (short)((dest & 0xffff0000) >>> 16) * gpu.renderScale;
+      final int destX = (short)(dest & 0xffff) * gpu.renderScale;
 
       final int size = buffer.getInt(3);
-      final int height = (short)((size & 0xffff0000) >>> 16);
-      final int width = (short)(size & 0xffff);
+      final int height = (short)((size & 0xffff0000) >>> 16) * gpu.renderScale;
+      final int width = (short)(size & 0xffff) * gpu.renderScale;
 
       return () -> {
         LOGGER.debug("COPY VRAM VRAM from %d %d to %d %d size %d %d", sourceX, sourceY, destX, destY, width, height);
 
         for(int y = 0; y < height; y++) {
           for(int x = 0; x < width; x++) {
-            int colour = gpu.getPixel(sourceX + x & 0x3FF, sourceY + y & 0x1FF);
+            int colour = gpu.getPixel(sourceX + x, sourceY + y);
 
             if(gpu.status.drawPixels == DRAW_PIXELS.NOT_TO_MASKED_AREAS) {
-              if((gpu.getPixel(destX + x & 0x3FF, destY + y & 0x1FF) & 0xff00_0000L) != 0) {
+              if((gpu.getPixel(destX + x, destY + y) & 0xff00_0000L) != 0) {
                 continue;
               }
             }
 
             colour |= (gpu.status.setMaskBit ? 1 : 0) << 24;
 
-            gpu.setPixel(destX + x & 0x3FF, destY + y & 0x1FF, colour);
+            gpu.setPixel(destX + x, destY + y, colour);
           }
         }
       };
@@ -1671,7 +1849,7 @@ public class Gpu implements Runnable {
       return () -> {
         LOGGER.trace("[GP0.e1] Draw mode set to %08x", settings);
 
-        gpu.status.texturePageXBase = (settings & 0b1111) * 64;
+        gpu.status.texturePageXBase = (settings & 0b1111) * 64 * gpu.renderScale;
         gpu.status.texturePageYBase = (settings & 0b1_0000) != 0 ? TEXTURE_PAGE_Y_BASE.BASE_256 : TEXTURE_PAGE_Y_BASE.BASE_0;
         gpu.status.semiTransparency = SEMI_TRANSPARENCY.values()[(settings & 0b110_0000) >>> 5];
         gpu.status.texturePageColours = Bpp.values()[(settings & 0b1_1000_0000) >>> 7];
@@ -1686,10 +1864,10 @@ public class Gpu implements Runnable {
       final int settings = buffer.getInt(0);
 
       return () -> {
-        gpu.textureWindowMaskX   =  (settings & 0b0000_0000_0000_0001_1111)         * 8;
-        gpu.textureWindowMaskY   = ((settings & 0b0000_0000_0011_1110_0000) >>>  5) * 8;
-        gpu.textureWindowOffsetX = ((settings & 0b0000_0111_1100_0000_0000) >>> 10) * 8;
-        gpu.textureWindowOffsetY = ((settings & 0b1111_1000_0000_0000_0000) >>> 15) * 8;
+        gpu.textureWindowMaskX   =  (settings & 0b0000_0000_0000_0001_1111)         * 8 * gpu.renderScale;
+        gpu.textureWindowMaskY   = ((settings & 0b0000_0000_0011_1110_0000) >>>  5) * 8 * gpu.renderScale;
+        gpu.textureWindowOffsetX = ((settings & 0b0000_0111_1100_0000_0000) >>> 10) * 8 * gpu.renderScale;
+        gpu.textureWindowOffsetY = ((settings & 0b1111_1000_0000_0000_0000) >>> 15) * 8 * gpu.renderScale;
 
         gpu.preMaskX = ~(gpu.textureWindowMaskX * 8);
         gpu.preMaskY = ~(gpu.textureWindowMaskY * 8);
@@ -1701,8 +1879,8 @@ public class Gpu implements Runnable {
     DRAWING_AREA_TOP_LEFT(0xe3, 1, (buffer, gpu) -> {
       final int area = buffer.getInt(0);
 
-      final short x = (short)(area & 0b11_1111_1111);
-      final short y = (short)(area >>> 10 & 0b1_1111_1111L);
+      final short x = (short)((area & 0b11_1111_1111) * gpu.renderScale);
+      final short y = (short)((area >>> 10 & 0b1_1111_1111L) * gpu.renderScale);
 
       assert x != 16;
 
@@ -1717,8 +1895,8 @@ public class Gpu implements Runnable {
     DRAWING_AREA_BOTTOM_RIGHT(0xe4, 1, (buffer, gpu) -> {
       final int area = buffer.getInt(0);
 
-      final short x = (short)(area & 0b11_1111_1111);
-      final short y = (short)(area >>> 10 & 0b1_1111_1111L);
+      final short x = (short)((area & 0b11_1111_1111) * gpu.renderScale);
+      final short y = (short)((area >>> 10 & 0b1_1111_1111L) * gpu.renderScale);
 
       return () -> {
         LOGGER.trace("GP0.e3 setting drawing area bottom right to %d, %d", x, y);
@@ -1732,8 +1910,8 @@ public class Gpu implements Runnable {
       final int offset = buffer.getInt(0);
 
       return () -> {
-        gpu.offsetX = signed11bit(offset & 0x7ff);
-        gpu.offsetY = signed11bit(offset >>> 11 & 0x7ff);
+        gpu.offsetX = (short)(signed11bit(offset & 0x7ff) * gpu.renderScale);
+        gpu.offsetY = (short)(signed11bit(offset >>> 11 & 0x7ff) * gpu.renderScale);
       };
     }),
 
@@ -1895,9 +2073,9 @@ public class Gpu implements Runnable {
      */
     public DRAWING_LINE drawingLine = DRAWING_LINE.EVEN;
 
-    private long pack() {
+    private long pack(final Gpu gpu) {
       return
-        this.texturePageXBase / 64 & 0b111 |
+        this.texturePageXBase / gpu.renderScale / 64 & 0b111 |
         (long)this.texturePageYBase.ordinal() << 4 |
         (long)this.semiTransparency.ordinal() << 5 |
         (long)this.texturePageColours.ordinal() << 7 |
@@ -2053,7 +2231,7 @@ public class Gpu implements Runnable {
       synchronized(Gpu.this.commandQueue) {
         try {
           Gpu.this.queueGp0Command(value);
-        } catch(InvalidGp0CommandException e) {
+        } catch(final InvalidGp0CommandException e) {
           throw new RuntimeException("Invalid GP0 packet at 0x%08x".formatted(value), e);
         }
         Gpu.this.processGp0Command();
@@ -2135,8 +2313,8 @@ public class Gpu implements Runnable {
           return;
 
         case 0x05: // Start of display area (in VRAM)
-          Gpu.this.displayStartX = value & 0x3ff;
-          Gpu.this.displayStartY = value >> 10 & 0x3ff;
+          Gpu.this.displayStartX = (value & 0x3ff) * Gpu.this.renderScale;
+          Gpu.this.displayStartY = (value >> 10 & 0x3ff) * Gpu.this.renderScale;
 
           LOGGER.trace("Setting start of display area (in VRAM) to %d, %d", Gpu.this.displayStartX, Gpu.this.displayStartY);
           return;
@@ -2178,15 +2356,15 @@ public class Gpu implements Runnable {
 
           switch(info) {
             case 0x03: // Draw area top left
-              Gpu.this.gpuInfo = Gpu.this.drawingArea.y.get() << 10 | Gpu.this.drawingArea.x.get();
+              Gpu.this.gpuInfo = Gpu.this.drawingArea.y.get() / Gpu.this.renderScale << 10 | Gpu.this.drawingArea.x.get() / Gpu.this.renderScale;
               return;
 
             case 0x04: // Draw area bottom right
-              Gpu.this.gpuInfo = Gpu.this.drawingArea.h.get() << 10 | Gpu.this.drawingArea.w.get();
+              Gpu.this.gpuInfo = Gpu.this.drawingArea.h.get() / Gpu.this.renderScale << 10 | Gpu.this.drawingArea.w.get() / Gpu.this.renderScale;
               return;
 
             case 0x05: // Draw area offset
-              Gpu.this.gpuInfo = Gpu.this.offsetY << 11 | Gpu.this.offsetX;
+              Gpu.this.gpuInfo = Gpu.this.offsetY / Gpu.this.renderScale << 11 | Gpu.this.offsetX / Gpu.this.renderScale;
               return;
 
             case 0x07: // GPU type
@@ -2205,7 +2383,7 @@ public class Gpu implements Runnable {
     }
 
     private long onReg1Read() {
-      return Gpu.this.status.pack();
+      return Gpu.this.status.pack(Gpu.this);
     }
   }
 }

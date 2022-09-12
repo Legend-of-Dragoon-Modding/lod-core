@@ -54,6 +54,7 @@ import static org.lwjgl.glfw.GLFW.glfwSetWindowPos;
 import static org.lwjgl.glfw.GLFW.glfwSetWindowShouldClose;
 import static org.lwjgl.glfw.GLFW.glfwSetWindowSize;
 import static org.lwjgl.glfw.GLFW.glfwSetWindowSizeCallback;
+import static org.lwjgl.glfw.GLFW.glfwSetWindowTitle;
 import static org.lwjgl.glfw.GLFW.glfwShowWindow;
 import static org.lwjgl.glfw.GLFW.glfwSwapBuffers;
 import static org.lwjgl.glfw.GLFW.glfwSwapInterval;
@@ -155,6 +156,10 @@ public class Window {
     this.fpsLimit = limit;
   }
 
+  public int getFpsLimit() {
+    return this.fpsLimit;
+  }
+
   public void show() {
     glfwShowWindow(this.window);
   }
@@ -177,6 +182,10 @@ public class Window {
 
   public boolean isKeyPressed(final int key) {
     return glfwGetKey(this.window, key) == GLFW_PRESS;
+  }
+
+  public void setTitle(final String title) {
+    glfwSetWindowTitle(this.window, title);
   }
 
   public String getClipboardString() {
