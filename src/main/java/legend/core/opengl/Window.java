@@ -156,6 +156,10 @@ public class Window {
     this.fpsLimit = limit;
   }
 
+  public int getFpsLimit() {
+    return this.fpsLimit;
+  }
+
   public void show() {
     glfwShowWindow(this.window);
   }
