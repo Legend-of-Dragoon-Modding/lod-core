@@ -1034,7 +1034,11 @@ public class Gpu implements Runnable {
 
         color |= (this.status.setMaskBit ? 1 : 0) << 24;
 
-        this.setPixel(x, y, color);
+        for(int y1 = 0; y1 < RENDER_SCALE; y1++) {
+          for(int x1 = 0; x1 < RENDER_SCALE; x1++) {
+            this.setPixel(x + x1, y + y1, color);
+          }
+        }
       }
 
       numerator += shortest;
