@@ -3,10 +3,6 @@ package legend.core;
 import legend.core.cdrom.CdDrive;
 import legend.core.dma.DmaManager;
 import legend.core.gpu.Gpu;
-import legend.core.input.Controller;
-import legend.core.input.DigitalController;
-import legend.core.input.Joypad;
-import legend.core.input.MemoryCard;
 import legend.core.kernel.Bios;
 import legend.core.mdec.Mdec;
 import legend.core.memory.EntryPoint;
@@ -51,16 +47,12 @@ public final class Hardware {
   public static final Timers TIMERS;
   public static final CdDrive CDROM;
   public static final Spu SPU;
-  public static final MemoryCard MEMCARD;
-  public static final Controller CONTROLLER;
-  public static final Joypad JOYPAD;
 
   public static final Thread codeThread;
   public static final Thread hardwareThread;
   public static final Thread gpuThread;
   public static final Thread timerThread;
   public static final Thread spuThread;
-  public static final Thread joyThread;
 
   @Nullable
   public static final Class<?> ENTRY_POINT;
@@ -69,13 +61,12 @@ public final class Hardware {
   public static boolean hardwareWaiting;
   public static boolean timerWaiting;
   public static boolean spuWaiting;
-  public static boolean joyWaiting;
   private static final List<Runnable> loadStateListeners = new ArrayList<>();
 
   private static void dumpLock() {
     dumping = true;
 
-    while(!hardwareWaiting || !timerWaiting || !spuWaiting || !joyWaiting) {
+    while(!hardwareWaiting || !timerWaiting || !spuWaiting) {
       DebugHelper.sleep(1);
     }
   }
@@ -101,7 +92,6 @@ public final class Hardware {
     MDEC.dump(stream);
     CDROM.dump(stream);
     SPU.dump(stream);
-    JOYPAD.dump(stream);
 
     dumpUnlock();
   }
@@ -131,7 +121,6 @@ public final class Hardware {
     MDEC.load(stream, version);
     CDROM.load(stream, version);
     SPU.load(stream, version);
-    JOYPAD.load(stream, version);
     GATE.release();
 
     loadStateListeners.forEach(Runnable::run);
@@ -243,9 +232,6 @@ public final class Hardware {
     TIMERS = new Timers(MEMORY);
     CDROM = new CdDrive(MEMORY);
     SPU = new Spu(MEMORY);
-    MEMCARD = new MemoryCard();
-    CONTROLLER = new DigitalController();
-    JOYPAD = new Joypad(MEMORY, CONTROLLER, MEMCARD);
 
     codeThread = new Thread(Hardware::run);
     codeThread.setName("Code");
@@ -257,8 +243,6 @@ public final class Hardware {
     timerThread.setName("Timers");
     spuThread = new Thread(SPU);
     spuThread.setName("SPU");
-    joyThread = new Thread(JOYPAD);
-    joyThread.setName("Joypad");
 
     final String entryPointClassName = System.getProperty("entrypoint", "");
     if(entryPointClassName.isEmpty()) {
@@ -298,7 +282,6 @@ public final class Hardware {
     gpuThread.start();
     timerThread.start();
     spuThread.start();
-    joyThread.start();
 
     running = true;
     while(running) {
@@ -315,11 +298,10 @@ public final class Hardware {
       CPU.tick();
 
       DebugHelper.sleep(0);
-      if(!codeThread.isAlive() || !gpuThread.isAlive() || !timerThread.isAlive() || !spuThread.isAlive() || !joyThread.isAlive()) {
+      if(!codeThread.isAlive() || !gpuThread.isAlive() || !timerThread.isAlive() || !spuThread.isAlive()) {
         running = false;
         TIMERS.stop();
         SPU.stop();
-        JOYPAD.stop();
       }
 
       while(dumping) {

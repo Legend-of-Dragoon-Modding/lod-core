@@ -1,7 +1,5 @@
 package legend.core.gpu;
 
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import legend.core.Config;
@@ -10,7 +8,6 @@ import legend.core.IoHelper;
 import legend.core.MathHelper;
 import legend.core.Timers;
 import legend.core.dma.DmaChannel;
-import legend.core.input.GamepadInputsEnum;
 import legend.core.memory.IllegalAddressException;
 import legend.core.memory.Memory;
 import legend.core.memory.MisalignedAccessException;
@@ -44,28 +41,11 @@ import java.util.function.BiFunction;
 import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
 
-import static legend.core.Hardware.CONTROLLER;
 import static legend.core.Hardware.DMA;
 import static legend.core.Hardware.INTERRUPTS;
 import static legend.core.Hardware.MEMORY;
 import static legend.core.MathHelper.colour24To15;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_1;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_3;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_A;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_C;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_D;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_E;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_Q;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_S;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_SPACE;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_TAB;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_UP;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_W;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_Z;
 import static org.lwjgl.glfw.GLFW.glfwGetCurrentContext;
 import static org.lwjgl.opengl.GL11C.GL_NEAREST;
 import static org.lwjgl.opengl.GL11C.GL_RGBA;
@@ -147,27 +127,8 @@ public class Gpu implements Runnable {
   private int scanLine;
   private boolean isOddLine;
 
-  final Int2ObjectMap<GamepadInputsEnum> gamepadKeyMap = new Int2ObjectOpenHashMap<>();
-
   public Gpu(final Memory memory) {
     memory.addSegment(new GpuSegment(0x1f80_1810L));
-
-    this.gamepadKeyMap.put(GLFW_KEY_SPACE, GamepadInputsEnum.SELECT);
-    this.gamepadKeyMap.put(GLFW_KEY_Z, GamepadInputsEnum.L3);
-    this.gamepadKeyMap.put(GLFW_KEY_C, GamepadInputsEnum.R3);
-    this.gamepadKeyMap.put(GLFW_KEY_ENTER, GamepadInputsEnum.START);
-    this.gamepadKeyMap.put(GLFW_KEY_UP, GamepadInputsEnum.UP);
-    this.gamepadKeyMap.put(GLFW_KEY_RIGHT, GamepadInputsEnum.RIGHT);
-    this.gamepadKeyMap.put(GLFW_KEY_DOWN, GamepadInputsEnum.DOWN);
-    this.gamepadKeyMap.put(GLFW_KEY_LEFT, GamepadInputsEnum.LEFT);
-    this.gamepadKeyMap.put(GLFW_KEY_1, GamepadInputsEnum.L2);
-    this.gamepadKeyMap.put(GLFW_KEY_3, GamepadInputsEnum.R2);
-    this.gamepadKeyMap.put(GLFW_KEY_Q, GamepadInputsEnum.L1);
-    this.gamepadKeyMap.put(GLFW_KEY_E, GamepadInputsEnum.R1);
-    this.gamepadKeyMap.put(GLFW_KEY_W, GamepadInputsEnum.TRIANGLE);
-    this.gamepadKeyMap.put(GLFW_KEY_D, GamepadInputsEnum.CIRCLE);
-    this.gamepadKeyMap.put(GLFW_KEY_S, GamepadInputsEnum.CROSS);
-    this.gamepadKeyMap.put(GLFW_KEY_A, GamepadInputsEnum.SQUARE);
   }
 
   public Window.Events events() {
@@ -546,30 +507,6 @@ public class Gpu implements Runnable {
     this.vramMesh.attribute(1, 2L, 2, 4);
 
     this.displaySize(320, 240);
-
-    this.window.events.onKeyPress((window, key, scancode, mods) -> {
-      if(mods != 0) {
-        return;
-      }
-
-      final GamepadInputsEnum input = this.gamepadKeyMap.get(key);
-
-      if(input != null) {
-        CONTROLLER.handleJoyPadDown(input);
-      }
-    });
-
-    this.window.events.onKeyRelease((window, key, scancode, mods) -> {
-      if(mods != 0) {
-        return;
-      }
-
-      final GamepadInputsEnum input = this.gamepadKeyMap.get(key);
-
-      if(input != null) {
-        CONTROLLER.handleJoyPadUp(input);
-      }
-    });
 
     this.lastFrame = System.nanoTime();
 
