@@ -488,66 +488,6 @@ public final class Kernel {
     }
 
     return null;
-
-//    if(current.isNull()) {
-//      return null;
-//    }
-//
-//    Pointer<PriorityChainEntry> next = current.deref().next;
-//
-//    if(next.isNull()) {
-//      return null;
-//    }
-//
-//    //LAB_0000146c
-//    if(next.deref().getAddress() == struct.getAddress()) {
-//      if(next.deref().next.isNull()) {
-//        next.clear();
-//        return null;
-//      }
-//
-//      if(next.deref().next.deref().getAddress() == current.deref().getAddress()) {
-//        throw new IllegalStateException("Priority chain entry cannot reference itself");
-//      }
-//
-//      next.set(next.deref().next.deref());
-//      return next.deref();
-//    }
-//
-//    //LAB_00001484
-//    Pointer<PriorityChainEntry> nextNext = next.deref().next;
-//    if(nextNext.isNull()) {
-//      return null;
-//    }
-//
-//    //LAB_0000149c
-//    //LAB_000014b0
-//    //LAB_000014c4
-//    do {
-//      current = next;
-//      next = nextNext;
-//
-//      //LAB_000014c8
-//      if(nextNext.deref().getAddress() == struct.getAddress()) {
-//        break;
-//      }
-//
-//      nextNext = nextNext.deref().next;
-//    } while(!nextNext.isNull());
-//
-//    //LAB_000014e4
-//    if(next.deref().getAddress() != struct.getAddress()) {
-//      return null;
-//    }
-//
-//    if(next.deref().getAddress() == current.deref().getAddress()) {
-//      throw new IllegalStateException("Priority chain entry cannot reference itself");
-//    }
-//
-//    current.deref().next.set(next.deref());
-//
-//    //LAB_00001500
-//    return next.deref();
   }
 
   @Method(0x1508L)
@@ -1187,12 +1127,8 @@ public final class Kernel {
 
     //LAB_000031a0
     _0000890c.setu(0);
-    LOGGER.error("%s is not known device", a0);
-    LOGGER.error("Known devices are:");
-    PrintInstalledDevices_Impl_B49();
 
-    //LAB_000031d0
-    return 0;
+    throw new RuntimeException(a0 + " is not a known device");
   }
 
   @Method(0x31e8L)
@@ -1335,29 +1271,6 @@ public final class Kernel {
     //LAB_00003d90
     //LAB_00003d94
     return false;
-  }
-
-  @Method(0x3dacL)
-  public static void PrintInstalledDevices_Impl_B49() {
-    long devicePtr = DeviceControlBlockBaseAddr_00006ee0.getAddress();
-
-    if(_00007200.get() > 0) {
-      final long lastDevicePtr = DeviceControlBlockBaseAddr_00006ee0.offset(_00007200.get() * 80).getAddress();
-
-      //LAB_00003df8
-      do {
-        final long namePtr = MEMORY.ref(4, devicePtr).get();
-
-        if(namePtr != 0) {
-          LOGGER.info("\t%s:\t%s", MEMORY.ref(1, namePtr).getString(), MEMORY.ref(4, devicePtr).offset(0xcL).deref(1).getString());
-        }
-
-        //LAB_00003e34
-        devicePtr += 0x50L;
-      } while(devicePtr < lastDevicePtr);
-    }
-
-    //LAB_00003e4c
   }
 
   @Method(0x3e80L)

@@ -30,7 +30,6 @@ import static legend.core.Hardware.SPU;
 import static legend.core.InterruptController.I_MASK;
 import static legend.core.InterruptController.I_STAT;
 import static legend.core.MathHelper.toBcd;
-import static legend.core.MemoryHelper.getMethodAddress;
 import static legend.core.cdrom.CdDrive.CDROM_REG0;
 import static legend.core.cdrom.CdDrive.CDROM_REG1;
 import static legend.core.cdrom.CdDrive.CDROM_REG2;
@@ -156,18 +155,12 @@ public final class Bios {
 
   public static final EXEC exe_a000b870 = MEMORY.ref(4, 0xa000b870L, EXEC::new);
 
-  public static final Value _a000b890 = MEMORY.ref(4, 0xa000b890L);
-  public static final Value _a000b894 = MEMORY.ref(4, 0xa000b894L);
-
   public static final Value exeName_a000b8b0 = MEMORY.ref(1, 0xa000b8b0L);
 
   public static final Value _a000b938 = MEMORY.ref(4, 0xa000b938L);
   public static final Value _a000b93c = MEMORY.ref(4, 0xa000b93cL);
-  public static final Value _a000b940 = MEMORY.ref(4, 0xa000b940L);
-  public static final Value _a000b944 = MEMORY.ref(4, 0xa000b944L);
-  public static final Value _a000b948 = MEMORY.ref(4, 0xa000b948L);
-
-  public static final jmp_buf jmp_buf_a000b980 = MEMORY.ref(0x10, 0xa000b980L, jmp_buf::new);
+  public static final Value tcbCount_a000b940 = MEMORY.ref(4, 0xa000b940L);
+  public static final Value eventCount_a000b944 = MEMORY.ref(4, 0xa000b944L);
 
   public static final Value EventId_HwCdRom_EvSpACK_a000b9b8 = MEMORY.ref(1, 0xa000b9b8L);
   public static final Value EventId_HwCdRom_EvSpCOMP_a000b9bc = MEMORY.ref(1, 0xa000b9bcL);
@@ -176,8 +169,6 @@ public final class Bios {
   public static final Value EventId_HwCdRom_EvSpERROR_a000b9c8 = MEMORY.ref(1, 0xa000b9c8L);
 
   public static final Value kernelMemoryStart_a000e000 = MEMORY.ref(1, 0xa000e000L);
-
-  public static final Value userRamStart_a0010000 = MEMORY.ref(4, 0xa0010000L);
 
   public static final Value _bfc0e14c = MEMORY.ref(1, 0xbfc0e14cL);
 
@@ -1409,118 +1400,51 @@ public final class Bios {
     LOGGER.info("PS-X Realtime Kernel Ver.2.5");
     LOGGER.info("Copyright 1993,1994 (C) Sony Computer Entertainment Inc.");
 
-    memcpy_Impl_A2a(_a000b940.getAddress(), _bfc0e14c.getAddress(), 0xc);
+    memcpy_Impl_A2a(tcbCount_a000b940.getAddress(), _bfc0e14c.getAddress(), 0xc);
 
     LOGGER.info("KERNEL SETUP!");
     SysInitMemory(kernelMemoryStart_a000e000.getAddress(), 0x2000);
     allocateExceptionChain(4);
     EnqueueSyscallHandler(0);
     InitDefInt(3);
-    allocateEventControlBlock((int)_a000b944.get());
-    allocateThreadControlBlock(1, (int)_a000b940.get());
+    allocateEventControlBlock((int)eventCount_a000b944.get());
+    allocateThreadControlBlock(1, (int)tcbCount_a000b940.get());
     EnqueueTimerAndVblankIrqs(1);
-
-    setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop385"), RunnableRef::new));
 
     I_MASK.setu(0);
     I_STAT.setu(0);
     CdInit_Impl_A54();
-    setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop399"), RunnableRef::new));
 
     LOGGER.info("");
     LOGGER.info("BOOTSTRAP LOADER Type C Ver 2.1   03-JUL-1994");
     LOGGER.info("Copyright 1993,1994 (C) Sony Computer Entertainment Inc.");
-    setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop386"), RunnableRef::new));
-
-    setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop387"), RunnableRef::new));
 
     //LAB_bfc06a3c
     //LAB_bfc06af4
-    _a000b940.setu(4);
-    _a000b944.setu(10);
-    _a000b948.setu(0x801fffffL);
+    tcbCount_a000b940.setu(4);
+    eventCount_a000b944.setu(10);
     exeName_a000b8b0.set("cdrom:\\SCUS_944.91;1");
-
-    //LAB_bfc06b60
-    setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop388"), RunnableRef::new));
 
     //LAB_bfc06b7c
     reinitKernel();
     LOGGER.info("boot file     : %s", exeName_a000b8b0.getString());
-    setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop389"), RunnableRef::new));
 
     //LAB_bfc06bb4
-    //Don't need to clearUserRam();
     if(!LoadExeFile_Impl_A42(exeName_a000b8b0.getString(), exe_a000b870.getAddress())) {
       stop(0x38a);
     }
 
     //LAB_bfc06be0
     LOGGER.info("EXEC:PC0(%08x)  T_ADDR(%08x)  T_SIZE(%08x)", exe_a000b870.pc0.get(), exe_a000b870.t_addr.get(), exe_a000b870.t_size.get());
-    LOGGER.info("boot address  : %08x %08x", exe_a000b870.pc0.get(), _a000b948.get());
+    LOGGER.info("boot address  : %08x", exe_a000b870.pc0.get());
     LOGGER.info("Execute !");
-    _a000b890.setu(_a000b948);
-    _a000b894.setu(0);
-    LOGGER.info("                S_ADDR(%08x)  S_SIZE(%08x)", _a000b948.get(), 0);
 
     EnterCriticalSection();
-    setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop38b"), RunnableRef::new));
 
     //LAB_bfc06c6c
     Exec_Impl_A43(exe_a000b870, 1, 0);
     LOGGER.info("Exiting");
     System.exit(0);
-//    stop(0x38c);
-  }
-
-  @Method(0xbfc06980L)
-  public static void stop385() {
-    stop(0x385);
-  }
-
-  @Method(0xbfc069c8L)
-  public static void stop399() {
-    stop(0x399);
-  }
-
-  @Method(0xbfc06a0cL)
-  public static void stop386() {
-    stop(0x386);
-  }
-
-  @Method(0xbfc06a30L)
-  public static void stop387() {
-    stop(0x387);
-  }
-
-  @Method(0xbfc06a70L)
-  public static void stop38f() {
-    stop(0x38f);
-  }
-
-  @Method(0xbfc06aecL)
-  public static void stop390() {
-    stop(0x390);
-  }
-
-  @Method(0xbfc06b2cL)
-  public static void stop391() {
-    stop(0x391);
-  }
-
-  @Method(0xbfc06b78L)
-  public static void stop388() {
-    stop(0x388);
-  }
-
-  @Method(0xbfc06bb0L)
-  public static void stop389() {
-    stop(0x389);
-  }
-
-  @Method(0xbfc06c64L)
-  public static void stop38b() {
-    stop(0x38b);
   }
 
   @Method(0xbfc06f28L)
@@ -1530,8 +1454,8 @@ public final class Bios {
     allocateExceptionChain(4);
     EnqueueSyscallHandler(0);
     InitDefInt(3);
-    allocateEventControlBlock((int)_a000b944.get());
-    allocateThreadControlBlock(1, (int)_a000b940.get());
+    allocateEventControlBlock((int)eventCount_a000b944.get());
+    allocateThreadControlBlock(1, (int)tcbCount_a000b940.get());
     EnqueueTimerAndVblankIrqs(1);
     registerCdromEvents();
   }
@@ -2106,13 +2030,6 @@ public final class Bios {
   @Method(0xbfc085b0L)
   public static void AddCdromDevice_Impl_A96() {
     AddDevice(CdromDeviceInfo_bfc0e2f0.getAddress());
-  }
-
-  @Method(0xbfc0d850L)
-  public static void clearUserRam() {
-    for(int i = 0; i < 0x1e_0000; i += 0x4L) {
-      userRamStart_a0010000.offset(i).setu(0);
-    }
   }
 
   @Method(0xbfc0d890L)
