@@ -26,7 +26,6 @@ import static legend.core.Hardware.DMA;
 import static legend.core.Hardware.ENTRY_POINT;
 import static legend.core.Hardware.GATE;
 import static legend.core.Hardware.MEMORY;
-import static legend.core.Hardware.SPU;
 import static legend.core.InterruptController.I_MASK;
 import static legend.core.InterruptController.I_STAT;
 import static legend.core.MathHelper.toBcd;
@@ -36,8 +35,6 @@ import static legend.core.cdrom.CdDrive.CDROM_REG2;
 import static legend.core.cdrom.CdDrive.CDROM_REG3;
 import static legend.core.dma.DmaManager.DMA_DICR;
 import static legend.core.dma.DmaManager.DMA_DPCR;
-import static legend.core.gpu.Gpu.GPU_REG0;
-import static legend.core.gpu.Gpu.GPU_REG1;
 import static legend.core.kernel.Kernel.AddDevice_Impl_B47;
 import static legend.core.kernel.Kernel.CloseEvent_Impl_B09;
 import static legend.core.kernel.Kernel.DeliverEvent_Impl_B07;
@@ -159,8 +156,6 @@ public final class Bios {
 
   public static final Value _a000b938 = MEMORY.ref(4, 0xa000b938L);
   public static final Value _a000b93c = MEMORY.ref(4, 0xa000b93cL);
-  public static final Value tcbCount_a000b940 = MEMORY.ref(4, 0xa000b940L);
-  public static final Value eventCount_a000b944 = MEMORY.ref(4, 0xa000b944L);
 
   public static final Value EventId_HwCdRom_EvSpACK_a000b9b8 = MEMORY.ref(1, 0xa000b9b8L);
   public static final Value EventId_HwCdRom_EvSpCOMP_a000b9bc = MEMORY.ref(1, 0xa000b9bcL);
@@ -179,16 +174,6 @@ public final class Bios {
   @Method(0xbfc00000L)
   public static void main() {
     LOGGER.info("Executing BIOS");
-
-    FUN_bfc00150();
-  }
-
-  @Method(0xbfc00150L)
-  public static void FUN_bfc00150() {
-    SPU.MAIN_VOL_L.set(0);
-    SPU.MAIN_VOL_R.set(0);
-    SPU.REVERB_OUT_L.set(0);
-    SPU.REVERB_OUT_R.set(0);
 
     bootstrapExecutable("cdrom:SYSTEM.CNF;1", "cdrom:PSX.EXE;1");
   }
@@ -268,23 +253,6 @@ public final class Bios {
     return dst;
   }
 
-  @Method(0xbfc02ea0L)
-  public static char toupper_Impl_A25(final char c) {
-    return Character.toUpperCase(c);
-  }
-
-  @Method(0xbfc03190L)
-  @Nullable
-  public static String strcat_Impl_15(@Nullable final CString dest, @Nullable final String src) {
-    if(dest == null) {
-      return null;
-    }
-
-    final String out = dest.get() + src;
-    dest.set(out);
-    return out;
-  }
-
   @Method(0xbfc03288L)
   public static int strcmp_Impl_A17(final String s1, final String s2) {
     return s1.compareToIgnoreCase(s2);
@@ -354,7 +322,7 @@ public final class Bios {
     }
 
     //LAB_bfc03a3c
-    if(!FUN_bfc03c90(fd, header)) {
+    if(!readExeHeader(fd, header)) {
       close(fd);
       return false;
     }
@@ -368,7 +336,7 @@ public final class Bios {
   }
 
   @Method(0xbfc03c90L)
-  public static boolean FUN_bfc03c90(final int fd, final long header) {
+  public static boolean readExeHeader(final int fd, final long header) {
     final int bytesRead = read(fd, _a000b070.getAddress(), 0x800);
 
     if(bytesRead >= 0x800) {
@@ -383,15 +351,6 @@ public final class Bios {
 
   @Method(0xbfc03cf0L)
   public static long Exec_Impl_A43(final EXEC header, final int argc, final long argv) {
-    long b_size = header.b_size.get();
-    long b_addr = header.b_addr.get();
-
-    while((int)b_size > 0) {
-      MEMORY.ref(4, b_addr).setu(0);
-      b_addr += 0x4L;
-      b_size -= 0x4L;
-    }
-
     final Value entry = MEMORY.ref(4, header.pc0.get());
 
     GATE.release();
@@ -406,70 +365,6 @@ public final class Bios {
     GATE.acquire();
 
     return 0x1L;
-  }
-
-  @Method(0xbfc03facL)
-  public static void GPU_cw_Impl_A49(final int gp0cmd) {
-    gpu_sync_Impl_A4e();
-    GPU_REG0.setu(gp0cmd);
-  }
-
-  @Method(0xbfc040ecL)
-  public static void gpu_abort_dma_Impl_A4c() {
-    DMA.gpu.CHCR.setu(0x401L);
-    GPU_REG1.setu(0x400_0000L);
-    GPU_REG1.setu(0x200_0000L);
-    GPU_REG1.setu(0x100_0000L);
-  }
-
-  @Method(0xbfc04138L)
-  public static int gpu_sync_Impl_A4e() {
-    long v1 = 0x1000_0000L;
-    if(GPU_REG1.get(0x6000_0000L) == 0) {
-      //LAB_bfc04174
-      while(GPU_REG1.get(0x1000_0000L) == 0) {
-        if(v1 == 0) {
-          FUN_bfc04260("GPU_sync(FG)");
-          return 0xffff_ffff;
-        }
-
-        //LAB_bfc04190
-        v1--;
-      }
-
-      //LAB_bfc041a4
-      return 0;
-    }
-
-    //LAB_bfc041ac
-    //LAB_bfc041d0
-    while(DMA.gpu.CHCR.get(0x100_0000L) != 0) {
-      if(v1 == 0) {
-        FUN_bfc04260("GPU_sync(BG)");
-        return 0xffff_ffff;
-      }
-
-      //LAB_bfc041ec
-      v1--;
-    }
-
-    //LAB_bfc04200
-    //LAB_bfc04214
-    while(GPU_REG1.get(0x400_0000L) == 0) {
-      DebugHelper.sleep(1);
-    }
-
-    //LAB_bfc04248
-    GPU_REG1.setu(0x400_0000L);
-
-    //LAB_bfc04250
-    return 0;
-  }
-
-  @Method(0xbfc04260L)
-  public static void FUN_bfc04260(final String log) {
-    LOGGER.error("%s timeout: gp1=%08x", log, GPU_REG1.get());
-    gpu_abort_dma_Impl_A4c();
   }
 
   @Method(0xbfc04610L)
@@ -1400,15 +1295,13 @@ public final class Bios {
     LOGGER.info("PS-X Realtime Kernel Ver.2.5");
     LOGGER.info("Copyright 1993,1994 (C) Sony Computer Entertainment Inc.");
 
-    memcpy_Impl_A2a(tcbCount_a000b940.getAddress(), _bfc0e14c.getAddress(), 0xc);
-
     LOGGER.info("KERNEL SETUP!");
     SysInitMemory(kernelMemoryStart_a000e000.getAddress(), 0x2000);
     allocateExceptionChain(4);
     EnqueueSyscallHandler(0);
     InitDefInt(3);
-    allocateEventControlBlock((int)eventCount_a000b944.get());
-    allocateThreadControlBlock(1, (int)tcbCount_a000b940.get());
+    allocateEventControlBlock(10);
+    allocateThreadControlBlock(1, 4);
     EnqueueTimerAndVblankIrqs(1);
 
     I_MASK.setu(0);
@@ -1421,17 +1314,22 @@ public final class Bios {
 
     //LAB_bfc06a3c
     //LAB_bfc06af4
-    tcbCount_a000b940.setu(4);
-    eventCount_a000b944.setu(10);
     exeName_a000b8b0.set("cdrom:\\SCUS_944.91;1");
 
     //LAB_bfc06b7c
-    reinitKernel();
+    SysInitMemory(kernelMemoryStart_a000e000.getAddress(), 0x2000);
+    allocateExceptionChain(4);
+    EnqueueSyscallHandler(0);
+    InitDefInt(3);
+    allocateEventControlBlock(10);
+    allocateThreadControlBlock(1, 4);
+    EnqueueTimerAndVblankIrqs(1);
+    registerCdromEvents();
     LOGGER.info("boot file     : %s", exeName_a000b8b0.getString());
 
     //LAB_bfc06bb4
     if(!LoadExeFile_Impl_A42(exeName_a000b8b0.getString(), exe_a000b870.getAddress())) {
-      stop(0x38a);
+      throw new RuntimeException("Failed to load exe");
     }
 
     //LAB_bfc06be0
@@ -1445,25 +1343,6 @@ public final class Bios {
     Exec_Impl_A43(exe_a000b870, 1, 0);
     LOGGER.info("Exiting");
     System.exit(0);
-  }
-
-  @Method(0xbfc06f28L)
-  public static void reinitKernel() {
-    LOGGER.info("KERNEL SETUP!");
-    SysInitMemory(kernelMemoryStart_a000e000.getAddress(), 0x2000);
-    allocateExceptionChain(4);
-    EnqueueSyscallHandler(0);
-    InitDefInt(3);
-    allocateEventControlBlock((int)eventCount_a000b944.get());
-    allocateThreadControlBlock(1, (int)tcbCount_a000b940.get());
-    EnqueueTimerAndVblankIrqs(1);
-    registerCdromEvents();
-  }
-
-  @Method(0xbfc06fa4L)
-  public static void stop(final int errorCode) {
-    SystemErrorBootOrDiskFailure_Impl_Aa1('B', errorCode);
-    System.exit(errorCode);
   }
 
   @Method(value = 0xbfc06fdcL, ignoreExtraParams = true)
@@ -1670,14 +1549,14 @@ public final class Bios {
 
     int s0 = 0;
     int s1 = 0;
-    char c = toupper_Impl_A25(path.charAt(0));
+    char c = Character.toUpperCase(path.charAt(0));
     temp[0] = c;
 
     //LAB_bfc07910
     while(c != 0 && s1 < path.length() - 1) {
       s1++;
       s0++;
-      c = toupper_Impl_A25(path.charAt(s1));
+      c = Character.toUpperCase(path.charAt(s1));
       temp[s0] = c;
     }
 

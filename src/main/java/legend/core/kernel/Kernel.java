@@ -1,5 +1,6 @@
 package legend.core.kernel;
 
+import legend.core.MemoryHelper;
 import legend.core.memory.Method;
 import legend.core.memory.Ref;
 import legend.core.memory.Value;
@@ -40,7 +41,6 @@ import static legend.core.kernel.Bios.ProcessControlBlockPtr_a0000108;
 import static legend.core.kernel.Bios.SystemErrorUnresolvedException_Impl_A40;
 import static legend.core.kernel.Bios.memcpy_Impl_A2a;
 import static legend.core.kernel.Bios.strcmp_Impl_A17;
-import static legend.core.kernel.Bios.toupper_Impl_A25;
 
 public final class Kernel {
   private Kernel() { }
@@ -62,8 +62,6 @@ public final class Kernel {
   private static final PriorityChainEntry SyscallHandlerStruct_00006da8 = MEMORY.ref(1, 0x00006da8L, PriorityChainEntry::new);
 
   private static final Value DeviceControlBlockBaseAddr_00006ee0 = MEMORY.ref(1, 0x00006ee0L);
-
-  private static final Value _00007200 = MEMORY.ref(4, 0x00007200L);
 
   private static final Value systemMemoryAddr_00007460 = MEMORY.ref(4, 0x00007460L);
   private static final Value systemMemorySize_00007464 = MEMORY.ref(4, 0x00007464L);
@@ -90,10 +88,8 @@ public final class Kernel {
   private static final Value _0000890c = MEMORY.ref(4, 0x0000890cL);
 
   private static final Value FileControlBlockAddr_a0000140 = MEMORY.ref(4, 0xa0000140L);
-  private static final Value FileControlBlockSize_a0000144 = MEMORY.ref(4, 0xa0000144L);
 
   private static final Value DeviceControlBlockAddr_a0000150 = MEMORY.ref(4, 0xa0000150L);
-  private static final Value DeviceControlBlockSize_a0000154 = MEMORY.ref(4, 0xa0000154L);
 
   public static final long DescMask = 0xff000000L;
   public static final long DescTH   = DescMask;
@@ -212,16 +208,6 @@ public final class Kernel {
 
   @Method(0xeb0L)
   public static void InstallExceptionHandlers_Impl_C07() {
-    long v0 = exceptionVector_00000080.getAddress();
-    long k0 = 0xf0cL;
-
-    //LAB_00000ec8
-    do {
-      MEMORY.ref(4, v0).setu(MEMORY.ref(4, k0));
-      k0 += 0x4L;
-      v0 += 0x4L;
-    } while(k0 != 0xf1cL);
-
     exceptionVector_00000080.set(Kernel::exceptionVector);
   }
 
@@ -232,6 +218,8 @@ public final class Kernel {
 
   @Method(0xf2cL)
   public static void SetDefaultExitFromException_Impl_B18() {
+    DefaultExceptionExitStruct_00006cf4.set(MEMORY.ref(4, MemoryHelper.getMethodAddress(Kernel.class, "ReturnFromException_Impl_B17"), RunnableRef::new));
+
     ExceptionExitStruct_000075d0.set(DefaultExceptionExitStruct_00006cf4);
   }
 
@@ -832,9 +820,7 @@ public final class Kernel {
   @Method(0x27c0L)
   public static void InstallDevices_Impl_C12(final int ttyFlag) {
     FileControlBlockAddr_a0000140.setu(FileControlBlockBaseAddr_00008648.getAddress());
-    FileControlBlockSize_a0000144.setu(704L);
     DeviceControlBlockAddr_a0000150.setu(DeviceControlBlockBaseAddr_00006ee0.getAddress());
-    DeviceControlBlockSize_a0000154.setu(_00007200.get() * 0x50L);
 
     _00007480.setu(0);
 
@@ -1107,22 +1093,19 @@ public final class Kernel {
 
   @Method(0x3108L)
   public static long getDeviceIndex(final String a0) {
-    if(_00007200.get() > 0) {
-      final long t2 = DeviceControlBlockBaseAddr_00006ee0.offset(_00007200.get() * 80).getAddress();
-      long s0 = DeviceControlBlockBaseAddr_00006ee0.getAddress();
+    long s0 = DeviceControlBlockBaseAddr_00006ee0.getAddress();
 
-      //LAB_00003154
-      do {
-        final String s1 = MEMORY.ref(4, s0).deref(1).getString();
-        if(!s1.isEmpty()) {
-          if(strcmp(s1, a0) == 0) {
-            return s0;
-          }
+    //LAB_00003154
+    for(int i = 0; i < 10; i++) {
+      final String s1 = MEMORY.ref(4, s0).deref(1).getString();
+      if(!s1.isEmpty()) {
+        if(strcmp(s1, a0) == 0) {
+          return s0;
         }
+      }
 
-        //LAB_0000317c
-        s0 += 0x50L;
-      } while(s0 < t2);
+      //LAB_0000317c
+      s0 += 0x50L;
     }
 
     //LAB_000031a0
@@ -1189,7 +1172,7 @@ public final class Kernel {
 
       //LAB_000032fc
       while(a0 != 0) {
-        final char uppercase = toupper(a0);
+        final char uppercase = Character.toUpperCase(a0);
 
         if(MEMORY.ref(1, 0x73d1).offset(sp44[s0]).get(0x4L) == 0) {
           v1 = 0x37;
@@ -1222,25 +1205,14 @@ public final class Kernel {
 
   @Method(0x3c2cL)
   public static boolean AddDevice_Impl_B47(final long deviceInfo) {
-    if(_00007200.get() == 0) {
-      return false;
-    }
-
-    final long v0 = DeviceControlBlockBaseAddr_00006ee0.offset(_00007200.get() * 80).getAddress();
-
     //LAB_00003c6c
-    long v1 = 0;
-    do {
-      if(DeviceControlBlockBaseAddr_00006ee0.offset(v1).get() == 0) {
-        memcpy(DeviceControlBlockBaseAddr_00006ee0.offset(v1).getAddress(), deviceInfo, 0x50);
-
-        DeviceControlBlockBaseAddr_00006ee0.offset(v1).offset(4, 0x10L).deref(4).cast(RunnableRef::new).run();
+    for(int i = 0; i < 10; i++) {
+      if(DeviceControlBlockBaseAddr_00006ee0.offset(i * 0x50L).get() == 0) {
+        memcpy(DeviceControlBlockBaseAddr_00006ee0.offset(i * 0x50L).getAddress(), deviceInfo, 0x50);
+        DeviceControlBlockBaseAddr_00006ee0.offset(i * 0x50L).offset(4, 0x10L).deref(4).cast(RunnableRef::new).run();
         return true;
       }
-
-      //LAB_00003cbc
-      v1 += 0x50L;
-    } while(v1 < v0);
+    }
 
     //LAB_00003ccc
     //LAB_00003cd0
@@ -1249,24 +1221,16 @@ public final class Kernel {
 
   @Method(0x3ce0L)
   public static boolean RemoveDevice_Impl_B48(final String device) {
-    if(_00007200.get() == 0) {
-      return false;
-    }
-
     //LAB_00003d2c
-    long s0 = 0;
-    do {
+    for(int i = 0; i < 10; i++) {
       if(DeviceControlBlockBaseAddr_00006ee0.get() != 0) {
         if(strcmp(device, DeviceControlBlockBaseAddr_00006ee0.getString()) == 0) {
-          DeviceControlBlockBaseAddr_00006ee0.offset(s0).offset(0x48L).deref(4).cast(RunnableRef::new).run();
-          DeviceControlBlockBaseAddr_00006ee0.offset(s0).setu(0);
+          DeviceControlBlockBaseAddr_00006ee0.offset(i * 0x50L).offset(0x48L).deref(4).cast(RunnableRef::new).run();
+          DeviceControlBlockBaseAddr_00006ee0.offset(i * 0x50L).setu(0);
           return true;
         }
       }
-
-      //LAB_00003d68
-      s0 += 0x50L;
-    } while(s0 < DeviceControlBlockBaseAddr_00006ee0.offset(_00007200.get() * 80).getAddress());
+    }
 
     //LAB_00003d90
     //LAB_00003d94
@@ -1321,11 +1285,6 @@ public final class Kernel {
   @Method(0x6a80L)
   public static void SystemErrorUnresolvedException() {
     SystemErrorUnresolvedException_Impl_A40();
-  }
-
-  @Method(0x6a90)
-  public static char toupper(final char c) {
-    return toupper_Impl_A25(c);
   }
 
   @Method(0x6aa0L)
