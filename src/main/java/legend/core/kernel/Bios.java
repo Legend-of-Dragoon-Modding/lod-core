@@ -8,10 +8,8 @@ import legend.core.memory.Method;
 import legend.core.memory.Value;
 import legend.core.memory.types.ArrayRef;
 import legend.core.memory.types.BiConsumerRef;
-import legend.core.memory.types.BiFunctionRef;
 import legend.core.memory.types.CString;
 import legend.core.memory.types.ConsumerRef;
-import legend.core.memory.types.IntRef;
 import legend.core.memory.types.Pointer;
 import legend.core.memory.types.ProcessControlBlock;
 import legend.core.memory.types.RunnableRef;
@@ -41,6 +39,12 @@ import static legend.core.dma.DmaManager.DMA_DICR;
 import static legend.core.dma.DmaManager.DMA_DPCR;
 import static legend.core.gpu.Gpu.GPU_REG0;
 import static legend.core.gpu.Gpu.GPU_REG1;
+import static legend.core.kernel.Kernel.AddDevice_Impl_B47;
+import static legend.core.kernel.Kernel.CloseEvent_Impl_B09;
+import static legend.core.kernel.Kernel.DeliverEvent_Impl_B07;
+import static legend.core.kernel.Kernel.EnableEvent_Impl_B0c;
+import static legend.core.kernel.Kernel.EnqueueSyscallHandler_Impl_C01;
+import static legend.core.kernel.Kernel.EnqueueTimerAndVblankIrqs_Impl_C00;
 import static legend.core.kernel.Kernel.EvMdNOINTR;
 import static legend.core.kernel.Kernel.EvSpACK;
 import static legend.core.kernel.Kernel.EvSpCOMP;
@@ -49,35 +53,27 @@ import static legend.core.kernel.Kernel.EvSpDR;
 import static legend.core.kernel.Kernel.EvSpERROR;
 import static legend.core.kernel.Kernel.EvSpTIMOUT;
 import static legend.core.kernel.Kernel.EvSpUNKNOWN;
+import static legend.core.kernel.Kernel.FileClose_Impl_B36;
+import static legend.core.kernel.Kernel.FileOpen_Impl_B32;
+import static legend.core.kernel.Kernel.FileRead_Impl_B34;
 import static legend.core.kernel.Kernel.HwCdRom;
-import static legend.core.memory.segments.ExpansionRegion1Segment.EXPANSION_REGION_1;
-import static legend.core.memory.segments.ExpansionRegion2Segment.BOOT_STATUS;
-import static legend.core.memory.segments.ExpansionRegion2Segment.EXPANSION_REGION_2;
-import static legend.core.memory.segments.MemoryControl1Segment.BIOS_ROM;
-import static legend.core.memory.segments.MemoryControl1Segment.CDROM_DELAY;
-import static legend.core.memory.segments.MemoryControl1Segment.COMMON_DELAY;
-import static legend.core.memory.segments.MemoryControl1Segment.EXP1_BASE_ADDR;
-import static legend.core.memory.segments.MemoryControl1Segment.EXP1_DELAY_SIZE;
-import static legend.core.memory.segments.MemoryControl1Segment.EXP2_BASE_ADDR;
-import static legend.core.memory.segments.MemoryControl1Segment.EXP2_DELAY_SIZE;
-import static legend.core.memory.segments.MemoryControl1Segment.EXP3_DELAY_SIZE;
-import static legend.core.memory.segments.MemoryControl1Segment.SPU_DELAY;
-import static legend.core.memory.segments.MemoryControl2Segment.RAM_SIZE;
+import static legend.core.kernel.Kernel.InitDefInt_Impl_C0c;
+import static legend.core.kernel.Kernel.InstallDevices_Impl_C12;
+import static legend.core.kernel.Kernel.InstallExceptionHandlers_Impl_C07;
+import static legend.core.kernel.Kernel.OpenEvent_Impl_B08;
+import static legend.core.kernel.Kernel.ReturnFromException_Impl_B17;
+import static legend.core.kernel.Kernel.SetDefaultExitFromException_Impl_B18;
+import static legend.core.kernel.Kernel.SysDeqIntRP_Impl_C03;
+import static legend.core.kernel.Kernel.SysEnqIntRP_Impl_C02;
+import static legend.core.kernel.Kernel.SysInitMemory_Impl_C08;
+import static legend.core.kernel.Kernel.TestEvent_Impl_B0b;
+import static legend.core.kernel.Kernel.UnDeliverEvent_Impl_B20;
+import static legend.core.kernel.Kernel.alloc_kernel_memory_Impl_B00;
 
 public final class Bios {
   private Bios() { }
 
   private static final Logger LOGGER = LogManager.getFormatterLogger(Bios.class);
-
-  private static final Object[] EMPTY_OBJ_ARRAY = new Object[0];
-
-  public static final BiFunctionRef<Long, Object[], Object> functionVectorA_000000a0 = MEMORY.ref(4, 0x000000a0L, BiFunctionRef::new);
-  public static final BiFunctionRef<Long, Object[], Object> functionVectorB_000000b0 = MEMORY.ref(4, 0x000000b0L, BiFunctionRef::new);
-  public static final BiFunctionRef<Long, Object[], Object> functionVectorC_000000c0 = MEMORY.ref(4, 0x000000c0L, BiFunctionRef::new);
-
-  public static final Value argv_00000180 = MEMORY.ref(1, 0x00000180L);
-
-  public static final Value jumpTableA_00000200 = MEMORY.ref(4, 0x00000200L);
 
   public static final Pointer<ArrayRef<Pointer<PriorityChainEntry>>> ExceptionChainPtr_a0000100 = MEMORY.ref(4, 0xa0000100L, Pointer.of(0x20, ArrayRef.of(Pointer.classFor(PriorityChainEntry.class), 4, 4, 8, Pointer.of(0x10, PriorityChainEntry::new))));
   public static final Value ExceptionChainSize_a0000104 = MEMORY.ref(4, 0xa0000104L);
@@ -90,7 +86,6 @@ public final class Bios {
   public static final Value EventControlBlockSize_a0000124 = MEMORY.ref(4, 0xa0000124L);
 
   public static final Value kernelStart_a0000500 = MEMORY.ref(4, 0xa0000500L);
-  public static final Value abcFunctionVectorsStart_a0000510 = MEMORY.ref(4, 0xa0000510L);
 
   public static final Value randSeed_a0009010 = MEMORY.ref(4, 0xa0009010L);
 
@@ -141,8 +136,6 @@ public final class Bios {
 
   public static final Value _a0009e18 = MEMORY.ref(1, 0xa0009e18L);
 
-  public static final Value _a000b068 = MEMORY.ref(4, 0xa000b068L);
-
   public static final Value _a000b070 = MEMORY.ref(4, 0xa000b070L);
   public static final Value _a000b071 = MEMORY.ref(1, 0xa000b071L);
 
@@ -161,12 +154,12 @@ public final class Bios {
   public static final Value _a000b110 = MEMORY.ref(1, 0xa000b110L);
   public static final Value _a000b111 = MEMORY.ref(1, 0xa000b111L);
 
-  public static final EXEC _a000b870 = MEMORY.ref(4, 0xa000b870L, EXEC::new);
+  public static final EXEC exe_a000b870 = MEMORY.ref(4, 0xa000b870L, EXEC::new);
 
   public static final Value _a000b890 = MEMORY.ref(4, 0xa000b890L);
   public static final Value _a000b894 = MEMORY.ref(4, 0xa000b894L);
 
-  public static final Value _a000b8b0 = MEMORY.ref(1, 0xa000b8b0L);
+  public static final Value exeName_a000b8b0 = MEMORY.ref(1, 0xa000b8b0L);
 
   public static final Value _a000b938 = MEMORY.ref(4, 0xa000b938L);
   public static final Value _a000b93c = MEMORY.ref(4, 0xa000b93cL);
@@ -176,28 +169,19 @@ public final class Bios {
 
   public static final jmp_buf jmp_buf_a000b980 = MEMORY.ref(0x10, 0xa000b980L, jmp_buf::new);
 
-  public static final IntRef ttyFlag_a000b9b0 = MEMORY.ref(4, 0xa000b9b0L, IntRef::new);
-
   public static final Value EventId_HwCdRom_EvSpACK_a000b9b8 = MEMORY.ref(1, 0xa000b9b8L);
   public static final Value EventId_HwCdRom_EvSpCOMP_a000b9bc = MEMORY.ref(1, 0xa000b9bcL);
   public static final Value EventId_HwCdRom_EvSpDR_a000b9c0 = MEMORY.ref(1, 0xa000b9c0L);
   public static final Value EventId_HwCdRom_EvSpDE_a000b9c4 = MEMORY.ref(1, 0xa000b9c4L);
   public static final Value EventId_HwCdRom_EvSpERROR_a000b9c8 = MEMORY.ref(1, 0xa000b9c8L);
 
-  public static final Value responseFromBootMenu_a000dffc = MEMORY.ref(1, 0xa000dffcL);
   public static final Value kernelMemoryStart_a000e000 = MEMORY.ref(1, 0xa000e000L);
 
   public static final Value userRamStart_a0010000 = MEMORY.ref(4, 0xa0010000L);
 
-  public static final Value jumpTableARom_bfc04300 = MEMORY.ref(4, 0xbfc04300L);
-
-  public static final Value _bfc0ddb1 = MEMORY.ref(1, 0xbfc0ddb1L);
-
   public static final Value _bfc0e14c = MEMORY.ref(1, 0xbfc0e14cL);
 
   public static final Value CdromDeviceInfo_bfc0e2f0 = MEMORY.ref(12, 0xbfc0e2f0L);
-
-  public static final Value DummyTtyDeviceInfo_bfc0e350 = MEMORY.ref(12, 0xbfc0e350L);
 
   public static final Value kernelStartRom_bfc10000 = MEMORY.ref(4, 0xbfc10000L);
 
@@ -205,35 +189,17 @@ public final class Bios {
   public static void main() {
     LOGGER.info("Executing BIOS");
 
-    BIOS_ROM.setu(0x13243fL);
-    RAM_SIZE.setu(0xb88L);
     FUN_bfc00150();
   }
 
   @Method(0xbfc00150L)
   public static void FUN_bfc00150() {
-    COMMON_DELAY.setu(0x3_1125L);
-    EXP1_BASE_ADDR.setu(EXPANSION_REGION_1.getAddress());
-    EXP2_BASE_ADDR.setu(EXPANSION_REGION_2.getAddress());
-    EXP1_DELAY_SIZE.setu(0x13_243fL);
-    SPU_DELAY.setu(0x2009_31e1L);
-    CDROM_DELAY.setu(0x2_0843L);
-    EXP3_DELAY_SIZE.setu(0x3022L);
-    EXP2_DELAY_SIZE.setu(0x7_0777L);
-
-    // Clear cache, clear RAM, clear CP0 registers...
-
-    RAM_SIZE.setu(0xb88L);
-    MEMORY.set(0x60L, 4, 0x02L);
-    MEMORY.set(0x64L, 4, 0x00L);
-    MEMORY.set(0x68L, 4, 0xffL);
-
     SPU.MAIN_VOL_L.set(0);
     SPU.MAIN_VOL_R.set(0);
     SPU.REVERB_OUT_L.set(0);
     SPU.REVERB_OUT_R.set(0);
 
-    FUN_bfc06ec4();
+    bootstrapExecutable("cdrom:SYSTEM.CNF;1", "cdrom:PSX.EXE;1");
   }
 
   /**
@@ -244,212 +210,6 @@ public final class Bios {
     //LAB_bfc00434
     MEMORY.memcpy(kernelStart_a0000500.getAddress(), kernelStartRom_bfc10000.getAddress(), 0x8bf0);
     MEMORY.addFunctions(Kernel.class);
-    kernelStart_a0000500.cast(RunnableRef::new).run();
-  }
-
-  @Method(0xbfc008a0L)
-  public static void loadCnf(final long a0, final long a1, final long a2) {
-    //LAB_bfc008bc
-    for(int i = 0; i < 3; i++) {
-      MEMORY.ref(4, a1).offset(i * 4).setu(0);
-    }
-
-    MEMORY.ref(1, a2).setu(0);
-    argv_00000180.setu(0);
-
-    getCnfInt(a0, a1, "TCB");
-    getCnfInt(a0, a1 + 0x4L, "EVENT");
-    getCnfInt(a0, a1 + 0x8L, "STACK");
-    getCnfString(a0, a2, argv_00000180.getAddress(), "BOOT");
-  }
-
-  @Method(0xbfc00944L)
-  public static void getCnfInt(final long a0, final long dest, final String a2) {
-    long s0 = a0;
-
-    if(MEMORY.ref(1, s0).get() != 0) {
-      //LAB_bfc00978
-      //LAB_bfc009a4
-      while(strncmp_Impl_A18(MEMORY.ref(1, s0).getString(), a2, a2.length()) != 0) {
-        char c = (char)MEMORY.ref(1, s0).get();
-
-        //LAB_bfc009b4
-        while(c != '\n') {
-          if(c == '\0') {
-            return;
-          }
-
-          s0++;
-          c = (char)MEMORY.ref(1, s0).get();
-        }
-
-        //LAB_bfc009cc
-        if(c == '\0') {
-          break;
-        }
-
-        s0++;
-      }
-    }
-
-    //LAB_bfc009fc
-    s0 += a2.length();
-    char c = (char)MEMORY.ref(1, s0).get();
-
-    //LAB_bfc00a30
-    while(_bfc0ddb1.offset(c).get(0x8L) != 0) {
-      if(c == '\n' || c == '\0') {
-        return;
-      }
-
-      s0++;
-      c = (char)MEMORY.ref(1, s0).get();
-    }
-
-    //LAB_bfc00a64
-    if(c != '=' || c == '\n' || c == '\0') {
-      return;
-    }
-
-    s0++;
-    c = (char)MEMORY.ref(1, s0).get();
-    long v0 = _bfc0ddb1.offset(c).get();
-
-    //LAB_bfc00aa4
-    while((v0 & 0x8L) != 0) {
-      if(c == '\n' || c == '\0') {
-        return;
-      }
-
-      s0++;
-      c = (char)MEMORY.ref(1, s0).get();
-      v0 = _bfc0ddb1.offset(c).get();
-    }
-
-    //LAB_bfc00ae0
-    long s1 = 0;
-
-    //LAB_bfc00aec
-    while((v0 & 0x44L) != 0) {
-      if((v0 & 0x4L) == 0) {
-        //LAB_bfc00b04
-        s1 = toupper_Impl_A25(c) + s1 * 16 - 0x37L;
-      } else {
-        s1 = c + s1 * 16 - 0x30L;
-      }
-
-      //LAB_bfc00b20
-      s0++;
-      c = (char)MEMORY.ref(1, s0).get();
-      v0 = _bfc0ddb1.offset(c).get();
-    }
-
-    //LAB_bfc00b48
-    MEMORY.ref(4, dest).setu(s1);
-    LOGGER.info("%s\t%08x", a2, s1);
-
-    //LAB_bfc00b68;
-  }
-
-  @Method(0xbfc00b7cL)
-  public static void getCnfString(final long a0, final long a1, final long a2, final String a3) {
-    if(MEMORY.ref(1, a0).get() == 0) {
-      return;
-    }
-
-    //LAB_bfc00bc4
-    long s0 = a0;
-    do {
-      if(strncmp_Impl_A18(MEMORY.ref(1, s0).getString(), a3, a3.length()) == 0) {
-        s0 += a3.length();
-        long v0 = MEMORY.ref(1, s0).get();
-
-        //LAB_bfc00c04
-        while(_bfc0ddb1.offset(v0).get(0x8L) != 0) {
-          if(v0 == 0xaL || v0 == 0) {
-            return;
-          }
-
-          s0++;
-          v0 = MEMORY.ref(1, s0).get();
-        }
-
-        //LAB_bfc00c38
-        if(v0 != 0x3dL || v0 == 0xaL || v0 == 0) {
-          return;
-        }
-
-        s0++;
-        v0 = MEMORY.ref(1, s0).get();
-
-        //LAB_bfc00c74
-        while(_bfc0ddb1.offset(v0).get(0x8L) != 0) {
-          if(v0 == 0xaL || v0 == 0) {
-            return;
-          }
-
-          s0++;
-          v0 = MEMORY.ref(1, s0).get();
-        }
-
-        //LAB_bfc00ca8
-        final long v = s0;
-
-        //LAB_bfc00cb0
-        while(v0 != 0xaL) {
-          s0++;
-          v0 = MEMORY.ref(1, s0).get();
-        }
-
-        //LAB_bfc00cc0
-        MEMORY.ref(1, s0).setu(0);
-
-        //LAB_bfc00ce4
-        v0 = v;
-        while(_bfc0ddb1.offset(MEMORY.ref(1, v0)).get(0x8L) == 0) {
-          v0++;
-        }
-
-        //LAB_bfc00d04
-        MEMORY.ref(1, v0).setu(0);
-        MEMORY.ref(1, a1).set(MEMORY.ref(1, v).getString());
-        MEMORY.ref(1, a2).set(MEMORY.ref(1, v0).offset(0x1L).getString(0x80));
-        LOGGER.info("BOOT =\t%s", MEMORY.ref(1, a1).getString());
-        LOGGER.info("argument =\t%s", MEMORY.ref(1, a2).getString());
-        return;
-      }
-
-      //LAB_bfc00d50
-      long v0 = MEMORY.ref(1, s0).get();
-
-      //LAB_bfc00d60
-      while(v0 != 0xaL) {
-        if(v0 == 0) {
-          return;
-        }
-
-        s0++;
-        v0 = MEMORY.ref(1, s0).get();
-      }
-
-      //LAB_bfc00d78
-      s0++;
-    } while(MEMORY.ref(1, s0).get() != 0);
-
-    //LAB_bfc00d8c
-  }
-
-  @Method(0xbfc01920L)
-  public static void FlushCache_Impl_A44() {
-    // Flush cache not necessary - we don't cache opcodes
-  }
-
-  @Method(0xbfc01a60L)
-  public static void setBootStatus(final long bootCode) {
-    LOGGER.info("Boot status: %02x", bootCode);
-
-    BOOT_STATUS.setu(bootCode);
-    FUN_bfc03990();
   }
 
   @Method(0xbfc01accL)
@@ -595,11 +355,6 @@ public final class Bios {
     return MEMORY.ref(len, str1.getAddress(), CString::new);
   }
 
-  @Method(0xbfc03990L)
-  public static void FUN_bfc03990() {
-    _a000b068.setu(0);
-  }
-
   @Method(0xbfc03a18L)
   public static boolean LoadExeFile_Impl_A42(final String filename, final long header) {
     final int fd = open(filename, 1);
@@ -616,7 +371,6 @@ public final class Bios {
     //LAB_bfc03a68
     read(fd, MEMORY.ref(4, header).offset(0x8L).get(), (int)MEMORY.ref(4, header).offset(0xcL).get());
     close(fd);
-    FlushCache_Impl_A44();
 
     //LAB_bfc03a94
     return true;
@@ -725,17 +479,6 @@ public final class Bios {
   public static void FUN_bfc04260(final String log) {
     LOGGER.error("%s timeout: gp1=%08x", log, GPU_REG1.get());
     gpu_abort_dma_Impl_A4c();
-  }
-
-  @Method(0xbfc042a0L)
-  public static void copyAbcFunctionVectors_Impl_A45() {
-    MEMORY.memcpy(functionVectorA_000000a0.getAddress(), abcFunctionVectorsStart_a0000510.getAddress(), 0x30);
-    MEMORY.addFunctions(FunctionVectors.class);
-  }
-
-  @Method(0xbfc042d0L)
-  public static void copyJumpTableA() {
-    MEMORY.memcpy(jumpTableA_00000200.getAddress(), jumpTableARom_bfc04300.getAddress(), 0x300);
   }
 
   @Method(0xbfc04610L)
@@ -1546,8 +1289,6 @@ public final class Bios {
       CDROM_REG3.get(); // Intentional read to nowhere
       CDROM_REG0.setu(0);
       CDROM_REG3.setu(0x80L);
-      CDROM_DELAY.setu(0x2_0943L);
-      COMMON_DELAY.setu(0x132cL);
       _a000917c.setu(a2 - 0x1L);
       FUN_bfc065c0(_a0009188.get(), _a0009198.get());
 
@@ -1647,76 +1388,27 @@ public final class Bios {
     DMA.cdrom.CHCR.setu(0x1100_0000L);
   }
 
-  @Method(0xbfc06680L)
-  public static void SetMemSize_Impl_A9f(final int megabytes) {
-    if(megabytes == 0x2L) {
-      //LAB_bfc066bc
-      RAM_SIZE.and(0xffff_f8ffL);
-    } else {
-      if(megabytes != 0x8L) {
-        //LAB_bfc066e4
-        LOGGER.error("Effective memory must be 2/8 MBytes");
-        return;
-      }
-
-      //LAB_bfc066c8
-      RAM_SIZE.setu(RAM_SIZE.get(0xffff_f8ff) | 0x300L);
-    }
-
-    //LAB_bfc066cc
-    MEMORY.ref(4, 0x60L).setu(megabytes);
-    LOGGER.info("Change effective memory : %d MBytes", megabytes);
-  }
-
-  @Method(0xbfc06784L)
-  public static void FUN_bfc06784() {
-    bootstrapExecutable("cdrom:SYSTEM.CNF;1", "cdrom:PSX.EXE;1");
-  }
-
   @Method(0xbfc067e8L)
   public static void bootstrapExecutable(final String cnf, final String exe) {
     LOGGER.info("Bootstrapping %s / %s", exe, cnf);
 
-    setBootStatus(0x1L);
     CPU.R12_SR.resetIEc();
     CPU.R12_SR.setIm(CPU.R12_SR.getIm() & 0xffff_fbfeL);
 
-    SPU.REVERB_OUT_L.set(0);
-    SPU.REVERB_OUT_R.set(0);
-    SPU.MAIN_VOL_L.set(0);
-    SPU.MAIN_VOL_R.set(0);
-
-    setBootStatus(0x2L);
     copyKernelSegment2();
 
-    setBootStatus(0x3L);
-    copyJumpTableA();
-    copyAbcFunctionVectors_Impl_A45();
-    AdjustA0Table();
     InstallExceptionHandlers();
     SetDefaultExitFromException();
-
-    setBootStatus(0x4L);
-    SPU.REVERB_OUT_L.set(0);
-    SPU.REVERB_OUT_R.set(0);
-    SPU.MAIN_VOL_L.set(0);
-    SPU.MAIN_VOL_R.set(0);
 
     I_MASK.setu(0);
     I_STAT.setu(0);
 
-    InstallDevices(ttyFlag_a000b9b0.get());
+    InstallDevices(0);
 
-    setBootStatus(0x5L);
     LOGGER.info("");
     LOGGER.info("PS-X Realtime Kernel Ver.2.5");
     LOGGER.info("Copyright 1993,1994 (C) Sony Computer Entertainment Inc.");
 
-    setBootStatus(0x6L);
-    SPU.REVERB_OUT_L.set(0);
-    SPU.REVERB_OUT_R.set(0);
-    SPU.MAIN_VOL_L.set(0);
-    SPU.MAIN_VOL_R.set(0);
     memcpy_Impl_A2a(_a000b940.getAddress(), _bfc0e14c.getAddress(), 0xc);
 
     LOGGER.info("KERNEL SETUP!");
@@ -1728,78 +1420,44 @@ public final class Bios {
     allocateThreadControlBlock(1, (int)_a000b940.get());
     EnqueueTimerAndVblankIrqs(1);
 
-    SPU.REVERB_OUT_L.set(0);
-    SPU.REVERB_OUT_R.set(0);
-    SPU.MAIN_VOL_L.set(0);
-    SPU.MAIN_VOL_R.set(0);
     setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop385"), RunnableRef::new));
 
-    setBootStatus(0x7L);
-    loadIntroAndBootMenu();
-
-    setBootStatus(0x8L);
     I_MASK.setu(0);
     I_STAT.setu(0);
     CdInit_Impl_A54();
     setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop399"), RunnableRef::new));
-
-    // PIO shell init here (loadPioShell)
 
     LOGGER.info("");
     LOGGER.info("BOOTSTRAP LOADER Type C Ver 2.1   03-JUL-1994");
     LOGGER.info("Copyright 1993,1994 (C) Sony Computer Entertainment Inc.");
     setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop386"), RunnableRef::new));
 
-    setBootStatus(0x9L);
     setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop387"), RunnableRef::new));
 
     //LAB_bfc06a3c
-    final int fp = open(cnf, 1);
-    if(fp < 0) {
-      //LAB_bfc06b18
-      setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop391"), RunnableRef::new));
-
-      //LAB_bfc06b34
-      argv_00000180.setu(0);
-      memcpy_Impl_A2a(_a000b940.getAddress(), _bfc0e14c.getAddress(), 0xc);
-      _a000b8b0.set(exe);
-    } else {
-      LOGGER.info("setup file    : %s", cnf);
-      setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop38f"), RunnableRef::new));
-
-      //LAB_bfc06a7c
-      final long size = read(fp, _a000b070.getAddress(), 0x800);
-      if(size == 0) {
-        memcpy_Impl_A2a(_a000b940.getAddress(), _bfc0e14c.getAddress(), 0xc);
-        _a000b8b0.set(exe);
-      } else {
-        //LAB_bfc06ac4
-        _a000b070.offset(size).setu(0);
-        close(fp);
-        setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop390"), RunnableRef::new));
-
-        //LAB_bfc06af4
-        loadCnf(_a000b070.getAddress(), _a000b940.getAddress(), _a000b8b0.getAddress());
-      }
-    }
+    //LAB_bfc06af4
+    _a000b940.setu(4);
+    _a000b944.setu(10);
+    _a000b948.setu(0x801fffffL);
+    exeName_a000b8b0.set("cdrom:\\SCUS_944.91;1");
 
     //LAB_bfc06b60
     setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop388"), RunnableRef::new));
 
     //LAB_bfc06b7c
     reinitKernel();
-    LOGGER.info("boot file     : %s", _a000b8b0.getString());
+    LOGGER.info("boot file     : %s", exeName_a000b8b0.getString());
     setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop389"), RunnableRef::new));
 
     //LAB_bfc06bb4
     //Don't need to clearUserRam();
-    if(!LoadExeFile_Impl_A42(_a000b8b0.getString(), _a000b870.getAddress())) {
+    if(!LoadExeFile_Impl_A42(exeName_a000b8b0.getString(), exe_a000b870.getAddress())) {
       stop(0x38a);
     }
 
     //LAB_bfc06be0
-    LOGGER.info("EXEC:PC0(%08x)  T_ADDR(%08x)  T_SIZE(%08x)", _a000b870.pc0.get(), _a000b870.t_addr.get(), _a000b870.t_size.get());
-    LOGGER.info("boot address  : %08x %08x", _a000b870.pc0.get(), _a000b948.get());
+    LOGGER.info("EXEC:PC0(%08x)  T_ADDR(%08x)  T_SIZE(%08x)", exe_a000b870.pc0.get(), exe_a000b870.t_addr.get(), exe_a000b870.t_size.get());
+    LOGGER.info("boot address  : %08x %08x", exe_a000b870.pc0.get(), _a000b948.get());
     LOGGER.info("Execute !");
     _a000b890.setu(_a000b948);
     _a000b894.setu(0);
@@ -1809,7 +1467,7 @@ public final class Bios {
     setjmp_Impl_A13(jmp_buf_a000b980, MEMORY.ref(4, getMethodAddress(Bios.class, "stop38b"), RunnableRef::new));
 
     //LAB_bfc06c6c
-    FUN_bfc0d570(_a000b870, 1, 0);
+    Exec_Impl_A43(exe_a000b870, 1, 0);
     LOGGER.info("Exiting");
     System.exit(0);
 //    stop(0x38c);
@@ -1865,21 +1523,6 @@ public final class Bios {
     stop(0x38b);
   }
 
-  @Method(0xbfc06ec4L)
-  public static void FUN_bfc06ec4() {
-    setBootStatus(0xfL);
-    SPU.REVERB_OUT_L.set(0);
-    SPU.REVERB_OUT_R.set(0);
-    SPU.MAIN_VOL_L.set(0);
-    SPU.MAIN_VOL_R.set(0);
-
-    // There's a check here that looks like it's just to prevent tampering
-
-    setBootStatus(0xeL);
-    ttyFlag_a000b9b0.set(0);
-    FUN_bfc06784();
-  }
-
   @Method(0xbfc06f28L)
   public static void reinitKernel() {
     LOGGER.info("KERNEL SETUP!");
@@ -1895,7 +1538,6 @@ public final class Bios {
 
   @Method(0xbfc06fa4L)
   public static void stop(final int errorCode) {
-    setBootStatus(0xf);
     SystemErrorBootOrDiskFailure_Impl_Aa1('B', errorCode);
     System.exit(errorCode);
   }
@@ -1903,11 +1545,6 @@ public final class Bios {
   @Method(value = 0xbfc06fdcL, ignoreExtraParams = true)
   public static int noop() {
     return 0;
-  }
-
-  @Method(0xbfc06ff0L)
-  public static void loadIntroAndBootMenu() {
-    LOGGER.warn("Skipping intro and boot menu");
   }
 
   @Method(0xbfc071a0L)
@@ -2017,7 +1654,7 @@ public final class Bios {
       //LAB_bfc0760c
       s2 += 0x2cL;
       s3++;
-    } while(s0 < _a000b870.getAddress() && s3 != 0x2dL);
+    } while(s0 < exe_a000b870.getAddress() && s3 != 0x2dL);
 
     //LAB_bfc07620
     //LAB_bfc07630
@@ -2084,7 +1721,7 @@ public final class Bios {
       s1 += MEMORY.ref(1, s1).get();
       s2 += 0x18L;
       count++;
-    } while(s2 < _a00095b0.getAddress() && s1 < _a000b870.getAddress());
+    } while(s2 < _a00095b0.getAddress() && s1 < exe_a000b870.getAddress());
 
     //LAB_bfc07860
     //LAB_bfc07870
@@ -2471,44 +2108,6 @@ public final class Bios {
     AddDevice(CdromDeviceInfo_bfc0e2f0.getAddress());
   }
 
-  @Method(0xbfc086b0L)
-  public static void AddDummyTtyDevice_Impl_A99() {
-    AddDevice(DummyTtyDeviceInfo_bfc0e350.getAddress());
-  }
-
-  @Method(0xbfc0d570L)
-  public static void FUN_bfc0d570(final EXEC header, final int argc, final long argv) {
-    ExitCriticalSection();
-
-    if(responseFromBootMenu_a000dffc.get() != 0) {
-      if(FUN_bfc0d72c() < 0) {
-        SystemErrorBootOrDiskFailure_Impl_Aa1('D', 0x38b);
-      }
-
-      //LAB_bfc0d5b8
-      if(FUN_bfc0d7bc() < 0) {
-        SystemErrorBootOrDiskFailure_Impl_Aa1('D', 0x38b);
-      }
-    }
-
-    //LAB_bfc0d5d4
-    EnterCriticalSection();
-
-    Exec_Impl_A43(header, argc, argv);
-  }
-
-  @Method(0xbfc0d72cL)
-  public static long FUN_bfc0d72c() {
-    assert false;
-    return -1;
-  }
-
-  @Method(0xbfc0d7bcL)
-  public static long FUN_bfc0d7bc() {
-    assert false;
-    return -1;
-  }
-
   @Method(0xbfc0d850L)
   public static void clearUserRam() {
     for(int i = 0; i < 0x1e_0000; i += 0x4L) {
@@ -2518,17 +2117,17 @@ public final class Bios {
 
   @Method(0xbfc0d890L)
   public static int open(final String name, final int mode) {
-    return (int)functionVectorB_000000b0.run(0x32L, new Object[] {name, mode});
+    return FileOpen_Impl_B32(name, mode);
   }
 
   @Method(0xbfc0d8a0L)
   public static void close(final int fd) {
-    functionVectorB_000000b0.run(0x36L, new Object[] {fd});
+    FileClose_Impl_B36(fd);
   }
 
   @Method(0xbfc0d8b0L)
   public static int read(final int fd, final long buf, final int size) {
-    return (int)functionVectorB_000000b0.run(0x34L, new Object[] {fd, buf, size});
+    return FileRead_Impl_B34(fd, buf, size);
   }
 
   @Method(0xbfc0d8c0L)
@@ -2563,126 +2162,121 @@ public final class Bios {
 
   @Method(0xbfc0d970L)
   public static void DeliverEvent(final long cls, final int spec) {
-    functionVectorB_000000b0.run(0x7L, new Object[] {cls, spec});
+    DeliverEvent_Impl_B07(cls, spec);
   }
 
   @Method(0xbfc0d980L)
   public static void ReturnFromException() {
-    functionVectorB_000000b0.run(0x17L, EMPTY_OBJ_ARRAY);
+    ReturnFromException_Impl_B17();
   }
 
   @Method(0xbfc0d990L)
   public static void UnDeliverEvent(final long cls, final int spec) {
-    functionVectorB_000000b0.run(0x20L, new Object[] {cls, spec});
+    UnDeliverEvent_Impl_B20(cls, spec);
   }
 
   @Method(0xbfc0d9a0L)
   public static void SetDefaultExitFromException() {
-    functionVectorB_000000b0.run(0x18L, EMPTY_OBJ_ARRAY);
+    SetDefaultExitFromException_Impl_B18();
   }
 
   @Method(0xbfc0d9b0L)
   public static long OpenEvent(final long cls, final int spec, final int mode, final long func) {
-    return (long)functionVectorB_000000b0.run(0x8L, new Object[] {cls, spec, mode, func});
+    return OpenEvent_Impl_B08(cls, spec, mode, func);
   }
 
   @Method(0xbfc0d9c0L)
   public static void EnableEvent(final long event) {
-    functionVectorB_000000b0.run(0xcL, new Object[] {event});
+    EnableEvent_Impl_B0c(event);
   }
 
   @Method(0xbfc0d9d0L)
   public static void CloseEvent(final int event) {
-    functionVectorB_000000b0.run(0x9L, new Object[] {event});
+    CloseEvent_Impl_B09(event);
   }
 
   @Method(0xbfc0d9e0L)
   public static int TestEvent(final long event) {
-    return (int)functionVectorB_000000b0.run(0xbL, new Object[] {event & 0xffff});
+    return TestEvent_Impl_B0b(event);
   }
 
   @Method(0xbfc0d9f0L)
   public static boolean AddDevice(final long deviceInfo) {
-    return (boolean)functionVectorB_000000b0.run(0x47L, new Object[] {deviceInfo});
+    return AddDevice_Impl_B47(deviceInfo);
   }
 
   @Method(0xbfc0dae0L)
   public static long alloc_kernel_memory(final int size) {
-    return (long)functionVectorB_000000b0.run(0x0L, new Object[] {size});
+    return alloc_kernel_memory_Impl_B00(size);
   }
 
   @Method(0xbfc0daf0L)
   public static long SysEnqIntRP(final int priority, final PriorityChainEntry struct) {
-    return (long)functionVectorC_000000c0.run(0x2L, new Object[] {priority, struct});
+    return SysEnqIntRP_Impl_C02(priority, struct);
   }
 
   @Method(0xbfc0db00L)
   public static PriorityChainEntry SysDeqIntRP(final int priority, final PriorityChainEntry struct) {
-    return (PriorityChainEntry)functionVectorC_000000c0.run(0x3L, new Object[] {priority, struct});
-  }
-
-  @Method(0xbfc0db10L)
-  public static void AdjustA0Table() {
-    functionVectorC_000000c0.run(0x1cL, EMPTY_OBJ_ARRAY);
+    return SysDeqIntRP_Impl_C03(priority, struct);
   }
 
   @Method(0xbfc0db20L)
   public static void InstallExceptionHandlers() {
-    functionVectorC_000000c0.run(0x7L, EMPTY_OBJ_ARRAY);
+    InstallExceptionHandlers_Impl_C07();
   }
 
   @Method(0xbfc0db30L)
   public static void InstallDevices(final int ttyFlag) {
-    functionVectorC_000000c0.run(0x12L, new Object[] {ttyFlag});
+    InstallDevices_Impl_C12(ttyFlag);
   }
 
   @Method(0xbfc0db40L)
   public static void SysInitMemory(final long address, final int size) {
-    functionVectorC_000000c0.run(0x8L, new Object[] {address, size});
+    SysInitMemory_Impl_C08(address, size);
   }
 
   @Method(0xbfc0db50L)
   public static long EnqueueSyscallHandler(final int priority) {
-    return (long)functionVectorC_000000c0.run(0x1L, new Object[] {priority});
+    return EnqueueSyscallHandler_Impl_C01(priority);
   }
 
   @Method(0xbfc0db60L)
   public static long InitDefInt(final int priority) {
-    return (long)functionVectorC_000000c0.run(0xcL, new Object[] {priority});
+    return InitDefInt_Impl_C0c(priority);
   }
 
   @Method(0xbfc0db70L)
   public static void EnqueueTimerAndVblankIrqs(final int priority) {
-    functionVectorC_000000c0.run(0x0L, new Object[] {priority});
+    EnqueueTimerAndVblankIrqs_Impl_C00(priority);
   }
 
   @Method(0xbfc0dbf0L)
   public static void EnqueueCdIntr() {
-    functionVectorA_000000a0.run(0xa2L, EMPTY_OBJ_ARRAY);
+    EnqueueCdIntr_Impl_Aa2();
   }
 
   @Method(0xbfc0dc00L)
   public static void DequeueCdIntr() {
-    functionVectorA_000000a0.run(0xa3L, EMPTY_OBJ_ARRAY);
+    DequeueCdIntr_Impl_Aa3();
   }
 
   @Method(0xbfc0dc10L)
   public static boolean CdInitSubFunc() {
-    return (boolean)functionVectorA_000000a0.run(0x95L, EMPTY_OBJ_ARRAY);
+    return CdInitSubFunc_Impl_A95();
   }
 
   @Method(0xbfc0dc20L)
   public static int CdAsyncSeekL(final CdlLOC src) {
-    return (int)functionVectorA_000000a0.run(0x78L, new Object[] {src});
+    return CdAsyncSeekL_Impl_A78(src);
   }
 
   @Method(0xbfc0dc30L)
   public static int CdAsyncReadSector(final int count, final long dest, final int mode) {
-    return (int)functionVectorA_000000a0.run(0x7eL, new Object[] {count, dest, mode});
+    return CdAsyncReadSector_Impl_A7e(count, dest, mode);
   }
 
   @Method(0xbfc0dc40L)
   public static int CdAsyncGetStatus(final long dest) {
-    return (int)functionVectorA_000000a0.run(0x7cL, new Object[] {dest});
+    return CdAsyncGetStatus_Impl_A7c(dest);
   }
 }

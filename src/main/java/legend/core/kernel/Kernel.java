@@ -13,7 +13,6 @@ import legend.core.memory.types.RunnableRef;
 import legend.core.memory.types.SupplierRef;
 import legend.core.memory.types.ThreadControlBlock;
 import legend.core.memory.types.TriFunctionRef;
-import legend.core.memory.types.VariadicFunctionRef;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -33,21 +32,20 @@ import static legend.core.Timers.TMR_HRETRACE_VAL;
 import static legend.core.Timers.TMR_SYSCLOCK_MAX;
 import static legend.core.Timers.TMR_SYSCLOCK_MODE;
 import static legend.core.Timers.TMR_SYSCLOCK_VAL;
+import static legend.core.kernel.Bios.AddCdromDevice_Impl_A96;
 import static legend.core.kernel.Bios.EventControlBlockAddr_a0000120;
 import static legend.core.kernel.Bios.EventControlBlockSize_a0000124;
 import static legend.core.kernel.Bios.ExceptionChainPtr_a0000100;
 import static legend.core.kernel.Bios.ProcessControlBlockPtr_a0000108;
-import static legend.core.kernel.Bios.bzero_Impl_A28;
-import static legend.core.kernel.Bios.setBootStatus;
+import static legend.core.kernel.Bios.SystemErrorUnresolvedException_Impl_A40;
+import static legend.core.kernel.Bios.memcpy_Impl_A2a;
+import static legend.core.kernel.Bios.strcmp_Impl_A17;
+import static legend.core.kernel.Bios.toupper_Impl_A25;
 
 public final class Kernel {
   private Kernel() { }
 
   private static final Logger LOGGER = LogManager.getFormatterLogger(Kernel.class);
-
-  private static final ArrayRef<Pointer<VariadicFunctionRef<Object>>> jumpTableA = MEMORY.ref(4, 0x200L, ArrayRef.of(Pointer.classFor(VariadicFunctionRef.classFor(Object.class)), 192, 4, Pointer.of(4, VariadicFunctionRef::new)));
-  private static final ArrayRef<Pointer<VariadicFunctionRef<Object>>> jumpTableB = MEMORY.ref(4, 0x874L, ArrayRef.of(Pointer.classFor(VariadicFunctionRef.classFor(Object.class)), 256, 4, Pointer.of(4, VariadicFunctionRef::new)));
-  private static final ArrayRef<Pointer<VariadicFunctionRef<Object>>> jumpTableC = MEMORY.ref(4, 0x674L, ArrayRef.of(Pointer.classFor(VariadicFunctionRef.classFor(Object.class)),  80, 4, Pointer.of(4, VariadicFunctionRef::new)));
 
   private static final SupplierRef<Integer> exceptionVector_00000080 = MEMORY.ref(4, 0x00000080L, SupplierRef::new);
 
@@ -62,8 +60,6 @@ public final class Kernel {
   private static final PriorityChainEntry DefaultInterruptPriorityChainStruct_00006d98 = MEMORY.ref(1, 0x00006d98L, PriorityChainEntry::new);
 
   private static final PriorityChainEntry SyscallHandlerStruct_00006da8 = MEMORY.ref(1, 0x00006da8L, PriorityChainEntry::new);
-
-  private static final Value _00006e54 = MEMORY.ref(4, 0x00006e54L);
 
   private static final Value DeviceControlBlockBaseAddr_00006ee0 = MEMORY.ref(1, 0x00006ee0L);
 
@@ -91,9 +87,7 @@ public final class Kernel {
   private static final Value _00008640 = MEMORY.ref(4, 0x00008640L);
   private static final Value FileControlBlockBaseAddr_00008648 = MEMORY.ref(1, 0x00008648L);
 
-  private static final Value ttyFlag_00008908 = MEMORY.ref(4, 0x00008908L);
   private static final Value _0000890c = MEMORY.ref(4, 0x0000890cL);
-  private static final Value _00008910 = MEMORY.ref(4, 0x00008910L);
 
   private static final Value FileControlBlockAddr_a0000140 = MEMORY.ref(4, 0xa0000140L);
   private static final Value FileControlBlockSize_a0000144 = MEMORY.ref(4, 0xa0000144L);
@@ -182,56 +176,6 @@ public final class Kernel {
     return (int)MEMORY.ref(4, 0xc80L).call();
   }
 
-  @Method(0x500L)
-  public static void kernelInit() {
-    LOGGER.info("Initializing kernel");
-
-    FUN_00000598();
-  }
-
-  @Method(0x540L)
-  public static void AdjustA0Table_Impl_C1c() {
-    long a1 = 0x93cL;
-    long a2 = 0x200L;
-
-    //LAB_00000554
-    do {
-      MEMORY.ref(4, a2).setu(MEMORY.ref(4, a1));
-      a1 += 0x4L;
-      a2 += 0x4L;
-    } while(a1 != 0x964L);
-
-    a1 = 0x964L;
-    a2 = 0x2ecL;
-
-    //LAB_0000057c
-    do {
-      MEMORY.ref(4, a2).setu(MEMORY.ref(4, a1));
-      a1 += 0x4L;
-      a2 += 0x4L;
-    } while(a1 != 0x974L);
-  }
-
-  @Method(0x598L)
-  public static void FUN_00000598() {
-    bzero_Impl_A28(systemMemoryAddr_00007460.getAddress(), 0x530);
-  }
-
-  @Method(0x5c4L)
-  public static Object functionVectorA(final long fn, final Object... params) {
-    return jumpTableA.get((int)fn).deref().run(params);
-  }
-
-  @Method(0x5e0L)
-  public static Object functionVectorB(final long fn, final Object... params) {
-    return jumpTableB.get((int)fn).deref().run(params);
-  }
-
-  @Method(0x600L)
-  public static Object functionVectorC(final long fn, final Object... params) {
-    return jumpTableC.get((int)fn).deref().run(params);
-  }
-
   @Method(0xc80L)
   public static int ExceptionHandler_Impl_C06() {
     final ThreadControlBlock tcb = ProcessControlBlockPtr_a0000108.deref().threadControlBlockPtr.deref();
@@ -278,20 +222,7 @@ public final class Kernel {
       v0 += 0x4L;
     } while(k0 != 0xf1cL);
 
-    // Don't know why the exception handler is also copied to 0x0
-//    v0 = 0x8000_0000L;
-//    k0 = 0xf0cL;
-
-    //LAB_00000ef0
-//    do {
-//      MEMORY.ref(4, v0).setu(MEMORY.ref(4, k0));
-//      k0 += 0x4L;
-//      v0 += 0x4L;
-//    } while(k0 != 0xf1cL);
-
     exceptionVector_00000080.set(Kernel::exceptionVector);
-
-    FlushCache();
   }
 
   @Method(0xf20L)
@@ -760,7 +691,8 @@ public final class Kernel {
     DeliverEvent_Impl_B07(HwCPU, EvSpTRAP);
 
     //LAB_a0001b10
-    return SystemErrorUnresolvedException();
+    SystemErrorUnresolvedException();
+    return 0;
   }
 
   @Method(0x1b20L)
@@ -893,11 +825,6 @@ public final class Kernel {
     return true;
   }
 
-  @Method(0x2150L)
-  public static long clearMemory(final long addr, final int size) {
-    return bzero_Impl_A28(addr, size);
-  }
-
   @Method(0x2458L)
   public static int FUN_00002458() {
     if((I_MASK.get() & I_STAT.get() & 0x4L) != 0) {
@@ -964,17 +891,10 @@ public final class Kernel {
 
   @Method(0x27c0L)
   public static void InstallDevices_Impl_C12(final int ttyFlag) {
-    ttyFlag_00008908.setu(ttyFlag);
-
     FileControlBlockAddr_a0000140.setu(FileControlBlockBaseAddr_00008648.getAddress());
     FileControlBlockSize_a0000144.setu(704L);
     DeviceControlBlockAddr_a0000150.setu(DeviceControlBlockBaseAddr_00006ee0.getAddress());
     DeviceControlBlockSize_a0000154.setu(_00007200.get() * 0x50L);
-
-    clearMemory(FileControlBlockBaseAddr_00008648.getAddress(), 704);
-    setBootStatus(1);
-    KernelRedirect_Impl_C1b(ttyFlag);
-    setBootStatus(2);
 
     _00007480.setu(0);
 
@@ -984,39 +904,6 @@ public final class Kernel {
   @Method(0x27a0L)
   public static void FUN_000027a0() {
     _0000863c.setu(0);
-  }
-
-  @Method(0x2870L)
-  public static void KernelRedirect_Impl_C1b(final int ttyFlag) {
-    setBootStatus(3);
-    _0000890c.setu(0);
-    _00008910.setu(0);
-    RemoveDevice_Impl_B48("tty");
-
-    setBootStatus(4);
-    if(ttyFlag == 0) {
-      AddDummyTtyDevice();
-    } else {
-      if(ttyFlag != 1) {
-        return;
-      }
-
-      AddDuartTtyDevice();
-    }
-
-    setBootStatus(5);
-    FlushStdInOutPut_Impl_C13();
-    setBootStatus(6);
-  }
-
-  @Method(0x2908L)
-  public static void FlushStdInOutPut_Impl_C13() {
-    FileClose_Impl_B36(0);
-    FileClose_Impl_B36(1);
-
-    if(FileOpen_Impl_B32("tty00:", 1) == 0) {
-      FileOpen_Impl_B32("tty00:", 2);
-    }
   }
 
   @Method(0x2958L)
@@ -1047,10 +934,6 @@ public final class Kernel {
 
     if((int)MEMORY.ref(4, deviceIndex.get()).offset(0x14L).deref(4).cast(TriFunctionRef::new).run(fcb, filename.substring(pathStartIndex), mode) != 0) {
       throw new RuntimeException("Failed to open file " + filename.substring(pathStartIndex));
-
-//      _00008640.setu(MEMORY.ref(4, fcb).offset(0x18L));
-//      MEMORY.ref(4, fcb).setu(0);
-//      return -1;
     }
 
     //LAB_00002a30
@@ -1256,12 +1139,6 @@ public final class Kernel {
     return -1;
   }
 
-  @Method(0x2fc8L)
-  public static void ioabort_Impl_C19(final String txt1, final String txt2) {
-    LOGGER.error("ioabort exit:%s %s", txt1, txt2);
-    ioabort_raw(1);
-  }
-
   @Method(0x3060L)
   public static long FUN_00003060() {
     long fcb = FileControlBlockBaseAddr_00008648.getAddress();
@@ -1274,12 +1151,9 @@ public final class Kernel {
 
       //LAB_00003090
       fcb += 0x2cL;
-    } while(fcb < ttyFlag_00008908.getAddress());
+    } while(fcb < 0x8908L);
 
-    ioabort_Impl_C19("out of file descriptors", _00006e54.getString());
-
-    //LAB_000030b8
-    return 0;
+    throw new RuntimeException("Out of file descriptors");
   }
 
   @Method(0x30c8L)
@@ -1423,7 +1297,6 @@ public final class Kernel {
     do {
       if(DeviceControlBlockBaseAddr_00006ee0.offset(v1).get() == 0) {
         memcpy(DeviceControlBlockBaseAddr_00006ee0.offset(v1).getAddress(), deviceInfo, 0x50);
-        FlushCache();
 
         DeviceControlBlockBaseAddr_00006ee0.offset(v1).offset(4, 0x10L).deref(4).cast(RunnableRef::new).run();
         return true;
@@ -1532,49 +1405,29 @@ public final class Kernel {
     return (DIRENTRY)_00007480.deref(4).offset(0x1cL).deref(4).offset(0x38L).deref(4).call(_00007480.get(), dir);
   }
 
-  @Method(0x6a70L)
-  public static void FlushCache() {
-    functionVectorA(0x44L);
-  }
-
   @Method(0x6a80L)
-  public static int SystemErrorUnresolvedException() {
-    return (int)functionVectorA(0x40L);
+  public static void SystemErrorUnresolvedException() {
+    SystemErrorUnresolvedException_Impl_A40();
   }
 
   @Method(0x6a90)
   public static char toupper(final char c) {
-    return (char)functionVectorA(0x25L, c);
+    return toupper_Impl_A25(c);
   }
 
   @Method(0x6aa0L)
   public static void AddCdromDevice() {
-    functionVectorA(0x96L);
-  }
-
-  @Method(0x6ac0L)
-  public static void AddDummyTtyDevice() {
-    functionVectorA(0x99L);
-  }
-
-  @Method(0x6ad0L)
-  public static void AddDuartTtyDevice() {
-    functionVectorA(0x98L);
-  }
-
-  @Method(0x6af0L)
-  public static void ioabort_raw(final int param) {
-    functionVectorA(0xb2L, param);
+    AddCdromDevice_Impl_A96();
   }
 
   @Method(0x6b10L)
   public static int strcmp(final String str1, final String str2) {
-    return (int)functionVectorA(0x17L, str1, str2);
+    return strcmp_Impl_A17(str1, str2);
   }
 
   @Method(0x6b20L)
   public static long memcpy(final long dst, final long src, final int len) {
-    return (long)functionVectorA(0x2aL, dst, src, len);
+    return memcpy_Impl_A2a(dst, src, len);
   }
 
   @Method(0x6b80L)

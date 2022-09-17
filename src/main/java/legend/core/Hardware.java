@@ -7,12 +7,6 @@ import legend.core.kernel.Bios;
 import legend.core.mdec.Mdec;
 import legend.core.memory.EntryPoint;
 import legend.core.memory.Memory;
-import legend.core.memory.segments.ExpansionRegion1Segment;
-import legend.core.memory.segments.ExpansionRegion2Segment;
-import legend.core.memory.segments.IntSegment;
-import legend.core.memory.segments.InvalidSegment;
-import legend.core.memory.segments.MemoryControl1Segment;
-import legend.core.memory.segments.MemoryControl2Segment;
 import legend.core.memory.segments.PrivilegeGate;
 import legend.core.memory.segments.RamSegment;
 import legend.core.memory.segments.RomSegment;
@@ -145,61 +139,14 @@ public final class Hardware {
 
     // --- BIOS memory ------------------------
 
-    // 0x00 (0x10) - garbage area
-    // 0x10 (0x30) - unused/reserved
-    // 0x40 (0x20) - debug-break vector
-    MEMORY.addSegment(GATE.wrap(new InvalidSegment(0x0000L, 0x60)));
-
-    // 0x60 (0x4) - RAM size
-    MEMORY.addSegment(GATE.wrap(new IntSegment(0x0060L)));
-
-    // 0x64 (0x4) - Unknown (0x00)
-    MEMORY.addSegment(GATE.wrap(new IntSegment(0x0064L)));
-    // 0x68 (0x4) - Unknown (0xff)
-    MEMORY.addSegment(GATE.wrap(new IntSegment(0x0068L)));
-
-    // 0x6c (0x14) - Unused/reserved
-    MEMORY.addSegment(GATE.wrap(new InvalidSegment(0x006cL, 0x14)));
-
     // 0x80 (0x10) - Exception vector
     MEMORY.addSegment(GATE.wrap(new RamSegment(0x80L, 0x10)));
-
-    // 0x90 (0x10) - Unused/reserved
-    MEMORY.addSegment(GATE.wrap(new InvalidSegment(0x0090L, 0x10)));
-
-    // 0xa0 (0x10) - A(nn) function vector
-    MEMORY.addSegment(GATE.readonly(new RamSegment(0xa0L, 0x10)));
-    // 0xb0 (0x10) - B(nn) function vector
-    MEMORY.addSegment(GATE.readonly(new RamSegment(0xb0L, 0x10)));
-    // 0xc0 (0x10) - C(nn) function vector
-    MEMORY.addSegment(GATE.readonly(new RamSegment(0xc0L, 0x10)));
-
-    // 0xd0 (0x30) - Unused/reserved
-    MEMORY.addSegment(GATE.wrap(new InvalidSegment(0x00d0L, 0x30)));
 
     // 0x100 (0x58) - Table of tables
     MEMORY.addSegment(GATE.wrap(new RamSegment(0x100L, 0x58)));
 
-    // 0x158 (0x28) - Unused/reserved
-    MEMORY.addSegment(GATE.wrap(new InvalidSegment(0x158L, 0x28)));
-
-    // 0x180 (0x80) - Command line argument
-    MEMORY.addSegment(GATE.wrap(new RamSegment(0x180L, 0x80)));
-
-    // 0x200 (0x300) - A(nn) jump table
-    MEMORY.addSegment(GATE.wrap(new RamSegment(0x200L, 0x300)));
-
     // 0x500 (0xbb00) - Kernel code/data - relocated from ROM
     MEMORY.addSegment(GATE.wrap(new RamSegment(0x500L, 0xbb00)));
-
-    // 0xc000 (0x1f80) - Unused/reserved
-    MEMORY.addSegment(GATE.wrap(new RamSegment(0xc000L, 0x1f80)));
-
-    // 0xdf80 (0x80) - BIOS patches
-    //TODO
-
-    // 0xdffc (0x4) - Response value from intro/boot menu
-    MEMORY.addSegment(GATE.wrap(new IntSegment(0xdffcL)));
 
     // 0xe000 (0x2000) - Kernel memory (ExCBs, EvCBs, TCBs)
     MEMORY.addSegment(GATE.wrap(new RamSegment(0xe000L, 0x2000)));
@@ -216,13 +163,6 @@ public final class Hardware {
     GATE.acquire();
     MEMORY.addFunctions(Bios.class);
     GATE.release();
-
-    // --- IO ports ---------------------------
-
-    MEMORY.addSegment(new ExpansionRegion1Segment(0x1f00_0000L));
-    MEMORY.addSegment(new MemoryControl1Segment(0x1f80_1000L));
-    MEMORY.addSegment(new MemoryControl2Segment(0x1f80_1060L));
-    MEMORY.addSegment(new ExpansionRegion2Segment(0x1f80_2000L));
 
     CPU = new Cpu();
     INTERRUPTS = new InterruptController(MEMORY);
