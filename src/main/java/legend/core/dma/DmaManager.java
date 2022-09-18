@@ -28,7 +28,6 @@ public class DmaManager {
   public final DmaChannel mdecIn;
   public final DmaChannel mdecOut;
   public final DmaChannel gpu;
-  public final DmaChannel cdrom;
   public final DmaChannel spu;
   public final DmaChannel pio;
   public final DmaChannel otc;
@@ -46,7 +45,6 @@ public class DmaManager {
     this.mdecIn = this.addChannel(memory, DmaChannelType.MDEC_IN, 1);
     this.mdecOut = this.addChannel(memory, DmaChannelType.MDEC_OUT, 2);
     this.gpu = this.addChannel(memory, DmaChannelType.GPU, 3);
-    this.cdrom = this.addChannel(memory, DmaChannelType.CDROM, 4);
     this.spu = this.addChannel(memory, DmaChannelType.SPU, 5);
     this.pio = this.addChannel(memory, DmaChannelType.PIO, 6);
     this.otc = this.addChannel(memory, DmaChannelType.OTC, 7);
@@ -125,11 +123,11 @@ public class DmaManager {
   }
 
   public boolean isInterruptEnabled(final DmaChannelType channel) {
-    return this.dicrIrqEnable.get(channel);
+    return this.dicrIrqEnable.getOrDefault(channel, false);
   }
 
   public boolean isInterruptPending(final DmaChannelType channel) {
-    return this.dicrIrqFlag.get(channel);
+    return this.dicrIrqFlag.getOrDefault(channel, false);
   }
 
   public void acknowledgeInterrupt(final DmaChannelType channel) {

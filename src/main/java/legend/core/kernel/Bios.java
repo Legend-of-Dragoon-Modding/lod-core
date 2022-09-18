@@ -434,7 +434,6 @@ public final class Bios {
 
     ExitCriticalSection();
 
-    CDROM.init();
     return true;
   }
 

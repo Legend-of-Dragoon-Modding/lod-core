@@ -168,7 +168,7 @@ public final class Hardware {
     GPU = new Gpu(MEMORY);
     MDEC = new Mdec(MEMORY);
     TIMERS = new Timers(MEMORY);
-    CDROM = new CdDrive(MEMORY);
+    CDROM = new CdDrive();
     SPU = new Spu(MEMORY);
 
     codeThread = new Thread(Hardware::run);
@@ -223,10 +223,6 @@ public final class Hardware {
 
     running = true;
     while(running) {
-      if(CDROM.tick(100)) {
-        INTERRUPTS.set(InterruptType.CDROM);
-      }
-
       if(DMA.tick()) {
         INTERRUPTS.set(InterruptType.DMA);
       }
