@@ -9,7 +9,6 @@ import legend.core.memory.EntryPoint;
 import legend.core.memory.Memory;
 import legend.core.memory.segments.PrivilegeGate;
 import legend.core.memory.segments.RamSegment;
-import legend.core.memory.segments.RomSegment;
 import legend.core.memory.types.RunnableRef;
 import legend.core.spu.Spu;
 import org.apache.logging.log4j.LogManager;
@@ -20,7 +19,6 @@ import org.reflections8.util.ClasspathHelper;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -158,7 +156,7 @@ public final class Hardware {
 
     // --- Bios ROM ---------------------------
 
-    MEMORY.addSegment(GATE.wrap(RomSegment.fromFile(0x1fc0_0000L, 0x8_0000, Paths.get("bios.rom"))));
+    MEMORY.addSegment(new RamSegment(0x1fc0_0000L, 0x8_0000));
 
     GATE.acquire();
     MEMORY.addFunctions(Bios.class);

@@ -2,20 +2,14 @@ package legend.core.kernel;
 
 import legend.core.MemoryHelper;
 import legend.core.memory.Method;
-import legend.core.memory.Ref;
 import legend.core.memory.Value;
 import legend.core.memory.types.ArrayRef;
-import legend.core.memory.types.BiFunctionRef;
 import legend.core.memory.types.BoolRef;
-import legend.core.memory.types.DIRENTRY;
 import legend.core.memory.types.Pointer;
 import legend.core.memory.types.ProcessControlBlock;
 import legend.core.memory.types.RunnableRef;
 import legend.core.memory.types.SupplierRef;
 import legend.core.memory.types.ThreadControlBlock;
-import legend.core.memory.types.TriFunctionRef;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
 
@@ -33,19 +27,18 @@ import static legend.core.Timers.TMR_HRETRACE_VAL;
 import static legend.core.Timers.TMR_SYSCLOCK_MAX;
 import static legend.core.Timers.TMR_SYSCLOCK_MODE;
 import static legend.core.Timers.TMR_SYSCLOCK_VAL;
-import static legend.core.kernel.Bios.AddCdromDevice_Impl_A96;
 import static legend.core.kernel.Bios.EventControlBlockAddr_a0000120;
 import static legend.core.kernel.Bios.EventControlBlockSize_a0000124;
 import static legend.core.kernel.Bios.ExceptionChainPtr_a0000100;
 import static legend.core.kernel.Bios.ProcessControlBlockPtr_a0000108;
 import static legend.core.kernel.Bios.SystemErrorUnresolvedException_Impl_A40;
+import static legend.core.kernel.Bios.dev_cd_open_Impl_A5f;
+import static legend.core.kernel.Bios.dev_cd_read_Impl_A60;
 import static legend.core.kernel.Bios.memcpy_Impl_A2a;
 import static legend.core.kernel.Bios.strcmp_Impl_A17;
 
 public final class Kernel {
   private Kernel() { }
-
-  private static final Logger LOGGER = LogManager.getFormatterLogger(Kernel.class);
 
   private static final SupplierRef<Integer> exceptionVector_00000080 = MEMORY.ref(4, 0x00000080L, SupplierRef::new);
 
@@ -56,18 +49,26 @@ public final class Kernel {
   private static final Value systemMemoryInitialized_00006d30 = MEMORY.ref(4, 0x00006d30L);
 
   private static final ArrayRef<PriorityChainEntry> _00006d58 = MEMORY.ref(1, 0x00006d58L, ArrayRef.of(PriorityChainEntry.class, 4, 16, PriorityChainEntry::new));
-
   private static final PriorityChainEntry DefaultInterruptPriorityChainStruct_00006d98 = MEMORY.ref(1, 0x00006d98L, PriorityChainEntry::new);
-
   private static final PriorityChainEntry SyscallHandlerStruct_00006da8 = MEMORY.ref(1, 0x00006da8L, PriorityChainEntry::new);
 
-  private static final Value DeviceControlBlockBaseAddr_00006ee0 = MEMORY.ref(1, 0x00006ee0L);
+  static {
+    _00006d58.get(0).secondFunction.setPointer(0x1920L);
+    _00006d58.get(0).firstFunction.setPointer(0x1794L);
+    _00006d58.get(1).secondFunction.setPointer(0x1958L);
+    _00006d58.get(1).firstFunction.setPointer(0x17f4L);
+    _00006d58.get(2).secondFunction.setPointer(0x1990L);
+    _00006d58.get(2).firstFunction.setPointer(0x1858L);
+    _00006d58.get(3).secondFunction.setPointer(0x19c8L);
+    _00006d58.get(3).firstFunction.setPointer(0x18bcL);
+
+    DefaultInterruptPriorityChainStruct_00006d98.firstFunction.setPointer(0x2458);
+    SyscallHandlerStruct_00006da8.firstFunction.setPointer(0x1a00);
+  }
 
   private static final Value systemMemoryAddr_00007460 = MEMORY.ref(4, 0x00007460L);
   private static final Value systemMemorySize_00007464 = MEMORY.ref(4, 0x00007464L);
   private static final Value systemMemoryEnd_00007468 = MEMORY.ref(4, 0x00007468L);
-
-  private static final Value _00007480 = MEMORY.ref(4, 0x00007480L);
 
   private static final Pointer<jmp_buf> ExceptionExitStruct_000075d0 = MEMORY.ref(4, 0x000075d0L, Pointer.of(0x30, jmp_buf::new));
 
@@ -84,12 +85,6 @@ public final class Kernel {
   private static final Value _0000863c = MEMORY.ref(4, 0x0000863cL);
   private static final Value _00008640 = MEMORY.ref(4, 0x00008640L);
   private static final Value FileControlBlockBaseAddr_00008648 = MEMORY.ref(1, 0x00008648L);
-
-  private static final Value _0000890c = MEMORY.ref(4, 0x0000890cL);
-
-  private static final Value FileControlBlockAddr_a0000140 = MEMORY.ref(4, 0xa0000140L);
-
-  private static final Value DeviceControlBlockAddr_a0000150 = MEMORY.ref(4, 0xa0000150L);
 
   public static final long DescMask = 0xff000000L;
   public static final long DescTH   = DescMask;
@@ -755,20 +750,11 @@ public final class Kernel {
 
   @Method(0x2458L)
   public static int FUN_00002458() {
-    if((I_MASK.get() & I_STAT.get() & 0x4L) != 0) {
-      DeliverEvent_Impl_B07(HwCdRom, EvSpTRAP);
-    }
     if((I_MASK.get() & I_STAT.get() & 0x200) != 0) {
       DeliverEvent_Impl_B07(HwSPU, EvSpTRAP);
     }
     if((I_MASK.get() & I_STAT.get() & 2) != 0) {
       DeliverEvent_Impl_B07(HwGPU, EvSpTRAP);
-    }
-    if((I_MASK.get() & I_STAT.get() & 0x400) != 0) {
-      DeliverEvent_Impl_B07(HwPIO, EvSpTRAP);
-    }
-    if((I_MASK.get() & I_STAT.get() & 0x100) != 0) {
-      DeliverEvent_Impl_B07(HwSIO, EvSpTRAP);
     }
     if((I_MASK.get() & I_STAT.get() & 1) != 0) {
       DeliverEvent_Impl_B07(HwVBLANK, EvSpTRAP);
@@ -817,16 +803,6 @@ public final class Kernel {
     return SysEnqIntRP_Impl_C02(priority, DefaultInterruptPriorityChainStruct_00006d98);
   }
 
-  @Method(0x27c0L)
-  public static void InstallDevices_Impl_C12(final int ttyFlag) {
-    FileControlBlockAddr_a0000140.setu(FileControlBlockBaseAddr_00008648.getAddress());
-    DeviceControlBlockAddr_a0000150.setu(DeviceControlBlockBaseAddr_00006ee0.getAddress());
-
-    _00007480.setu(0);
-
-    AddCdromDevice();
-  }
-
   @Method(0x27a0L)
   public static void FUN_000027a0() {
     _0000863c.setu(0);
@@ -841,69 +817,20 @@ public final class Kernel {
       return -1;
     }
 
-    final Ref<Long> sp24 = new Ref<>();
-    final Ref<Long> deviceIndex = new Ref<>();
-
     //LAB_00002988
-    final int pathStartIndex = FUN_000031e8(filename, deviceIndex, sp24);
-    if(pathStartIndex == -1) {
-      _00008640.setu(0x13L);
-      MEMORY.ref(4, fcb).setu(0);
-      return -1;
-    }
-
     //LAB_000029c4
     MEMORY.ref(4, fcb).setu(mode);
-    MEMORY.ref(4, fcb).offset(0x4L).setu(sp24.get());
-    MEMORY.ref(4, fcb).offset(0x1cL).setu(deviceIndex.get());
-    MEMORY.ref(4, fcb).offset(0x14L).setu(MEMORY.ref(4, deviceIndex.get()).offset(0x4L));
 
-    if((int)MEMORY.ref(4, deviceIndex.get()).offset(0x14L).deref(4).cast(TriFunctionRef::new).run(fcb, filename.substring(pathStartIndex), mode) != 0) {
-      throw new RuntimeException("Failed to open file " + filename.substring(pathStartIndex));
+    if(dev_cd_open_Impl_A5f(fcb, filename, mode) != 0) {
+      throw new RuntimeException("Failed to open file " + filename);
     }
 
     //LAB_00002a30
     final long v1 = (fcb - FileControlBlockBaseAddr_00008648.getAddress()) / 0x2cL;
     MEMORY.ref(4, fcb).offset(0x10L).setu(0);
-    MEMORY.ref(4, fcb).offset(0x28L).setu(v1);
 
     //LAB_00002a54
     return (int)v1;
-  }
-
-  @Method(0x2a64L)
-  public static int FileSeek_Impl_B33(final int fd, final long offset, final int seektype) {
-    final long v0 = getFcb(fd);
-    if(v0 == 0 || MEMORY.ref(4, v0).get() == 0) {
-      //LAB_2a98
-      _00008640.setu(0x9L);
-      return -1;
-    }
-
-    //LAB_2af8
-    if(seektype == 0) {
-      //LAB_2aac
-      MEMORY.ref(4, v0).offset(0x10L).setu(offset);
-      return (int)MEMORY.ref(4, v0).offset(0x10L).get();
-    }
-
-    if(seektype == 0x1L) {
-      //LAB_2ab4
-      MEMORY.ref(4, v0).offset(0x10L).addu(offset);
-      return (int)MEMORY.ref(4, v0).offset(0x10L).get();
-    }
-
-    if(seektype == 0x2L) {
-      //LAB_2b10
-      //LAB_2b18
-      return (int)MEMORY.ref(4, v0).offset(0x10L).get();
-    }
-
-    //LAB_2ac8
-    _00008640.setu(0x16L);
-    MEMORY.ref(4, v0).offset(0x18L).setu(0x16L);
-    LOGGER.error("Invalid seektype %d", seektype);
-    throw new RuntimeException("Invalid seektype " + seektype);
   }
 
   @Method(0x2b28L)
@@ -916,37 +843,7 @@ public final class Kernel {
     }
 
     //LAB_00002b68
-    tty_cdevscan_Impl_C16();
-
-    final int ret;
-    if(MEMORY.ref(4, fcb).offset(0x14L).get(0x10L) == 0) {
-      //LAB_00002bb8
-      final long v1 = MEMORY.ref(4, fcb).offset(0x1cL).get();
-      MEMORY.ref(4, fcb).offset(0x8L).setu(dest);
-      MEMORY.ref(4, fcb).offset(0xcL).setu(length);
-
-      if(MEMORY.ref(4, v1).offset(0x4L).get(0x4L) == 0) {
-        final long divisor = MEMORY.ref(4, v1).offset(0x8L).get();
-
-        //LAB_00002c00
-        if(MEMORY.ref(4, fcb).offset(0x10L).get() % divisor != 0) {
-          LOGGER.error("offset not on block boundary");
-          return -1;
-        }
-
-        //LAB_00002c1c
-        MEMORY.ref(4, fcb).offset(0xcL).divu(divisor);
-      }
-
-      //LAB_00002c3c
-      ret = (int)MEMORY.ref(4, v1).offset(0x18L).deref(4).cast(BiFunctionRef::new).run(fcb, 0x1);
-
-      if(ret > 0) {
-        MEMORY.ref(4, fcb).offset(0x10L).addu(ret);
-      }
-    } else {
-      ret = (int)MEMORY.ref(4, fcb).offset(0x1cL).deref(4).offset(0x24L).deref(4).cast(TriFunctionRef::new).run(fcb, dest, length);
-    }
+    final int ret = dev_cd_read_Impl_A60(fcb, dest, length);
 
     //LAB_00002c6c
     if(ret < 0) {
@@ -955,55 +852,6 @@ public final class Kernel {
 
     //LAB_00002c84
     return ret;
-  }
-
-  @Method(0x2c94L)
-  public static int FileWrite_Impl_B35(final int fd, final long src, final int length) {
-    final long fcb = getFcb(fd);
-    if(fcb == 0 || MEMORY.ref(4, fcb).offset(0x0L).get() == 0) {
-      //LAB_2cc0
-      _00008640.setu(0x9L);
-      return -1;
-    }
-
-    //LAB_2cd4
-    tty_cdevscan_Impl_C16();
-
-    final long t0 = MEMORY.ref(4, fcb).offset(0x1cL).get();
-
-    final int v0;
-    if((MEMORY.ref(4, fcb).offset(0x14L).get() & 0x10L) == 0) {
-      //LAB_2d24
-      MEMORY.ref(4, fcb).offset(0x8L).setu(src);
-      MEMORY.ref(4, fcb).offset(0xcL).setu(length);
-
-      if((MEMORY.ref(4, t0).offset(0x4L).get() & 0x4L) != 0) {
-        //LAB_2d6c
-        if(MEMORY.ref(4, fcb).offset(0x10L).get() % MEMORY.ref(4, t0).offset(0x8L).get() != 0) {
-          throw new RuntimeException("Offset not on block boundary");
-        }
-
-        //LAB_2d88
-        MEMORY.ref(4, fcb).offset(0xcL).setu(MEMORY.ref(4, fcb).offset(0xcL).get() / MEMORY.ref(4, t0).offset(0x8L).get());
-      }
-
-      //LAB_2da8
-      v0 = (int)MEMORY.ref(4, t0).offset(0x18L).deref(4).call(fcb, 0x2L);
-
-      if(v0 > 0) {
-        MEMORY.ref(4, fcb).offset(0x10L).addu(v0);
-      }
-    } else {
-      v0 = (int)MEMORY.ref(4, t0).offset(0x28L).deref(4).call(fcb, src, length);
-    }
-
-    //LAB_2dd8
-    if(v0 < 0) {
-      _00008640.setu(MEMORY.ref(4, fcb).offset(0x18L).get());
-    }
-
-    //LAB_2df0
-    return v0;
   }
 
   @Method(0x2e00L)
@@ -1016,53 +864,10 @@ public final class Kernel {
     }
 
     //LAB_00002e44;
-    final long ret = (int)MEMORY.ref(4, v0).offset(0x1cL).deref(4).offset(0x1cL).deref(4).call((int)v0);
     MEMORY.ref(4, v0).setu(0);
 
-    if(ret == 0) {
-      //LAB_00002e80
-      return fd;
-    }
-
-    _00008640.setu(MEMORY.ref(4, v0).offset(0x18L));
-
-    //LAB_00002e88
-    return -1;
-  }
-
-  @Method(0x2efcL)
-  public static int FileIoctl_Impl_B37(final int fd, final int cmd, final int arg) {
-    final long v0 = getFcb(fd);
-    if(v0 != 0) {
-      if(MEMORY.ref(4, v0).get() != 0) {
-        //LAB_00002f70
-        if(cmd == 0x6601L) {
-          //LAB_00002f44
-          if(arg == 0) {
-            //LAB_00002f5c
-            MEMORY.ref(4, v0).and(0xffff_fffbL);
-          } else {
-            MEMORY.ref(4, v0).oru(0x4L);
-          }
-
-          //LAB_00002f64
-          return 1;
-        }
-
-        if((int)MEMORY.ref(4, v0).offset(0x1cL).deref(4).offset(0x20L).deref(4).cast(SupplierRef::new).run() >= 0) {
-          return 1;
-        }
-
-        _00008640.setu(MEMORY.ref(4, v0).offset(0x18L));
-
-        //LAB_00002fb8
-        return 0;
-      }
-    }
-
-    //LAB_00002f30
-    _00008640.setu(0x9L);
-    return -1;
+    //LAB_00002e80
+    return fd;
   }
 
   @Method(0x3060L)
@@ -1091,205 +896,9 @@ public final class Kernel {
     return FileControlBlockBaseAddr_00008648.offset(fd * 0x2cL).getAddress();
   }
 
-  @Method(0x3108L)
-  public static long getDeviceIndex(final String a0) {
-    long s0 = DeviceControlBlockBaseAddr_00006ee0.getAddress();
-
-    //LAB_00003154
-    for(int i = 0; i < 10; i++) {
-      final String s1 = MEMORY.ref(4, s0).deref(1).getString();
-      if(!s1.isEmpty()) {
-        if(strcmp(s1, a0) == 0) {
-          return s0;
-        }
-      }
-
-      //LAB_0000317c
-      s0 += 0x50L;
-    }
-
-    //LAB_000031a0
-    _0000890c.setu(0);
-
-    throw new RuntimeException(a0 + " is not a known device");
-  }
-
-  @Method(0x31e8L)
-  public static int FUN_000031e8(final String filename, final Ref<Long> deviceIndexRef, final Ref<Long> a2) {
-    int s0;
-    int charIndex = 0;
-
-    //LAB_00003210
-    while(filename.charAt(charIndex) == ' ') {
-      charIndex++;
-    }
-
-    //LAB_00003220
-    a2.set(0L);
-
-    final char[] sp44 = new char[0x2c];
-    final char currentChar = filename.charAt(charIndex);
-    int charIndex2 = charIndex;
-    int v1 = 0;
-    if(currentChar != '\0' && currentChar != ':') {
-      char currentChar2 = filename.charAt(charIndex2);
-      s0 = 0;
-
-      //LAB_00003250
-      do {
-        sp44[s0] = currentChar2;
-        charIndex2++;
-        currentChar2 = filename.charAt(charIndex2);
-        v1++;
-        s0++;
-      } while(currentChar2 != '\0' && currentChar2 != ':');
-
-      //LAB_00003270
-    }
-
-    //LAB_00003274
-    s0 = v1;
-    int lastIndex = s0;
-    sp44[s0] = 0;
-    final char t0 = filename.charAt(charIndex2);
-    if(t0 != '\0') {
-      a2.set(0L);
-      charIndex2++;
-      v1--;
-      s0--;
-
-      //LAB_000032bc
-      while(MEMORY.ref(1, 0x73d1).offset(sp44[s0]).get(0x44L) != 0) {
-        s0--;
-        v1--;
-      }
-
-      //LAB_000032dc
-      v1++;
-      final int sp68 = v1;
-      s0++;
-      char a0 = sp44[s0];
-
-      //LAB_000032fc
-      while(a0 != 0) {
-        final char uppercase = Character.toUpperCase(a0);
-
-        if(MEMORY.ref(1, 0x73d1).offset(sp44[s0]).get(0x4L) == 0) {
-          v1 = 0x37;
-        } else {
-          v1 = 0x30;
-        }
-
-        //LAB_00003330
-        s0++;
-        a2.set(uppercase + a2.get() * 16 - v1);
-        a0 = sp44[s0];
-      }
-
-      //LAB_0000335c
-      sp44[sp68] = 0;
-      lastIndex = sp68;
-    }
-
-    //LAB_0000336c
-    final long deviceIndex = getDeviceIndex(new String(sp44, 0, lastIndex));
-    deviceIndexRef.set(deviceIndex);
-    if(deviceIndex == 0) {
-      return -1;
-    }
-
-    //LAB_00003388
-    //LAB_0000338c
-    return charIndex2;
-  }
-
-  @Method(0x3c2cL)
-  public static boolean AddDevice_Impl_B47(final long deviceInfo) {
-    //LAB_00003c6c
-    for(int i = 0; i < 10; i++) {
-      if(DeviceControlBlockBaseAddr_00006ee0.offset(i * 0x50L).get() == 0) {
-        memcpy(DeviceControlBlockBaseAddr_00006ee0.offset(i * 0x50L).getAddress(), deviceInfo, 0x50);
-        DeviceControlBlockBaseAddr_00006ee0.offset(i * 0x50L).offset(4, 0x10L).deref(4).cast(RunnableRef::new).run();
-        return true;
-      }
-    }
-
-    //LAB_00003ccc
-    //LAB_00003cd0
-    return false;
-  }
-
-  @Method(0x3ce0L)
-  public static boolean RemoveDevice_Impl_B48(final String device) {
-    //LAB_00003d2c
-    for(int i = 0; i < 10; i++) {
-      if(DeviceControlBlockBaseAddr_00006ee0.get() != 0) {
-        if(strcmp(device, DeviceControlBlockBaseAddr_00006ee0.getString()) == 0) {
-          DeviceControlBlockBaseAddr_00006ee0.offset(i * 0x50L).offset(0x48L).deref(4).cast(RunnableRef::new).run();
-          DeviceControlBlockBaseAddr_00006ee0.offset(i * 0x50L).setu(0);
-          return true;
-        }
-      }
-    }
-
-    //LAB_00003d90
-    //LAB_00003d94
-    return false;
-  }
-
-  @Method(0x3e80L)
-  public static void tty_cdevscan_Impl_C16() {
-    for(int fd = 0; fd < 0x10; fd++) {
-      if(FileControlBlockBaseAddr_00008648.offset(fd * 0x2cL).get(0x1000L) != 0) {
-        FileIoctl_Impl_B37(fd, 0x6602, 0);
-      }
-    }
-  }
-
-  @Method(0x39a4L)
-  @Nullable
-  public static DIRENTRY firstfile(final String name, final DIRENTRY dir) {
-    if(_00007480.get() == 0) {
-      _00007480.setu(FUN_00003060());
-
-      if(_00007480.get() == 0) {
-        _00008640.setu(0x18L);
-        return null;
-      }
-    }
-
-    //LAB_39ec
-    final Ref<Long> sp0x28 = new Ref<>();
-    final Ref<Long> sp0x24 = new Ref<>();
-    final int a1 = FUN_000031e8(name, sp0x28, sp0x24);
-
-    if(a1 == -0x1L) {
-      _00008640.setu(0x13L);
-      _00007480.deref(4).setu(0);
-      return null;
-    }
-
-    //LAB_3a28
-    _00007480.deref(4).offset(0x4L).setu(sp0x24.get());
-    _00007480.deref(4).offset(0x1cL).setu(sp0x28.get());
-
-    //LAB_3a60
-    return (DIRENTRY)MEMORY.ref(4, sp0x28.get()).offset(0x34L).deref(4).call(_00007480.get(), name.substring(a1), dir);
-  }
-
-  @Method(0x3a70L)
-  public static DIRENTRY nextfile_Impl_B43(final DIRENTRY dir) {
-    return (DIRENTRY)_00007480.deref(4).offset(0x1cL).deref(4).offset(0x38L).deref(4).call(_00007480.get(), dir);
-  }
-
   @Method(0x6a80L)
   public static void SystemErrorUnresolvedException() {
     SystemErrorUnresolvedException_Impl_A40();
-  }
-
-  @Method(0x6aa0L)
-  public static void AddCdromDevice() {
-    AddCdromDevice_Impl_A96();
   }
 
   @Method(0x6b10L)

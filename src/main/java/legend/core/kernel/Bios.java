@@ -2,18 +2,14 @@ package legend.core.kernel;
 
 import legend.core.DebugHelper;
 import legend.core.cdrom.CdlLOC;
-import legend.core.cdrom.SyncCode;
-import legend.core.memory.Memory;
 import legend.core.memory.Method;
 import legend.core.memory.Value;
 import legend.core.memory.types.ArrayRef;
 import legend.core.memory.types.BiConsumerRef;
 import legend.core.memory.types.CString;
-import legend.core.memory.types.ConsumerRef;
 import legend.core.memory.types.Pointer;
 import legend.core.memory.types.ProcessControlBlock;
 import legend.core.memory.types.RunnableRef;
-import legend.core.memory.types.SupplierRef;
 import legend.core.memory.types.ThreadControlBlock;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -22,39 +18,22 @@ import javax.annotation.Nullable;
 
 import static legend.core.Hardware.CDROM;
 import static legend.core.Hardware.CPU;
-import static legend.core.Hardware.DMA;
 import static legend.core.Hardware.ENTRY_POINT;
 import static legend.core.Hardware.GATE;
 import static legend.core.Hardware.MEMORY;
 import static legend.core.InterruptController.I_MASK;
 import static legend.core.InterruptController.I_STAT;
-import static legend.core.MathHelper.toBcd;
-import static legend.core.cdrom.CdDrive.CDROM_REG0;
-import static legend.core.cdrom.CdDrive.CDROM_REG1;
-import static legend.core.cdrom.CdDrive.CDROM_REG2;
-import static legend.core.cdrom.CdDrive.CDROM_REG3;
 import static legend.core.dma.DmaManager.DMA_DICR;
 import static legend.core.dma.DmaManager.DMA_DPCR;
-import static legend.core.kernel.Kernel.AddDevice_Impl_B47;
 import static legend.core.kernel.Kernel.CloseEvent_Impl_B09;
 import static legend.core.kernel.Kernel.DeliverEvent_Impl_B07;
 import static legend.core.kernel.Kernel.EnableEvent_Impl_B0c;
 import static legend.core.kernel.Kernel.EnqueueSyscallHandler_Impl_C01;
 import static legend.core.kernel.Kernel.EnqueueTimerAndVblankIrqs_Impl_C00;
-import static legend.core.kernel.Kernel.EvMdNOINTR;
-import static legend.core.kernel.Kernel.EvSpACK;
-import static legend.core.kernel.Kernel.EvSpCOMP;
-import static legend.core.kernel.Kernel.EvSpDE;
-import static legend.core.kernel.Kernel.EvSpDR;
-import static legend.core.kernel.Kernel.EvSpERROR;
-import static legend.core.kernel.Kernel.EvSpTIMOUT;
-import static legend.core.kernel.Kernel.EvSpUNKNOWN;
 import static legend.core.kernel.Kernel.FileClose_Impl_B36;
 import static legend.core.kernel.Kernel.FileOpen_Impl_B32;
 import static legend.core.kernel.Kernel.FileRead_Impl_B34;
-import static legend.core.kernel.Kernel.HwCdRom;
 import static legend.core.kernel.Kernel.InitDefInt_Impl_C0c;
-import static legend.core.kernel.Kernel.InstallDevices_Impl_C12;
 import static legend.core.kernel.Kernel.InstallExceptionHandlers_Impl_C07;
 import static legend.core.kernel.Kernel.OpenEvent_Impl_B08;
 import static legend.core.kernel.Kernel.ReturnFromException_Impl_B17;
@@ -85,29 +64,14 @@ public final class Bios {
 
   public static final Value randSeed_a0009010 = MEMORY.ref(4, 0xa0009010L);
 
-  public static final Value _a0009150 = MEMORY.ref(4, 0xa0009150L);
   public static final Value _a0009154 = MEMORY.ref(4, 0xa0009154L);
   public static final Value _a0009158 = MEMORY.ref(4, 0xa0009158L);
   public static final Value _a000915c = MEMORY.ref(4, 0xa000915cL);
   public static final Value _a0009160 = MEMORY.ref(4, 0xa0009160L);
-  public static final Value _a0009164 = MEMORY.ref(4, 0xa0009164L);
-
-  public static final Value _a000917c = MEMORY.ref(4, 0xa000917cL);
-  public static final Value _a0009180 = MEMORY.ref(4, 0xa0009180L);
-
-  public static final Value _a0009188 = MEMORY.ref(4, 0xa0009188L);
-  public static final Value _a000918c = MEMORY.ref(4, 0xa000918cL);
-  public static final Value _a0009190 = MEMORY.ref(4, 0xa0009190L);
-
-  public static final Value _a0009198 = MEMORY.ref(4, 0xa0009198L);
-
-  public static final Value _a00091ac = MEMORY.ref(4, 0xa00091acL);
 
   public static final Value _a00091c4 = MEMORY.ref(4, 0xa00091c4L);
   public static final Value _a00091c8 = MEMORY.ref(4, 0xa00091c8L);
   public static final Value _a00091cc = MEMORY.ref(4, 0xa00091ccL);
-  public static final PriorityChainEntry _a00091d0 = MEMORY.ref(4, 0xa00091d0L, PriorityChainEntry::new);
-  public static final PriorityChainEntry _a00091e0 = MEMORY.ref(4, 0xa00091e0L, PriorityChainEntry::new);
   public static final Value _a00091f0 = MEMORY.ref(4, 0xa00091f0L);
 
   public static final Value _a00091fc = MEMORY.ref(4, 0xa00091fcL);
@@ -157,17 +121,7 @@ public final class Bios {
   public static final Value _a000b938 = MEMORY.ref(4, 0xa000b938L);
   public static final Value _a000b93c = MEMORY.ref(4, 0xa000b93cL);
 
-  public static final Value EventId_HwCdRom_EvSpACK_a000b9b8 = MEMORY.ref(1, 0xa000b9b8L);
-  public static final Value EventId_HwCdRom_EvSpCOMP_a000b9bc = MEMORY.ref(1, 0xa000b9bcL);
-  public static final Value EventId_HwCdRom_EvSpDR_a000b9c0 = MEMORY.ref(1, 0xa000b9c0L);
-  public static final Value EventId_HwCdRom_EvSpDE_a000b9c4 = MEMORY.ref(1, 0xa000b9c4L);
-  public static final Value EventId_HwCdRom_EvSpERROR_a000b9c8 = MEMORY.ref(1, 0xa000b9c8L);
-
   public static final Value kernelMemoryStart_a000e000 = MEMORY.ref(1, 0xa000e000L);
-
-  public static final Value _bfc0e14c = MEMORY.ref(1, 0xbfc0e14cL);
-
-  public static final Value CdromDeviceInfo_bfc0e2f0 = MEMORY.ref(12, 0xbfc0e2f0L);
 
   public static final Value kernelStartRom_bfc10000 = MEMORY.ref(4, 0xbfc10000L);
 
@@ -452,25 +406,6 @@ public final class Bios {
     return processSize + threadSize;
   }
 
-  @Method(0xbfc04850L)
-  public static void EnqueueCdIntr_Impl_Aa2() {
-    _a00091d0.next.clear();
-    _a00091d0.secondFunction.set(MEMORY.ref(4, 0xbfc0506cL, ConsumerRef::new)); // CdromIoIrqFunc2_Impl_A92
-    _a00091d0.firstFunction.set(MEMORY.ref(4, 0xbfc04decL, SupplierRef::new)); // CdromIoIrqFunc1_Impl_A90
-    SysEnqIntRP(0, _a00091d0);
-
-    _a00091e0.next.clear();
-    _a00091e0.secondFunction.set(MEMORY.ref(4, 0xbfc050a4L, ConsumerRef::new)); // CdromDmaIrqFunc2_Impl_A93
-    _a00091e0.firstFunction.set(MEMORY.ref(4, 0xbfc04fbcL, SupplierRef::new)); // CdromDmaIrqFunc1_Impl_A91
-    SysEnqIntRP(0, _a00091e0);
-  }
-
-  @Method(0xbfc048d0L)
-  public static void DequeueCdIntr_Impl_Aa3() {
-    SysDeqIntRP(0, _a00091d0);
-    SysDeqIntRP(0, _a00091e0);
-  }
-
   @Method(0xbfc04910L)
   public static boolean CdInitSubFunc_Impl_A95() {
     _a00091c4.setu(0);
@@ -495,783 +430,12 @@ public final class Bios {
     _a000915c.setu(0);
     _a0009160.setu(0);
 
-    acknowledgeCdromInterruptsAndClearParamBuffer();
-
     I_STAT.setu(0xfffffffbL);
-    I_MASK.oru(0x4L);
-    I_MASK.oru(0x8L);
 
     ExitCriticalSection();
 
     CDROM.init();
     return true;
-  }
-
-  @Method(0xbfc04abcL)
-  public static int CdAsyncSeekL_Impl_A78(final CdlLOC src) {
-    if(_a0009154.get() == 0xe6L || _a0009154.get() == 0xebL) {
-      if(_a000915c.get() == 0) {
-        return 0;
-      }
-    } else if(_a0009154.get() != 0xffffL) {
-      return 0;
-    }
-
-    //LAB_bfc04b14
-    if(CDROM_REG0.get(0x10L) != 0x10L) {
-      return 0;
-    }
-
-    //LAB_bfc04b3c
-    FUN_bfc064d8();
-
-    if(_a0009154.get() == 0xe6L || _a0009154.get() == 0xebL) {
-      //LAB_bfc04b60
-      _a0009158.setu(_a0009154);
-    }
-
-    //LAB_bfc04b68
-    CDROM_REG0.setu(0);
-    CDROM_REG2.setu(toBcd(src.getMinute()));
-    CDROM_REG2.setu(toBcd(src.getSecond()));
-    CDROM_REG2.setu(toBcd(src.getSector()));
-    CDROM_REG1.setu(0x2L);
-    _a0009154.setu(0xf2L);
-
-    //LAB_bfc04bb4
-    return 1;
-  }
-
-  @Method(0xbfc04bc4L)
-  public static int CdAsyncGetStatus_Impl_A7c(final long dest) {
-    if(_a0009154.get() != 0xffffL) {
-      return 0;
-    }
-
-    //LAB_bfc04be8
-    FUN_bfc06548();
-    _a0009164.setu(dest);
-    CDROM_REG0.setu(0);
-    _a0009154.setu(0x1L);
-    CDROM_REG1.setu(0x1L);
-
-    //LAB_bfc04c28
-    return 1;
-  }
-
-  @Method(0xbfc04c38L)
-  public static int CdAsyncReadSector_Impl_A7e(final int count, final long dest, final int mode) {
-    if(_a0009154.get() != 0xffffL || count <= 0) {
-      return 0;
-    }
-
-    //LAB_bfc04c64
-    FUN_bfc06548();
-
-    _a000917c.setu(count);
-    _a0009180.setu(count);
-    _a0009188.setu(dest);
-    _a0009190.setu(mode);
-    _a000915c.setu(0);
-
-    if((mode & 0x10L) == 0) {
-      //LAB_bfc04cbc
-      if((mode & 0x20L) == 0) {
-        //LAB_bfc04cdc
-        _a0009198.setu(0x200L);
-      } else {
-        _a0009198.setu(0x249L);
-      }
-    } else {
-      _a0009198.setu(0x246L);
-    }
-
-    //LAB_bfc04ce4
-    if(CDROM_REG0.get(0x10L) != 0x10L) {
-      return 0;
-    }
-
-    //LAB_bfc04d0c
-    CDROM_REG0.setu(0);
-    CDROM_REG2.setu(mode & 0xffL);
-    _a0009154.setu(0xfeL);
-    CDROM_REG1.setu(0xeL);
-
-    //LAB_bfc04d40
-    return 1;
-  }
-
-  @Method(0xbfc04decL)
-  public static int CdromIoIrqFunc1_Impl_A90() {
-    if(I_MASK.get(0x4L) == 0) {
-      return 0;
-    }
-
-    //LAB_bfc04e18
-    _a0009150.setu(I_STAT);
-    if(I_STAT.get(0x4L) == 0) {
-      return 0;
-    }
-
-    //LAB_bfc04e34
-    CDROM_REG0.setu(0x1L);
-    final long interruptFlag = CDROM_REG3.get();
-    final long response = interruptFlag & 0b111L;
-    final long v1 = interruptFlag & 0b1_1000L;
-
-    if(response != 0) {
-      CDROM_REG0.setu(0x1L);
-      CDROM_REG3.setu(0x7L);
-
-      //LAB_bfc04e88
-//      for(int i = 0; i < 4; i++) {
-//        MEMORY.ref(4, 0).setu(i);
-//      }
-    }
-
-    //LAB_bfc04ebc
-    if(v1 != 0) {
-      CDROM_REG0.setu(0x1L);
-      CDROM_REG3.setu(v1);
-
-      //LAB_bfc04ee8
-//      for(int i = 0; i < 4; i++) {
-//        MEMORY.ref(4, 0).setu(i);
-//      }
-    }
-
-    //LAB_bfc04f1c
-    switch(SyncCode.fromLong(response)) {
-      case DATA_READY -> {
-        FUN_bfc0593c();
-        return 0x1;
-      }
-      case COMPLETE -> {
-        FUN_bfc05558();
-        return 0x1;
-      }
-      case ACKNOWLEDGE -> {
-        FUN_bfc05194();
-        return 0x1;
-      }
-      case DATA_END -> {
-        FUN_bfc05a44();
-        return 0x1;
-      }
-      case DISK_ERROR -> {
-        FUN_bfc057b0();
-        return 0x1;
-      }
-    }
-
-    //LAB_bfc04fac
-    return 0x1;
-  }
-
-  @Method(0xbfc04fbcL)
-  public static int CdromDmaIrqFunc1_Impl_A91() {
-    if(I_MASK.get(0x8L) == 0) {
-      return 0;
-    }
-
-    //LAB_bfc04fe8
-    _a0009150.setu(I_STAT);
-    if(I_STAT.get(0x8L) == 0) {
-      return 0;
-    }
-
-    //LAB_bfc05004
-    DMA_DICR.setu(DMA_DICR.get(0xff_ffffL) | 0x800_0000L);
-
-    _a0009180.subu(0x1L);
-    if(_a0009180.get() == 0) {
-      DeliverEvent(HwCdRom, EvSpACK);
-    }
-
-    //LAB_bfc05050
-    _a0009160.setu(0);
-
-    //LAB_bfc0505c
-    return 1;
-  }
-
-  @Method(0xbfc0506cL)
-  public static void CdromIoIrqFunc2_Impl_A92(final long a0) {
-    if(_a000b938.get() != 0) {
-      I_STAT.setu(0xffff_fffbL);
-      ReturnFromException();
-    }
-  }
-
-  @Method(0xbfc050a4)
-  public static void CdromDmaIrqFunc2_Impl_A93(final int a0) {
-    if(_a000b93c.get() != 0) {
-      I_STAT.setu(0xffff_fff7L);
-      ReturnFromException();
-    }
-  }
-
-  @Method(0xbfc050fcL)
-  public static void FUN_bfc050fc() {
-    CDROM_REG0.setu(0);
-    CDROM_REG2.setu(0x1fL);
-  }
-
-  @Method(0xbfc05120L)
-  public static void acknowledgeCdromInterruptsAndClearParamBuffer() {
-    CDROM.acknowledgeInterrupts();
-    CDROM.clearParamBuffer();
-  }
-
-  @Method(0xbfc05194L)
-  public static void FUN_bfc05194() {
-    final long v0 = _a0009154.get();
-
-    if(v0 == 0x10L) {
-      FUN_bfc05c50();
-      return;
-    }
-
-    //LAB_bfc051bc
-    if(v0 == 0x11L) {
-      FUN_bfc05d04();
-      return;
-    }
-
-    //LAB_bfc051d8
-    //LAB_bfc05300
-    if(v0 == 0x19L) {
-      //LAB_bfc052d4
-      FUN_bfc060dc(CDROM_REG1.get());
-      return;
-    }
-
-    if(v0 < 0x1aL) {
-      if(v0 == 0xeL) {
-        //LAB_bfc052b4
-        FUN_bfc061a0();
-        return;
-      }
-
-      if(v0 < 0xfL) {
-        if(v0 == 0x8L) {
-          return;
-        }
-
-        if(v0 < 0x9L) {
-          if(v0 == 0x5L) {
-            //LAB_bfc05220
-            //LAB_bfc05224
-            _a000915c.setu(0x1L);
-            DeliverEvent(HwCdRom, EvSpCOMP);
-            return;
-          }
-
-          if(v0 < 0x6L) {
-            if(v0 == 0x3L) {
-              //LAB_bfc05220
-              //LAB_bfc05224
-              _a000915c.setu(0x1L);
-              DeliverEvent(HwCdRom, EvSpCOMP);
-              return;
-            }
-
-            if(v0 < 0x4L) {
-              if(v0 == 0x1L) {
-                //LAB_bfc05244
-                FUN_bfc05db0(CDROM_REG1.get());
-              }
-
-              return;
-            }
-
-            //LAB_bfc05360
-            if(v0 == 0x4L) {
-              //LAB_bfc05224
-              _a000915c.setu(0x1L);
-              DeliverEvent(HwCdRom, EvSpCOMP);
-            }
-
-            return;
-          }
-
-          //LAB_bfc05374
-          if(v0 == 0x7L) {
-            return;
-          }
-
-          return;
-        }
-
-        //LAB_bfc05388
-        if(v0 == 0xbL) {
-          //LAB_bfc05284
-          FUN_bfc0615c();
-          return;
-        }
-
-        if(v0 < 0xcL) {
-          if(v0 == 0x9L) {
-            return;
-          }
-
-          return;
-        }
-
-        //LAB_bfc053ac
-        if(v0 == 0xcL) {
-          //LAB_bfc05284
-          FUN_bfc0615c();
-        }
-
-        return;
-      }
-
-      //LAB_bfc053c0
-      if(v0 == 0x14L) {
-        //LAB_bfc052a4
-        FUN_bfc063cc();
-        return;
-      }
-
-      if(v0 < 0x15L) {
-        if(v0 == 0x12L) {
-          return;
-        }
-
-        if(v0 < 0x13L) {
-          if(v0 == 0xfL) {
-            //LAB_bfc05254
-            FUN_bfc05df4();
-          }
-
-          return;
-        }
-
-        //LAB_bfc053f4
-        if(v0 == 0x13L) {
-          //LAB_bfc052c4
-          FUN_bfc062cc();
-        }
-
-        return;
-      }
-
-      //LAB_bfc05408
-      if(v0 == 0x16L) {
-        return;
-      }
-
-      if(v0 < 0x17L) {
-        if(v0 == 0x15L) {
-          return;
-        }
-
-        return;
-      }
-
-      //LAB_bfc0542c
-      if(v0 == 0x17L) {
-        //LAB_bfc052b4
-        FUN_bfc061a0();
-      }
-
-      return;
-    }
-
-    //LAB_bfc05440
-    if(v0 == 0xf6L) {
-      //LAB_bfc05210
-      //LAB_bfc05214
-      _a000915c.setu(0x1L);
-      return;
-    }
-
-    if(v0 < 0xf7L) {
-      if(v0 == 0xe6L) {
-        //LAB_bfc05210
-        //LAB_bfc05214
-        _a000915c.setu(0x1L);
-        return;
-      }
-
-      if(v0 < 0xe7L) {
-        if(v0 == 0x50L) {
-          //LAB_bfc05274
-          FUN_bfc061d4();
-          return;
-        }
-
-        if(v0 < 0x51L) {
-          if(v0 == 0x1aL) {
-            return;
-          }
-
-          return;
-        }
-
-        //LAB_bfc05484
-        if(v0 == 0xe2L) {
-          //LAB_bfc05200
-          FUN_bfc05c18(0x1L);
-        }
-
-        return;
-      }
-
-      //LAB_bfc05498
-      if(v0 == 0xeeL) {
-        //LAB_bfc05264
-        FUN_bfc05e58();
-        return;
-      }
-
-      if(v0 < 0xefL) {
-        if(v0 == 0xebL) {
-          //LAB_bfc05214
-          _a000915c.setu(0x1L);
-        }
-
-        return;
-      }
-
-      //LAB_bfc054bc
-      if(v0 == 0xf2L) {
-        //LAB_bfc051f0
-        FUN_bfc05c18(0);
-        return;
-      }
-
-      return;
-    }
-
-    //LAB_bfc054d0
-    if(v0 == 0xdddL) {
-      return;
-    }
-
-    if(v0 < 0xddeL) {
-      if(v0 == 0xfeL) {
-        //LAB_bfc05264
-        FUN_bfc05e58();
-        return;
-      }
-
-      if(v0 < 0xffL) {
-        if(v0 == 0xfbL) {
-          //LAB_bfc05214
-          _a000915c.setu(0x1L);
-        }
-
-        return;
-      }
-
-      //LAB_bfc05504
-      if(v0 == 0xcccL) {
-        return;
-      }
-
-      return;
-    }
-
-    //LAB_bfc05518
-    if(v0 == 0xfffL) {
-      return;
-    }
-
-    if(v0 < 0x1000L) {
-      if(v0 == 0xf14L) {
-        //LAB_bfc05294
-        FUN_bfc06288();
-      }
-
-      return;
-    }
-
-    //LAB_bfc0553c
-    if(v0 == 0xffffL) {
-      //LAB_bfc052e8
-      DeliverEvent(HwCdRom, EvSpUNKNOWN);
-    }
-
-    //LAB_bfc05548
-    //LAB_bfc0554c
-  }
-
-  @Method(0xbfc05558L)
-  public static void FUN_bfc05558() {
-    CDROM_REG1.get(); // Read to nowhere intentional
-
-    final long v0 = _a0009154.get();
-
-    if(v0 == 0x12L) {
-      FUN_bfc06218();
-      return;
-    }
-
-    if(v0 == 0xcccL) {
-      //LAB_bfc05648
-      _a00091c4.setu(0x1L);
-      _a0009154.set(0xffffL);
-      return;
-    }
-
-    //LAB_bfc05768
-    if(v0 == 0xfffL) {
-      //LAB_bfc055f8
-      _a0009154.setu(0xffffL);
-      DeliverEvent(HwCdRom, EvSpCOMP);
-      return;
-    }
-
-    if(v0 == 0xdddL) {
-      //LAB_bfc0561c
-      _a00091c8.setu(0);
-      _a0009154.setu(0xffffL);
-      DeliverEvent(HwCdRom, EvSpERROR);
-      return;
-    }
-
-    //LAB_bfc0578c
-    if(v0 == 0xffffL) {
-      //LAB_bfc056cc
-      DeliverEvent(HwCdRom, EvSpUNKNOWN);
-      return;
-    }
-
-    //LAB_bfc05754
-    if(v0 == 0x1aL) {
-      //LAB_bfc05664
-      long v2 = _a00091ac.get();
-      long v1 = 0;
-
-      do {
-        MEMORY.ref(1, v2).setu(CDROM_REG1);
-        MEMORY.ref(1, v2).offset(0x1L).setu(CDROM_REG1);
-        MEMORY.ref(1, v2).offset(0x2L).setu(CDROM_REG1);
-        MEMORY.ref(1, v2).offset(0x3L).setu(CDROM_REG1);
-        v2 += 0x4L;
-        v1 += 0x4L;
-      } while(v1 != 0x4L);
-    }
-
-    if(v0 == 0x8L || v0 == 0x9L || v0 == 0x15L || v0 == 0x16L) {
-      //LAB_bfc05590
-      final long v2 = _a0009158.get();
-      if(v2 == 0xe6L || v2 == 0xebL || v2 == 0x3L || v2 == 0x4L || v2 == 0x5L) {
-        //LAB_bfc055c8
-        _a0009158.setu(0xffffL);
-      }
-    }
-
-    //LAB_bfc05734
-    _a0009154.setu(0xffffL);
-    DeliverEvent(HwCdRom, EvSpCOMP);
-  }
-
-  @Method(0xbfc057b0L)
-  public static void FUN_bfc057b0() {
-    assert false;
-  }
-
-  @Method(0xbfc0593cL)
-  public static void FUN_bfc0593c() {
-    if(_a0009154.get() == 0xf6L || _a0009154.get() == 0xfbL || _a0009158.get() == 0xf6L || _a0009158.get() == 0xfbL) {
-      FUN_bfc05f08();
-    } else {
-      if(_a0009154.get() == 0xe6L || _a0009154.get() == 0xebL || _a0009158.get() == 0xe6L || _a0009158.get() == 0xebL) {
-        FUN_bfc06010();
-      } else {
-        if(_a0009154.get() == 0x3L || _a0009154.get() == 0x4L || _a0009154.get() == 0x5L) {
-          FUN_bfc06038(CDROM_REG1.get());
-        } else {
-          DeliverEvent(HwCdRom, EvSpUNKNOWN);
-        }
-      }
-    }
-  }
-
-  @Method(0xbfc05a44L)
-  public static void FUN_bfc05a44() {
-    assert false;
-  }
-
-  @Method(0xbfc05c18L)
-  public static void FUN_bfc05c18(final long a0) {
-    final long v0;
-
-    if(a0 == 0) {
-      v0 = 0x15L;
-    } else {
-      v0 = 0x16L;
-    }
-
-    //LAB_bfc05c2c
-    CDROM_REG0.setu(0);
-    CDROM_REG1.setu(v0);
-    _a0009154.setu(v0);
-  }
-
-  @Method(0xbfc05c50L)
-  public static void FUN_bfc05c50() {
-    assert false;
-  }
-
-  @Method(0xbfc05d04L)
-  public static void FUN_bfc05d04() {
-    assert false;
-  }
-
-  @Method(0xbfc05db0L)
-  public static void FUN_bfc05db0(final long a0) {
-    _a0009164.deref(1).setu(_a0009164);
-    _a0009154.setu(0xffffL);
-    DeliverEvent(HwCdRom, EvSpCOMP);
-  }
-
-  @Method(0xbfc05df4L)
-  public static void FUN_bfc05df4() {
-    assert false;
-  }
-
-  @Method(0xbfc05e58L)
-  public static void FUN_bfc05e58() {
-    CDROM_REG0.setu(0);
-
-    if(_a0009190.get(0x100L) == 0) {
-      if(_a0009154.get() == 0xfeL) {
-        _a0009154.setu(0xf6L);
-      } else {
-        //LAB_bfc05ea4
-        _a0009154.setu(0xe6L);
-      }
-
-      //LAB_bfc05eac
-      CDROM_REG1.setu(0x6L);
-      return;
-    }
-
-    //LAB_bfc05ec0
-    if(_a0009154.get() == 0xfeL) {
-      _a0009154.setu(0xfbL);
-    } else {
-      //LAB_bfc05ee8
-      _a0009154.setu(0xebL);
-    }
-
-    //LAB_bfc05ef0
-    CDROM_REG1.setu(0x1bL);
-  }
-
-  @Method(0xbfc05f08L)
-  public static void FUN_bfc05f08() {
-    final long a2 = _a000917c.get();
-
-    if((int)a2 > 0) {
-      _a000918c.setu(_a0009188);
-      CDROM_REG0.setu(0);
-      CDROM_REG0.get(); // Intentional read to nowhere
-      CDROM_REG3.setu(0);
-      CDROM_REG3.get(); // Intentional read to nowhere
-      CDROM_REG0.setu(0);
-      CDROM_REG3.setu(0x80L);
-      _a000917c.setu(a2 - 0x1L);
-      FUN_bfc065c0(_a0009188.get(), _a0009198.get());
-
-      _a0009188.addu(_a0009198.get() * 4);
-      if(_a000917c.get() != 0) {
-        return;
-      }
-
-      CDROM_REG0.setu(0);
-      _a0009154.setu(0xfffL);
-      CDROM_REG1.setu(0x9L);
-      return;
-    }
-
-    //LAB_bfc05fec
-    if(a2 == 0) {
-      _a000917c.setu(-0x1L);
-    }
-  }
-
-  @Method(0xbfc06010L)
-  public static void FUN_bfc06010() {
-    assert false;
-  }
-
-  @Method(0xbfc06038L)
-  public static void FUN_bfc06038(final long a0) {
-    assert false;
-  }
-
-  @Method(0xbfc060dcL)
-  public static void FUN_bfc060dc(final long a0) {
-    assert false;
-  }
-
-  @Method(0xbfc0615cL)
-  public static void FUN_bfc0615c() {
-    assert false;
-  }
-
-  @Method(0xbfc061a0L)
-  public static void FUN_bfc061a0() {
-    assert false;
-  }
-
-  @Method(0xbfc061d4L)
-  public static void FUN_bfc061d4() {
-    assert false;
-  }
-
-  @Method(0xbfc06218L)
-  public static void FUN_bfc06218() {
-    assert false;
-  }
-
-  @Method(0xbfc06288L)
-  public static void FUN_bfc06288() {
-    assert false;
-  }
-
-  @Method(0xbfc062ccL)
-  public static void FUN_bfc062cc() {
-    assert false;
-  }
-
-  @Method(0xbfc063ccL)
-  public static void FUN_bfc063cc() {
-    assert false;
-  }
-
-  @Method(0xbfc064d8L)
-  public static void FUN_bfc064d8() {
-    UnDeliverEvent(HwCdRom, EvSpCOMP);
-    UnDeliverEvent(HwCdRom, EvSpDE);
-    UnDeliverEvent(HwCdRom, EvSpERROR);
-    UnDeliverEvent(HwCdRom, EvSpTIMOUT);
-    UnDeliverEvent(HwCdRom, EvSpUNKNOWN);
-  }
-
-  @Method(0xbfc06548L)
-  public static void FUN_bfc06548() {
-    UnDeliverEvent(HwCdRom, EvSpDR);
-    UnDeliverEvent(HwCdRom, EvSpACK);
-    UnDeliverEvent(HwCdRom, EvSpCOMP);
-    UnDeliverEvent(HwCdRom, EvSpDE);
-    UnDeliverEvent(HwCdRom, EvSpERROR);
-    UnDeliverEvent(HwCdRom, EvSpTIMOUT);
-    UnDeliverEvent(HwCdRom, EvSpUNKNOWN);
-  }
-
-  @Method(0xbfc065c0L)
-  public static void FUN_bfc065c0(final long a0, final long a1) {
-    DMA_DICR.setu(DMA_DICR.get(0xff_ffffL) | 0x88_0000L);
-    DMA_DPCR.oru(0x8000L);
-    DMA.cdrom.MADR.setu(a0);
-    DMA.cdrom.BCR.setu(a1 | 0x1_0000L);
-    DMA.cdrom.CHCR.setu(0x1100_0000L);
   }
 
   @Method(0xbfc067e8L)
@@ -1289,13 +453,6 @@ public final class Bios {
     I_MASK.setu(0);
     I_STAT.setu(0);
 
-    InstallDevices(0);
-
-    LOGGER.info("");
-    LOGGER.info("PS-X Realtime Kernel Ver.2.5");
-    LOGGER.info("Copyright 1993,1994 (C) Sony Computer Entertainment Inc.");
-
-    LOGGER.info("KERNEL SETUP!");
     SysInitMemory(kernelMemoryStart_a000e000.getAddress(), 0x2000);
     allocateExceptionChain(4);
     EnqueueSyscallHandler(0);
@@ -1308,35 +465,17 @@ public final class Bios {
     I_STAT.setu(0);
     CdInit_Impl_A54();
 
-    LOGGER.info("");
-    LOGGER.info("BOOTSTRAP LOADER Type C Ver 2.1   03-JUL-1994");
-    LOGGER.info("Copyright 1993,1994 (C) Sony Computer Entertainment Inc.");
-
     //LAB_bfc06a3c
     //LAB_bfc06af4
-    exeName_a000b8b0.set("cdrom:\\SCUS_944.91;1");
+    exeName_a000b8b0.set("\\SCUS_944.91;1");
 
     //LAB_bfc06b7c
-    SysInitMemory(kernelMemoryStart_a000e000.getAddress(), 0x2000);
-    allocateExceptionChain(4);
-    EnqueueSyscallHandler(0);
-    InitDefInt(3);
-    allocateEventControlBlock(10);
-    allocateThreadControlBlock(1, 4);
-    EnqueueTimerAndVblankIrqs(1);
-    registerCdromEvents();
-    LOGGER.info("boot file     : %s", exeName_a000b8b0.getString());
-
     //LAB_bfc06bb4
     if(!LoadExeFile_Impl_A42(exeName_a000b8b0.getString(), exe_a000b870.getAddress())) {
       throw new RuntimeException("Failed to load exe");
     }
 
     //LAB_bfc06be0
-    LOGGER.info("EXEC:PC0(%08x)  T_ADDR(%08x)  T_SIZE(%08x)", exe_a000b870.pc0.get(), exe_a000b870.t_addr.get(), exe_a000b870.t_size.get());
-    LOGGER.info("boot address  : %08x", exe_a000b870.pc0.get());
-    LOGGER.info("Execute !");
-
     EnterCriticalSection();
 
     //LAB_bfc06c6c
@@ -1350,56 +489,15 @@ public final class Bios {
     return 0;
   }
 
-  @Method(0xbfc071a0L)
-  public static void registerCdromEvents() {
-    EnqueueCdIntr();
-
-    EventId_HwCdRom_EvSpACK_a000b9b8.setu(OpenEvent(HwCdRom, EvSpACK, EvMdNOINTR, 0));
-    EventId_HwCdRom_EvSpCOMP_a000b9bc.setu(OpenEvent(HwCdRom, EvSpCOMP, EvMdNOINTR, 0));
-    EventId_HwCdRom_EvSpDR_a000b9c0.setu(OpenEvent(HwCdRom, EvSpDR, EvMdNOINTR, 0));
-    EventId_HwCdRom_EvSpDE_a000b9c4.setu(OpenEvent(HwCdRom, EvSpDE, EvMdNOINTR, 0));
-    EventId_HwCdRom_EvSpERROR_a000b9c8.setu(OpenEvent(HwCdRom, EvSpERROR, EvMdNOINTR, 0));
-
-    EnableEvent(EventId_HwCdRom_EvSpACK_a000b9b8.get());
-    EnableEvent(EventId_HwCdRom_EvSpCOMP_a000b9bc.get());
-    EnableEvent(EventId_HwCdRom_EvSpDR_a000b9c0.get());
-    EnableEvent(EventId_HwCdRom_EvSpDE_a000b9c4.get());
-    EnableEvent(EventId_HwCdRom_EvSpERROR_a000b9c8.get());
-
-    ExitCriticalSection();
-
-    _a0009d80.setu(0);
-  }
-
-  @Method(0xbfc072b8L)
-  public static void _96_remove_Impl_A54() {
-    EnterCriticalSection();
-    CloseEvent((int)EventId_HwCdRom_EvSpACK_a000b9b8.get());
-    CloseEvent((int)EventId_HwCdRom_EvSpCOMP_a000b9bc.get());
-    CloseEvent((int)EventId_HwCdRom_EvSpDR_a000b9c0.get());
-    CloseEvent((int)EventId_HwCdRom_EvSpDE_a000b9c4.get());
-    CloseEvent((int)EventId_HwCdRom_EvSpERROR_a000b9c8.get());
-    DequeueCdIntr();
-  }
-
-  @Method(0xbfc07330L)
-  public static void cdromPreInit() {
-    registerCdromEvents();
-    CdInitSubFunc();
-  }
-
   @Method(0xbfc073a0L)
   public static void CdInit_Impl_A54() {
-    cdromPreInit();
+    CdInitSubFunc();
     cdromPostInit();
   }
 
   @Method(0xbfc07410L)
   public static long cdromPostInit() {
     CDROM.readFromDisk(new CdlLOC().unpack(0x10L), 1, _a000b070.getAddress());
-//    if(CdReadSector_Impl_Aa5(1, 0x10L, _a000b070.getAddress()) != 0x1L) {
-//      return 0;
-//    }
 
     //LAB_bfc0744c
     if(strncmp_Impl_A18(_a000b071.getString(), "CD001", 5) != 0) {
@@ -1414,9 +512,6 @@ public final class Bios {
     _a0009d7c.setu(_a000b0c0);
 
     CDROM.readFromDisk(new CdlLOC().unpack(_a000b0fc.get()), 1, _a000b070.getAddress());
-//    if(CdReadSector_Impl_Aa5(1, _a000b0fc.get(), _a000b070.getAddress()) != 0x1L) {
-//      return 0;
-//    }
 
     //LAB_bfc07500
     //LAB_bfc07518
@@ -1498,9 +593,7 @@ public final class Bios {
     }
 
     //LAB_bfc07720
-    if(CdReadSector_Impl_Aa5(1, _a000958c.offset(a0 * 44).get(), _a000b070.getAddress()) != 0x1L) {
-      return -0x1L;
-    }
+    CDROM.readFromDisk(new CdlLOC().unpack(_a000958c.offset(a0 * 44).get()), 1, _a000b070.getAddress());
 
     //LAB_bfc07774
     long s1 = _a000b070.getAddress();
@@ -1537,13 +630,6 @@ public final class Bios {
 
   @Method(0xbfc078a4L)
   public static int dev_cd_open_Impl_A5f(final long fcb, final String path, final int mode) {
-    if((CdGetStatus_Impl_Aa6() & 0x10L) != 0) {
-      if(cdromPostInit() == 0) {
-        MEMORY.ref(4, fcb).offset(0x18L).setu(0x10L);
-        return -1;
-      }
-    }
-
     //LAB_bfc078f8
     final char[] temp = new char[path.length()];
 
@@ -1580,10 +666,6 @@ public final class Bios {
 
     //LAB_bfc0797c
     final long v0 = FUN_bfc083cc(0, str);
-    if(v0 == -0x1L) {
-      MEMORY.ref(4, fcb).offset(0x18L).setu(0x2L);
-      return -1;
-    }
 
     //LAB_bfc079a0
     final long v1 = _a00091f0.offset(v0 * 24).getAddress();
@@ -1597,58 +679,14 @@ public final class Bios {
     return 0;
   }
 
-  @Method(0xbfc079f8L)
-  public static int dev_cd_close_Impl_A61(final int fcb) {
-    return 0;
-  }
-
   @Method(0xbfc07a04L)
   public static int dev_cd_read_Impl_A60(final long fcb, final long dest, final int length) {
-    long t7 = length & 0x7ffL;
-    if(length < 0 && t7 != 0) {
-      t7 -= 0x800L;
-    }
-
     //LAB_bfc07a34
-    final long a0 = MEMORY.ref(4, fcb).offset(0x10L).get();
-    if(t7 != 0 || (a0 & 0x7ffL) != 0) {
-      //LAB_bfc07a54
-      MEMORY.ref(4, fcb).offset(0x18L).setu(0x16L);
-      return -1;
-    }
-
-    //LAB_bfc07a60
-    if(a0 >= MEMORY.ref(4, fcb).offset(0x20L).get()) {
-      MEMORY.ref(4, fcb).offset(0x18L).setu(0x16L);
-      return -1;
-    }
-
-    //LAB_bfc07a84
-    if((CdGetStatus_Impl_Aa6() & 0x10L) != 0 && cdromPostInit() == 0) {
-      MEMORY.ref(4, fcb).offset(0x18L).setu(0x10L);
-      return -1;
-    }
-
-    //LAB_bfc07ac0
-    if(_a0009d7c.get() != MEMORY.ref(4, fcb).offset(0x4L).get()) {
-      MEMORY.ref(4, fcb).offset(0x18L).setu(0x10L);
-      return -1;
-    }
-
     //LAB_bfc07aec
-    int adjustedLength = length;
-    if(length < 0) {
-      adjustedLength += 0x7ff;
-    }
-
     //LAB_bfc07b08
-    final int sectors = adjustedLength / 0x800;
+    final int sectors = length / 0x800;
 
     CDROM.readFromDisk(new CdlLOC().unpack(MEMORY.ref(4, fcb).offset(0x24L).get() + MEMORY.ref(4, fcb).offset(0x10L).get() / 0x800L), sectors, dest);
-//    if(CdReadSector_Impl_Aa5(sectors, MEMORY.ref(4, fcb).offset(0x24L).get() + MEMORY.ref(4, fcb).offset(0x10L).get() / 0x800L, dest) != sectors) {
-//      MEMORY.ref(4, fcb).offset(0x18L).setu(0x10L);
-//      return -1;
-//    }
 
     //LAB_bfc07b40
     final long v = MEMORY.ref(4, fcb).offset(0x10L).get();
@@ -1666,122 +704,6 @@ public final class Bios {
 
     //LAB_bfc07b78
     return (int)v1;
-  }
-
-  @Method(0xbfc07c1cL)
-  public static int CdReadSector_Impl_Aa5(final int count, final long sector, final long buffer) {
-    final CdlLOC pos = new CdlLOC().unpack(sector);
-
-    long attempts = 0;
-
-    LAB_bfc07c5c:
-    while(true) {
-      attempts++;
-      if(attempts >= 10L) {
-        SystemErrorBootOrDiskFailure_Impl_Aa1('D', 0xc);
-        return -1;
-      }
-
-      //LAB_bfc07c78
-      long s0 = 99999L;
-
-      //LAB_bfc07d94
-      while(CdAsyncSeekL(pos) == 0 && s0 > 0) {
-        s0--;
-      }
-
-      //LAB_bfc07db0
-      if((int)s0 <= 0) {
-        SystemErrorBootOrDiskFailure_Impl_Aa1('D', 0xb);
-        return -1;
-      }
-
-      //LAB_bfc07dcc
-      while(TestEvent(EventId_HwCdRom_EvSpCOMP_a000b9bc.get()) != 1) {
-        //LAB_bfc07df0
-        if(TestEvent(EventId_HwCdRom_EvSpERROR_a000b9c8.get()) == 1) {
-          SystemErrorBootOrDiskFailure_Impl_Aa1('D', 0xc);
-          continue LAB_bfc07c5c;
-        }
-      }
-
-      //LAB_bfc07e1c
-      int sectorsRead = CdAsyncReadSector(count, buffer, 0x80);
-      s0 = 99999L;
-
-      //LAB_bfc07e34
-      while(sectorsRead == 0 && s0 > 0) {
-        sectorsRead = CdAsyncReadSector(count, buffer, 0x80);
-        s0--;
-      }
-
-      //LAB_bfc07e58
-      if((int)s0 <= 0) {
-        SystemErrorBootOrDiskFailure_Impl_Aa1('D', 0xc);
-        return -1;
-      }
-
-      //LAB_bfc07e74
-      //LAB_bfc07e7c
-      while((int)s0 > 0) {
-        if(TestEvent(EventId_HwCdRom_EvSpCOMP_a000b9bc.get()) == 1) {
-          return count;
-        }
-
-        //LAB_bfc07e9c
-        if(TestEvent(EventId_HwCdRom_EvSpERROR_a000b9c8.get()) == 1) {
-          SystemErrorBootOrDiskFailure_Impl_Aa1('D', 0x16);
-          continue LAB_bfc07c5c;
-        }
-
-        //LAB_bfc07ec8
-        if(TestEvent(EventId_HwCdRom_EvSpDE_a000b9c4.get()) == 1) {
-          SystemErrorBootOrDiskFailure_Impl_Aa1('D', 0x17);
-          return -1;
-        }
-      }
-
-      return sectorsRead;
-    }
-
-    //LAB_bfc07f00
-  }
-
-  @Method(0xbfc07f28L)
-  public static int CdGetStatus_Impl_Aa6() {
-    final Memory.TemporaryReservation temp = MEMORY.temp();
-    final Value sp34 = temp.get();
-    long s1 = 9;
-
-    //LAB_bfc07f50
-    while((CdAsyncGetStatus(sp34.getAddress()) & 0xffL) == 0 && s1-- > 0) {
-      DebugHelper.sleep(1);
-    }
-
-    //LAB_bfc07f70
-    if((int)s1 <= 0) {
-      SystemErrorBootOrDiskFailure_Impl_Aa1('D', 0x1f);
-      return -1;
-    }
-
-    //LAB_bfc07f9c
-    do {
-      if((TestEvent(EventId_HwCdRom_EvSpCOMP_a000b9bc.get()) & 0xffL) == 0x1L) {
-        return (int)sp34.get();
-      }
-
-      //LAB_bfc07fc4
-      if((TestEvent(EventId_HwCdRom_EvSpERROR_a000b9c8.get()) & 0xffL) == 0x1L) {
-        SystemErrorBootOrDiskFailure_Impl_Aa1('D', 0x20);
-        return -1;
-      }
-
-      //LAB_bfc07ff8
-    } while((int)s1 > 0);
-
-    //LAB_bfc0800c
-    //LAB_bfc08010
-    return (int)sp34.get();
   }
 
   @Method(0xbfc08020L)
@@ -1906,11 +828,6 @@ public final class Bios {
     return -0x1L;
   }
 
-  @Method(0xbfc085b0L)
-  public static void AddCdromDevice_Impl_A96() {
-    AddDevice(CdromDeviceInfo_bfc0e2f0.getAddress());
-  }
-
   @Method(0xbfc0d890L)
   public static int open(final String name, final int mode) {
     return FileOpen_Impl_B32(name, mode);
@@ -1996,11 +913,6 @@ public final class Bios {
     return TestEvent_Impl_B0b(event);
   }
 
-  @Method(0xbfc0d9f0L)
-  public static boolean AddDevice(final long deviceInfo) {
-    return AddDevice_Impl_B47(deviceInfo);
-  }
-
   @Method(0xbfc0dae0L)
   public static long alloc_kernel_memory(final int size) {
     return alloc_kernel_memory_Impl_B00(size);
@@ -2019,11 +931,6 @@ public final class Bios {
   @Method(0xbfc0db20L)
   public static void InstallExceptionHandlers() {
     InstallExceptionHandlers_Impl_C07();
-  }
-
-  @Method(0xbfc0db30L)
-  public static void InstallDevices(final int ttyFlag) {
-    InstallDevices_Impl_C12(ttyFlag);
   }
 
   @Method(0xbfc0db40L)
@@ -2046,33 +953,8 @@ public final class Bios {
     EnqueueTimerAndVblankIrqs_Impl_C00(priority);
   }
 
-  @Method(0xbfc0dbf0L)
-  public static void EnqueueCdIntr() {
-    EnqueueCdIntr_Impl_Aa2();
-  }
-
-  @Method(0xbfc0dc00L)
-  public static void DequeueCdIntr() {
-    DequeueCdIntr_Impl_Aa3();
-  }
-
   @Method(0xbfc0dc10L)
   public static boolean CdInitSubFunc() {
     return CdInitSubFunc_Impl_A95();
-  }
-
-  @Method(0xbfc0dc20L)
-  public static int CdAsyncSeekL(final CdlLOC src) {
-    return CdAsyncSeekL_Impl_A78(src);
-  }
-
-  @Method(0xbfc0dc30L)
-  public static int CdAsyncReadSector(final int count, final long dest, final int mode) {
-    return CdAsyncReadSector_Impl_A7e(count, dest, mode);
-  }
-
-  @Method(0xbfc0dc40L)
-  public static int CdAsyncGetStatus(final long dest) {
-    return CdAsyncGetStatus_Impl_A7c(dest);
   }
 }
