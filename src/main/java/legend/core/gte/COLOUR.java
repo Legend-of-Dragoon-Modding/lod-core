@@ -4,7 +4,10 @@ import legend.core.memory.Value;
 import legend.core.memory.types.MemoryRef;
 import legend.core.memory.types.UnsignedByteRef;
 
+import javax.annotation.Nullable;
+
 public class COLOUR implements MemoryRef {
+  @Nullable
   private final Value ref;
 
   public final UnsignedByteRef r;
@@ -20,11 +23,18 @@ public class COLOUR implements MemoryRef {
     this.pad = new UnsignedByteRef(ref.offset(1, 0x3L));
   }
 
+  public COLOUR() {
+    this.ref = null;
+    this.r = new UnsignedByteRef();
+    this.g = new UnsignedByteRef();
+    this.b = new UnsignedByteRef();
+    this.pad = new UnsignedByteRef();
+  }
+
   public COLOUR set(final COLOUR other) {
     this.setR(other.getR());
     this.setG(other.getG());
     this.setB(other.getB());
-    this.setPad(other.getPad());
     return this;
   }
 
@@ -59,12 +69,14 @@ public class COLOUR implements MemoryRef {
     return this;
   }
 
-  public int getPad() {
-    return this.pad.get();
+  public long pack() {
+    return this.getB() << 16 | this.getG() << 8 | this.getR();
   }
 
-  public COLOUR setPad(final int pad) {
-    this.pad.set(pad);
+  public COLOUR unpack(final long packed) {
+    this.setR((int)(packed & 0xff));
+    this.setG((int)(packed >>>  8 & 0xff));
+    this.setB((int)(packed >>> 16 & 0xff));
     return this;
   }
 
@@ -91,11 +103,15 @@ public class COLOUR implements MemoryRef {
 
   @Override
   public long getAddress() {
+    if(this.ref == null) {
+      throw new NullPointerException("Can't get address of non-heap object");
+    }
+
     return this.ref.getAddress();
   }
 
   @Override
   public String toString() {
-    return "COLOUR {r: " + this.r + ", g: " + this.g + ", b: " + this.b + '}' + " @ " + Long.toHexString(this.getAddress());
+    return "COLOUR {r: " + this.r + ", g: " + this.g + ", b: " + this.b + '}' + " @ " + (this.ref == null ? " (local)" : " @ " + Long.toHexString(this.getAddress()));
   }
 }

@@ -99,6 +99,18 @@ public class BVEC4 implements MemoryRef {
     return this;
   }
 
+  public long pack() {
+    return this.getW() << 24 | this.getZ() << 16 | this.getY() << 8 | this.getX();
+  }
+
+  public BVEC4 unpack(final long packed) {
+    this.setX((int)(packed & 0xff));
+    this.setY((int)(packed >>>  8 & 0xff));
+    this.setZ((int)(packed >>> 16 & 0xff));
+    this.setW((int)(packed >>> 24 & 0xff));
+    return this;
+  }
+
   public BVEC4 add(final BVEC4 other) {
     this.x.add(other.x.get());
     this.y.add(other.y.get());
