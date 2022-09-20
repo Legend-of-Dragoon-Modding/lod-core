@@ -16,11 +16,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
+import static org.lwjgl.glfw.GLFW.GLFW_CONNECTED;
 import static org.lwjgl.glfw.GLFW.GLFW_CONTEXT_VERSION_MAJOR;
 import static org.lwjgl.glfw.GLFW.GLFW_CONTEXT_VERSION_MINOR;
 import static org.lwjgl.glfw.GLFW.GLFW_CURSOR;
 import static org.lwjgl.glfw.GLFW.GLFW_CURSOR_DISABLED;
 import static org.lwjgl.glfw.GLFW.GLFW_CURSOR_NORMAL;
+import static org.lwjgl.glfw.GLFW.GLFW_DISCONNECTED;
 import static org.lwjgl.glfw.GLFW.GLFW_FALSE;
 import static org.lwjgl.glfw.GLFW.GLFW_OPENGL_CORE_PROFILE;
 import static org.lwjgl.glfw.GLFW.GLFW_OPENGL_DEBUG_CONTEXT;
@@ -47,6 +49,7 @@ import static org.lwjgl.glfw.GLFW.glfwSetClipboardString;
 import static org.lwjgl.glfw.GLFW.glfwSetCursorPos;
 import static org.lwjgl.glfw.GLFW.glfwSetCursorPosCallback;
 import static org.lwjgl.glfw.GLFW.glfwSetInputMode;
+import static org.lwjgl.glfw.GLFW.glfwSetJoystickCallback;
 import static org.lwjgl.glfw.GLFW.glfwSetKeyCallback;
 import static org.lwjgl.glfw.GLFW.glfwSetMouseButtonCallback;
 import static org.lwjgl.glfw.GLFW.glfwSetScrollCallback;
@@ -122,6 +125,13 @@ public class Window {
     glfwSetCursorPosCallback(this.window, this.events::onMouseMove);
     glfwSetMouseButtonCallback(this.window, this.events::onMouseButton);
     glfwSetScrollCallback(this.window, this.events::onMouseScroll);
+    glfwSetJoystickCallback((jid, event) -> {
+      if(event == GLFW_CONNECTED) {
+        this.events.onControllerConnected(this.window, jid);
+      } else if(event == GLFW_DISCONNECTED) {
+        this.events.onControllerDisconnected(this.window, jid);
+      }
+    });
 
     try(final MemoryStack stack = stackPush()) {
       final IntBuffer pWidth = stack.mallocInt(1);
@@ -249,6 +259,8 @@ public class Window {
     private final List<Click> mousePress = new ArrayList<>();
     private final List<Click> mouseRelease = new ArrayList<>();
     private final List<Scroll> mouseScroll = new ArrayList<>();
+    private final List<ControllerState> controllerConnected = new ArrayList<>();
+    private final List<ControllerState> controllerDisconnected = new ArrayList<>();
     private final List<Runnable> draw = new ArrayList<>();
     private final Window window;
 
@@ -309,6 +321,14 @@ public class Window {
       this.mouseScroll.forEach(cb -> cb.action(this.window, deltaX, deltaY));
     }
 
+    private void onControllerConnected(final long window, final int id) {
+      this.controllerConnected.forEach(cb -> cb.action(this.window, id));
+    }
+
+    private void onControllerDisconnected(final long window, final int id) {
+      this.controllerDisconnected.forEach(cb -> cb.action(this.window, id));
+    }
+
     public void onKeyPress(final Key callback) {
       this.keyPress.add(callback);
     }
@@ -339,6 +359,14 @@ public class Window {
 
     public void onMouseScroll(final Scroll callback) {
       this.mouseScroll.add(callback);
+    }
+
+    public void onControllerConnected(final ControllerState callback) {
+      this.controllerConnected.add(callback);
+    }
+
+    public void onControllerDisconnected(final ControllerState callback) {
+      this.controllerDisconnected.add(callback);
     }
 
     private void onDraw() {
@@ -373,6 +401,10 @@ public class Window {
 
     @FunctionalInterface public interface Scroll {
       void action(final Window window, final double deltaX, final double deltaY);
+    }
+
+    @FunctionalInterface public interface ControllerState {
+      void action(final Window window, final int id);
     }
   }
 }

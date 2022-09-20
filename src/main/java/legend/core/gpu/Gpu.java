@@ -37,6 +37,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.Scanner;
 import java.util.function.BiFunction;
 import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
@@ -45,8 +46,12 @@ import static legend.core.Hardware.DMA;
 import static legend.core.Hardware.INTERRUPTS;
 import static legend.core.Hardware.MEMORY;
 import static legend.core.MathHelper.colour24To15;
+import static org.lwjgl.glfw.GLFW.GLFW_JOYSTICK_LAST;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_TAB;
 import static org.lwjgl.glfw.GLFW.glfwGetCurrentContext;
+import static org.lwjgl.glfw.GLFW.glfwGetJoystickGUID;
+import static org.lwjgl.glfw.GLFW.glfwGetJoystickName;
+import static org.lwjgl.glfw.GLFW.glfwJoystickPresent;
 import static org.lwjgl.opengl.GL11C.GL_NEAREST;
 import static org.lwjgl.opengl.GL11C.GL_RGBA;
 import static org.lwjgl.opengl.GL11C.GL_TRIANGLE_STRIP;
@@ -520,6 +525,30 @@ public class Gpu implements Runnable {
       this.lastFrame = System.nanoTime();
     });
 
+    if(Config.controllerConfig()) {
+      final Scanner scanner = new Scanner(System.in);
+
+      System.out.println("Beginning controller configuration.");
+      System.out.println("Choose a joystick:");
+      for(int i = 0; i < GLFW_JOYSTICK_LAST; i++) {
+        if(glfwJoystickPresent(i)) {
+          System.out.println((i + 1) + ": " + glfwGetJoystickName(i) + " (" + glfwGetJoystickGUID(i) + ')');
+        }
+      }
+
+      final int index = this.readInt(scanner, "# ", "Invalid index") - 1;
+      final String guid = glfwGetJoystickGUID(index);
+
+      Config.controllerConfig(false);
+      Config.controllerGuid(guid);
+
+      try {
+        Config.save();
+      } catch(final IOException e) {
+        System.err.println("Failed to save config");;
+      }
+    }
+
     this.window.show();
 
     try {
@@ -530,6 +559,18 @@ public class Gpu implements Runnable {
     } finally {
       this.guiManager.free();
       font.free();
+    }
+  }
+
+  private int readInt(final Scanner scanner, final String prompt, final String error) {
+    while(true) {
+      System.out.print(prompt);
+
+      try {
+        return Integer.parseInt(scanner.nextLine());
+      } catch(final NumberFormatException e) {
+        System.out.println(error);
+      }
     }
   }
 
